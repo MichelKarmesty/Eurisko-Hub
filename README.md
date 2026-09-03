@@ -1,13 +1,13 @@
 # Internal Operations Service Hub
 
-## Overview
-A centralized internal ticketing system designed to replace fragmented communication channels such as WhatsApp and email with a structured, auditable workflow for IT, HR, and Maintenance requests.
+## What this is
+Eurisko Hub gives employees one place to ask for help from IT, HR, or Maintenance. Instead of chasing requests through WhatsApp messages and scattered emails, people can submit a ticket, follow its progress, and see how it was resolved.
 
 ## Why this repository exists
-This repository contains the Week 1 Product Foundation deliverable for the Eurisko Academy Program. It documents the core product specification, system architecture, and data model before any implementation work begins.
+This is the Week 1 Product Foundation for the Eurisko Academy Program. It captures what we are building, how the system will fit together, and what data it needs before implementation starts.
 
 ## What you need
-Only a text editor, Markdown viewer, or browser is required for this stage. No runtime environment or dependencies are needed yet.
+For now, a text editor, Markdown viewer, or browser is enough. There is no runtime environment or dependency setup yet.
 
 ## Get the project
 Clone the repository:
@@ -17,16 +17,16 @@ git clone https://github.com/MichelKarmesty/Eurisko-Hub.git
 ```
 
 ## Install dependencies
-There are no dependencies to install for this milestone. This phase is focused on design and documentation rather than executable code.
+There are no dependencies to install yet. This milestone is about agreeing on the product and its design, not running an application.
 
 ## Run the project
-There is no app to launch yet. This repository is currently a documentation-first foundation for the product and system design.
+There is no app to launch yet. At this point, the repository is the product and system plan.
 
-## Open in the browser
-No local host URL is active yet. Review the repository files directly in GitHub or in VS Code.
+## Open the docs
+No local URL is available yet. Read the files directly on GitHub or in VS Code.
 
-## Roles and ticket flows to explore
-The system is designed around these future roles and access boundaries:
+## Roles and access
+The first version is built around five roles:
 - Requester
 - IT_Agent
 - HR_Agent
@@ -34,14 +34,14 @@ The system is designed around these future roles and access boundaries:
 - Admin
 
 ## Documentation structure
-Start in the `docs/` folder and review the documents in this order:
+Start in the `docs/` folder and read the documents in this order:
 - [docs/product-spec.md](docs/product-spec.md)
 - [docs/architecture.md](docs/architecture.md)
 - [docs/data-model.md](docs/data-model.md)
 - [docs/decisions/ADR-001.md](docs/decisions/ADR-001.md)
 
-## What to ignore for now
-Do not look for backend routes, databases, or frontend packages yet. This stage is intentionally limited to product and architecture definition.
+## What is not here yet
+You will not find backend routes, database migrations, or frontend packages yet. We are deliberately keeping this stage focused on the product and architecture.
 
 ## Current status
-This repository currently holds the foundational planning documents for the MVP and the first architecture decision record.
+The MVP is still in the planning stage. This repository contains the product foundation, architecture draft, data model, and first architecture decision record.

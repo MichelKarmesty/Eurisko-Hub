@@ -1,37 +1,37 @@
 # Product Specification: Internal Operations Service Hub (MVP)
 
 ## 1. Problem & Context
-**What problem are you solving?**
-Internal communication in companies is often messy. Employees ask for IT, HR, or Maintenance help via WhatsApp or random emails, leading to lost requests and confusion. This Minimum Viable Product (MVP) provides a simple ticketing system where employees can submit requests and support agents can track and resolve them in one place.
+**What problem are we solving?**
+Employees currently ask for IT, HR, or Maintenance help through WhatsApp and scattered emails. Requests get buried, people lose track of what is happening, and support teams have no shared queue. This MVP gives everyone one simple place to submit, follow, and resolve requests.
 
 ## 2. Actors & Stakeholders
-**Who is involved?**
-* **Employee (Requester):** Submits tickets when they need help.
-* **Support Agent (IT / HR / Maintenance):** Receives and fixes the issue for their specific department.
-* **Admin / Manager:** Has access to view all tickets across all departments to ensure nothing is ignored.
+**Who uses it?**
+* **Employee (Requester):** Opens a ticket when they need help and checks its progress.
+* **Support Agent (IT / HR / Maintenance):** Works on tickets for their department and records the outcome.
+* **Admin / Manager:** Sees every ticket across the company and can spot work that needs attention.
 
 ## 3. Functional Requirements
 **What must the product do?**
-* **Authentication & Authorization:** Standard self-registration and login, with Role-Based Access Control (RBAC) to ensure users (Employees, Agents, Admins) only access their permitted views.
+* **Authentication & Authorization:** Users can register and log in. Role-Based Access Control (RBAC) ensures employees, agents, and admins only see the views and tickets they are allowed to access.
 * **Ticket Submission:** Employees can create a ticket with a Title, Category (Fixed list: IT, HR, Maintenance), Priority (Low, Medium, High), and Description.
 * **Ticket Dashboard (Requester):** Employees can see a list of their own tickets and their current status.
-* **Agent Queue:** Agents can view a list of open tickets assigned strictly to their category.
+* **Agent Queue:** Agents can view open tickets for their department.
 * **Status Updates & Notes:** Agents can claim a ticket, change its status (`Open` -> `In Progress` -> `Resolved`), and add a simple text "Resolution Note" when closing it.
-* **Admin Dashboard:** Admins/Managers have a global view of all tickets across all categories to monitor overall volume and operations.
+* **Admin Dashboard:** Admins and managers can view all tickets across all departments in one place.
 
 ## 4. Non-Functional Requirements
-**How well must the system perform?**
-* **Simplicity:** The UI must be clean and simple, using standard forms and clear tables/lists.
-* **Responsiveness:** The app should load fast and provide immediate visual feedback when a status is updated.
+**What should using it feel like?**
+* **Simplicity:** The interface should use familiar forms and clear lists so that opening or handling a ticket feels straightforward.
+* **Responsiveness:** Pages should load quickly, and status changes should be visible immediately.
 
 ## 5. Known Facts
-**What is absolutely certain?**
-* This is an internal tool only. 
-* It focuses strictly on the core workflow of opening, tracking, and closing a ticket.
+**What do we know for sure?**
+* This is an internal tool for one company.
+* The MVP focuses on the core workflow: open a ticket, track it, and close it.
 
 ## 6. Assumptions, Constraints, & Unknowns
-* **Assumptions:** Users will self-register with a standard email and password (basic authentication).
-* **Constraints (Manual Assignment):** The system does not auto-assign tickets to specific agents. Agents look at the "Open" list and manually claim what they want to work on.
+* **Assumption:** Users will register with an email address and password.
+* **Constraint (Manual Assignment):** Tickets are not automatically assigned to individual agents. Agents choose and claim tickets from their department's open queue.
 
 ## 7. Non-Goals
 **What is explicitly out of scope for this MVP?**
@@ -41,7 +41,7 @@ Internal communication in companies is often messy. Employees ask for IT, HR, or
 * No complex Single Sign-On (SSO).
 
 ## 8. Acceptance Criteria (Scenarios)
-**How do we know it works?**
+**How will we know it works?**
 * **Scenario 1: Opening & Prioritizing a Ticket**
   * *Action:* An employee logs in, selects the "IT" category, sets Priority to "High", and writes "My screen is broken."
   * *Result:* The ticket appears in their dashboard as `Open`.
@@ -50,4 +50,4 @@ Internal communication in companies is often messy. Employees ask for IT, HR, or
   * *Result:* The ticket moves to the "Resolved" section, and the employee sees the updated status and the resolution note.
 * **Scenario 3: Admin Global View**
   * *Action:* The Admin logs in and opens their dashboard.
-  * *Result:* The Admin successfully views all tickets from IT, HR, and Maintenance in one combined list.(can be modified later on to take action)
+  * *Result:* The admin sees tickets from IT, HR, and Maintenance in one combined list. Admin actions beyond viewing can be added later.

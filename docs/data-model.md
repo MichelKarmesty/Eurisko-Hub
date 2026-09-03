@@ -4,28 +4,27 @@
 
 ---
 
-## 1. DOMAIN (Entities & Relationships)
-*   **User:** Represents all individuals interacting with the system. Contains credentials and a strictly defined Role (Employee, IT_Agent, HR_Agent, Maintenance_Agent, Admin).
-*   **Ticket:** The core entity representing a request. Contains Title, Description, Category, Priority, Status, and Resolution Note.
-*   **Relationships & Cardinality:** 
-    *   A User (Requester) can own *many* Tickets (1-to-M).
-    *   A Ticket belongs to exactly *one* Requester.
-    *   A Ticket is claimed by *zero or one* User (Agent).
+## 1. Domain: Entities & Relationships
+*   **User:** Anyone who uses the system. A user has login credentials and one defined role: Employee, IT_Agent, HR_Agent, Maintenance_Agent, or Admin.
+*   **Ticket:** A request for help. It contains a title, description, category, priority, status, and resolution note.
+*   **Relationships:**
+    *   A requester can own many tickets (1-to-M).
+    *   Each ticket belongs to exactly one requester.
+    *   A ticket can be claimed by zero or one agent.
 
-## 2. LIFECYCLE & RULES (State & Invariants)
-*   **State Transitions:** A Ticket's status strictly flows as: `Open` -> `In Progress` -> `Resolved`.
-*   **Invariants:** 
-    *   A Ticket cannot be created without a valid Category (IT, HR, Maintenance).
-    *   A Ticket cannot transition to `Resolved` without a Resolution Note attached.
-*   **Authorization-Sensitive Rules:** 
-    *   An Agent can only read or claim a ticket if the Ticket's Category matches the Agent's Role.
+## 2. Lifecycle & Rules
+*   **Status flow:** A ticket moves from `Open` to `In Progress` to `Resolved`.
+*   **Rules:**
+    *   A ticket needs a valid category: IT, HR, or Maintenance.
+    *   A ticket cannot move to `Resolved` without a resolution note.
+*   **Permission rule:** An agent can read or claim a ticket only when its category matches the agent's department.
 
-## 3. STORAGE (Implementation Input)
-*   **Relational Reasoning:** The system will use a Relational Database (SQL). The domain has strict schemas, predictable relationships (Users -> Tickets), and requires strong consistency (ACID properties) to ensure no ticket state is corrupted or lost.
-*   **Durable vs. Derived:** All ticket details, user roles, and status changes are highly durable and persisted to disk. Ticket volume metrics for the Admin view are derived (calculated dynamically via SQL aggregations on read).
+## 3. Storage
+*   **Why SQL:** The system has clear schemas, predictable User-to-Ticket relationships, and needs strong consistency (ACID properties) so ticket data is not lost or corrupted.
+*   **Stored vs. calculated:** Ticket details, user roles, and status changes are stored durably. Admin volume metrics are calculated when the dashboard reads the data.
 
-## 4. ACCESS (Implementation Input)
-*   **Important Queries / Access Patterns:**
+## 4. Access Patterns
+*   **Important queries:**
     *   *Requester Pattern:* `SELECT * FROM Tickets WHERE requester_id = [Current User]`
     *   *Agent Pattern:* `SELECT * FROM Tickets WHERE category = [Agent's Category] AND status = 'Open'`
     *   *Admin Pattern:* `SELECT * FROM Tickets` (Global view)
