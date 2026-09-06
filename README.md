@@ -39,9 +39,19 @@ Start in the `docs/` folder and read the documents in this order:
 - [docs/architecture.md](docs/architecture.md)
 - [docs/data-model.md](docs/data-model.md)
 - [docs/decisions/ADR-001.md](docs/decisions/ADR-001.md)
+- [docs/api.md](docs/api.md)
+
+## Backend implementation
+The NestJS backend that implements this design lives in [`backend/`](backend/)
+(auth, RBAC user management, tickets with claim/status flow, and durable
+ticket history). See [backend/README.md](backend/README.md) to run it.
 
 ## What is not here yet
-You will not find backend routes, database migrations, or frontend packages yet. We are deliberately keeping this stage focused on the product and architecture.
+Database migrations, deployment configuration, and the frontend web client
+are not in this repository yet.
 
 ## Current status
-The MVP is still in the planning stage. This repository contains the product foundation, architecture draft, data model, and first architecture decision record.
+The product foundation, architecture draft, data model, and first ADR are in
+`docs/`, and a working NestJS API (see `docs/api.md`) now implements the core
+MVP workflow: open a ticket, claim it from the department queue, resolve it
+with a note, and review it from the admin dashboard.

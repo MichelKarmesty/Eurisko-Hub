@@ -7,6 +7,7 @@ This folder contains the decisions and working notes behind the Internal Operati
 2. [architecture.md](architecture.md) - describes the system's main parts, boundaries, and approach to failures.
 3. [data-model.md](data-model.md) - describes the core entities, ticket lifecycle, and important access patterns.
 4. [decisions/ADR-001.md](decisions/ADR-001.md) - explains why agents claim tickets from a shared queue instead of receiving automatic assignments.
+5. [api.md](api.md) - documents the NestJS backend API (in `../backend/`) that implements this design.
 
 ## Purpose of this phase
 We are planning before we build. These documents give the team a shared understanding of the product, architecture, and data before code or infrastructure work begins.
