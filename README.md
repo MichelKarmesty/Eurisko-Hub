@@ -46,12 +46,23 @@ The NestJS backend that implements this design lives in [`backend/`](backend/)
 (auth, RBAC user management, tickets with claim/status flow, and durable
 ticket history). See [backend/README.md](backend/README.md) to run it.
 
+## Frontend implementation
+The React web client that drives the MVP flows lives in [`frontend/`](frontend/).
+It ships the first real slice end-to-end — an assigned Support Agent resolves
+a ticket (`React action → PATCH /tickets/:id/status → SQLite → React result`).
+See [frontend/README.md](frontend/README.md) and
+[`scripts/verify-slice.mjs`](scripts/verify-slice.mjs) to run and verify it.
+
 ## What is not here yet
-Database migrations, deployment configuration, and the frontend web client
-are not in this repository yet.
+Database migrations and deployment configuration are not in this repository
+yet. Local runs persist to a SQLite file via the `DB_FILE` env var; a
+production database (e.g. PostgreSQL) can be swapped into the TypeORM config
+in `backend/src/app.module.ts`.
 
 ## Current status
 The product foundation, architecture draft, data model, and first ADR are in
-`docs/`, and a working NestJS API (see `docs/api.md`) now implements the core
-MVP workflow: open a ticket, claim it from the department queue, resolve it
-with a note, and review it from the admin dashboard.
+`docs/`, a working NestJS API (see `docs/api.md`) implements the core MVP
+workflow (open a ticket, claim it from the department queue, resolve it with
+a note, review it from the admin dashboard), and the React client in
+`frontend/` wires that workflow end-to-end for the "agent resolves a ticket"
+slice — with durable SQLite persistence across restarts.

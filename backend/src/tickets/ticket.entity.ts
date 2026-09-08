@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -14,8 +15,14 @@ import {
 } from '../common/domain';
 import { User } from '../users/user.entity';
 
-/** docs/data-model.md §1 — Ticket: a request for help. */
+/**
+ * docs/data-model.md §1 — Ticket: a request for help.
+ * §4 — composite index on (category, status): agents constantly refresh their
+ * department queue with `WHERE category = ? AND status = 'Open'`, and Admins
+ * filter the global list the same way.
+ */
 @Entity('tickets')
+@Index(['category', 'status'])
 export class Ticket {
   @PrimaryGeneratedColumn()
   id: number;

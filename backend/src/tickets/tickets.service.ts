@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -221,7 +222,10 @@ export class TicketsService {
     if (toStatus === 'Resolved') {
       const note = (resolutionNote ?? '').trim();
       if (!note) {
-        throw new ForbiddenException(
+        // Data-model.md §2: a ticket cannot move to Resolved without a
+        // resolution note. A missing/invalid body field is a client error
+        // (400), not an authorization problem (403).
+        throw new BadRequestException(
           'A resolution note is required before resolving a ticket.',
         );
       }

@@ -1,0 +1,24 @@
+{
+  "name": "eurisko-hub-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "E2E verification for the 'assigned agent resolves a ticket' slice (Eurisko Hub).",
+  "scripts": {
+    "e2e:browser": "node scripts/resolve-slice.e2e.mjs",
+    "test:ui": "vitest run",
+    "test:ui:watch": "vitest"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.0",
+    "jsdom": "^30.0.1",
+    "playwright": "^1.58.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "vitest": "^5.0.0"
+  }
+}

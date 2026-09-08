@@ -1,0 +1,20 @@
+# Runtime database files (sql.js/SQLite) — never commit local state
+backend/.data/
+
+# Frontend (Vite + React)
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# E2E tooling (Playwright) + screenshots
+e2e/node_modules/
+e2e/.browsers/
+artifacts/
+
+# npm workspace-local cache
+.npm-cache/
+
+# Logs / env
+*.log
+.env
+.DS_Store

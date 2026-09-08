@@ -1,0 +1,25 @@
+{
+  "name": "eurisko-hub-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Eurisko Hub - Internal Operations Service Hub web client (React + Vite). Implements the 'agent resolves a ticket' slice end-to-end.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.6"
+  }
+}

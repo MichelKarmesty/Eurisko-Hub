@@ -92,7 +92,9 @@ Already-claimed or non-Open tickets are rejected.
 Body: `{ "status": "In Progress" | "Resolved", "resolutionNote": "..." }`
 
 * Allowed transitions only: `Open → In Progress → Resolved` (data-model §2).
-* Moving to `Resolved` **requires** a non-empty `resolutionNote` (data-model §2 rule).
+* Moving to `Resolved` **requires** a non-empty `resolutionNote`
+  (data-model §2 rule) — an empty/missing note → `400 Bad Request`.
+* A `status` outside the allowed set → `400 Bad Request` (DTO validation).
 * Anyone else (including the requester, or another agent) → `403`.
 
 ## Admin dashboard
