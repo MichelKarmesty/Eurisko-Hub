@@ -33,6 +33,19 @@ The first version is built around five roles:
 - Maintenance_Agent
 - Admin
 
+## See it live in VS Code
+This repository lives inside WSL (`/home/michel_k/Eurisko`), so open it in VS
+Code with the **Remote - WSL** extension so every change made here shows up
+instantly:
+
+1. In VS Code open the WSL Remote window (bottom-left `><` → *Connect to WSL*),
+   or open a WSL terminal and run `code /home/michel_k/Eurisko`.
+2. File → Open Folder → `\\wsl$\<distro>\home\michel_k\Eurisko` (Windows
+   Explorer path) or `/home/michel_k/Eurisko` from inside WSL.
+3. Frontend edits hot-reload via the Vite dev server (`frontend/`, port 5173);
+   backend edits auto-restart thanks to `npm run start:dev` (`backend/`, port
+   3000). Changes are also committed and pushed to GitHub.
+
 ## Documentation structure
 Start in the `docs/` folder and read the documents in this order:
 - [docs/product-spec.md](docs/product-spec.md)

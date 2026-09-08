@@ -1,0 +1,8 @@
+{
+  // Recommended extensions when opening this repository in VS Code.
+  // The project lives in WSL, so the Remote - WSL extension is required to
+  // attach VS Code to this folder (see README "See it live in VS Code").
+  "recommendations": [
+    "ms-vscode-remote.remote-wsl"
+  ]
+}
