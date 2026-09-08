@@ -4,8 +4,8 @@
  * Renders the REAL React app (frontend/src) in jsdom with Testing Library and
  * drives it exactly like a user, while fetch is proxied to the LIVE NestJS
  * backend on :3000. This is the browser-free equivalent of the Playwright E2E
- * (the sandbox cannot run Chromium): every React action goes through real
- * HTTP, so the assertions prove the full DoD loop
+ * (no browser install needed): every React action goes through real HTTP, so
+ * the assertions prove the full DoD loop
  *
  *   React action -> PATCH /tickets/:id/status -> SQLite -> React result.
  *

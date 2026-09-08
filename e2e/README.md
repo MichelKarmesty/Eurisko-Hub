@@ -42,9 +42,9 @@ npm install
 CHROME_PATH=/path/to/chrome npm run e2e:browser
 ```
 
-The sandbox this project was built in cannot download Playwright's Chromium
-(the Microsoft CDN is unreachable) and has no system Chrome, so this script
-also accepts a `chrome-headless-shell` binary downloaded from
+If the Playwright CDN is unreachable from your network (so `npx playwright
+install chromium` cannot download a browser), this script also accepts a
+`chrome-headless-shell` binary downloaded from
 `storage.googleapis.com/chrome-for-testing-public` (Chrome for Testing) —
 e.g. `e2e/.browsers/chrome-headless-shell-linux64/chrome-headless-shell`.
 Screenshots land in `../artifacts/e2e/`.
