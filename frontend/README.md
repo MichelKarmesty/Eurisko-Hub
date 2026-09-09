@@ -40,9 +40,10 @@ required to resolve) is enforced by the NestJS backend in `../backend/`.
 
    This creates Alice (Requester), Bob & Dave (IT Agents), opens an IT ticket
    and leaves it **Resolved** — the persisted demo state. Then log in through
-   the login screen with the provisioned demo accounts
+   the UI with the demo accounts shown on the login card
    (`admin@eurisko.local` / `Admin123!`, `alice@corp.com` / `password123`,
-   `bob@corp.com` / `password123`).
+   `bob@corp.com` / `password123`), or register a new Employee account
+   (product-spec.md §3 — "Users can register and log in").
 
 ## The slice in the UI
 
@@ -69,7 +70,7 @@ src/
   types.ts           domain vocabulary mirrored from backend/src/common/domain.ts
   App.tsx            session handling + role-based view routing
   components/
-    AuthScreen.tsx        login (accounts are provisioned by an Admin)
+    AuthScreen.tsx        login / register as Employee (+ demo-account quick fill)
     RequesterView.tsx     open a ticket + my tickets (React result)
     AgentView.tsx         queue -> claim -> resolve (the slice flow)
     AdminView.tsx         global list + stats

@@ -48,8 +48,9 @@ The Vite dev server proxies `/api` to the backend on port 3000.
 **3. Log in**
 
 Open http://localhost:5173 and log in with `admin@eurisko.local` /
-`Admin123!`. New employee/agent accounts are created by an Admin (Users tab)
-or provisioned from the CLI. To provision demo accounts
+`Admin123!`, or register as an employee (self-registration always creates an
+Employee account — docs/api.md). Agent accounts are created by an Admin
+(Users tab) or provisioned from the CLI. To provision demo accounts
 (requester + IT agents) and run the full end-to-end verification once:
 
 ```bash
