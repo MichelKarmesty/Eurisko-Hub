@@ -93,8 +93,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: (session: Session) => void 
 
         <div className="demo-hint">
           <p className="muted small">
-            <strong>Demo accounts</strong> (created once by <code>scripts/verify-slice.mjs</code> on a fresh DB) —
-            click to fill, then log in to switch roles:
+            <strong>Demo accounts</strong> — click to log in:
           </p>
           <div className="chip-row">
             {DEMO_ACCOUNTS.map((a) => (
