@@ -50,4 +50,4 @@ This is an internal tool for one company, so traffic should be predictable and l
 ### Major Architecture Decisions:
 * **Monolith instead of microservices:** The system is built as a monolith. Microservices would add operational overhead without solving a problem in this small, straightforward workflow.
 
-* **Manual ticket assignment:** Assignment is manual, as described in the product constraints. Agents claim tickets themselves, so the API does not need stateful load-balancing or assignment algorithms. It only updates `assigned_to` when an agent claims a ticket.
+* **Manual ticket assignment:** Assignment is manual, as described in the product constraints. Agents claim tickets themselves, so the API does not need stateful load-balancing or assignment algorithms. It only updates the ticket's `assignedToId` when an agent claims it.
