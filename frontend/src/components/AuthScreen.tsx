@@ -17,6 +17,7 @@ const DEMO_ACCOUNTS = [
   { label: 'Admin', email: 'admin@eurisko.local', password: 'Admin123!', hint: 'seeded on first boot' },
   { label: 'Requester (Alice)', email: 'alice@corp.com', password: 'password123', hint: 'Employee' },
   { label: 'IT Agent (Bob)', email: 'bob@corp.com', password: 'password123', hint: 'IT_Agent' },
+  { label: 'IT Agent (Dave)', email: 'dave@corp.com', password: 'password123', hint: 'IT_Agent' },
   { label: 'HR Agent (Carol)', email: 'carol@corp.com', password: 'password123', hint: 'HR_Agent' },
   { label: 'Maintenance Agent (Eve)', email: 'eve@corp.com', password: 'password123', hint: 'Maintenance_Agent' },
 ];
