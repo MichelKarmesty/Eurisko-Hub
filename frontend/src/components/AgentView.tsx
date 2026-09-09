@@ -72,7 +72,7 @@ function QueueTab({ user }: { user: { id: number; name: string } }) {
   const inProgress = mine.filter((t) => t.status === 'In Progress');
   const resolved = mine
     .filter((t) => t.status === 'Resolved')
-    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+    .sort((a, b) => a.id - b.id);
 
   if (loading) return <Spinner />;
 

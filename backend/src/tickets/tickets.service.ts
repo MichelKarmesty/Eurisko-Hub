@@ -124,7 +124,9 @@ export class TicketsService {
     return this.tickets.find({
       where,
       relations: { requester: true, assignedTo: true },
-      order: { createdAt: 'DESC' },
+      // Sequential, predictable order (oldest ticket number first) so lists
+      // read 1,2,3,… instead of newest-first.
+      order: { id: 'ASC' },
     });
   }
 
