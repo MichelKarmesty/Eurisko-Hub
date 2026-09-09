@@ -49,6 +49,7 @@ function TicketsTab() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [notice, setNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [filter, setFilter] = useState<'all' | 'unclaimed' | 'inProgress' | 'resolved'>('all');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -107,10 +108,48 @@ function TicketsTab() {
       </section>
 
       <section className="card">
-        <h2>All tickets ({stats.total})</h2>
+        <div className="admin-filter-row">
+          {(
+            [
+              ['all', `All (${stats.total})`],
+              ['unclaimed', `Unclaimed (${stats.openUnclaimed})`],
+              ['inProgress', `In Progress (${stats.byStatus['In Progress'] ?? 0})`],
+              ['resolved', `Resolved (${stats.byStatus['Resolved'] ?? 0})`],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              className={`chip${filter === key ? ' chip--active' : ''}`}
+              onClick={() => setFilter(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {filter === 'unclaimed' && (
+          <p className="muted small">
+            Open tickets with no agent yet — claim them from the department queue, or the
+            Admin can start them below.
+          </p>
+        )}
+
         <TicketTable
-          tickets={tickets}
-          empty="No tickets in the system."
+          tickets={tickets.filter((t) => {
+            if (filter === 'unclaimed') return t.status === 'Open' && t.assignedToId == null;
+            if (filter === 'inProgress') return t.status === 'In Progress';
+            if (filter === 'resolved') return t.status === 'Resolved';
+            return true;
+          })}
+          empty={
+            filter === 'all'
+              ? 'No tickets in the system.'
+              : filter === 'unclaimed'
+                ? 'Nothing unclaimed — every Open ticket is being handled.'
+                : filter === 'inProgress'
+                  ? 'No tickets in progress right now.'
+                  : 'No resolved tickets yet.'
+          }
           actions={(t) => {
             if (t.status === 'Open') {
               return (

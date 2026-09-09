@@ -172,6 +172,13 @@ export class TicketsService {
     if (ticket.assignedToId != null) {
       throw new ForbiddenException('This ticket is already claimed.');
     }
+    // Conflict of interest: an agent must not handle a ticket they submitted
+    // themselves — a colleague from the same department queue takes it.
+    if (ticket.requesterId === user.id) {
+      throw new ForbiddenException(
+        'You cannot claim a ticket you submitted yourself — leave it for a colleague in the queue.',
+      );
+    }
 
     ticket.assignedToId = user.id;
     ticket.status = 'In Progress';

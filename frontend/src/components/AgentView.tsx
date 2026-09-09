@@ -88,11 +88,18 @@ function QueueTab({ user }: { user: { id: number; name: string } }) {
         <TicketTable
           tickets={queue}
           empty="Nothing waiting in your queue."
-          actions={(t) => (
-            <button className="btn" disabled={claimingId === t.id} onClick={() => void claim(t)}>
-              {claimingId === t.id ? 'Claiming…' : 'Claim'}
-            </button>
-          )}
+          actions={(t) =>
+            t.requesterId === user.id ? (
+              // Self-submitted request — must be handled by a colleague.
+              <span className="muted small" title="You submitted this request — it must be handled by another agent.">
+                Your request
+              </span>
+            ) : (
+              <button className="btn" disabled={claimingId === t.id} onClick={() => void claim(t)}>
+                {claimingId === t.id ? 'Claiming…' : 'Claim'}
+              </button>
+            )
+          }
         />
       </section>
 

@@ -465,3 +465,17 @@ table.ticket-table select {
   padding: 0.3rem 0.5rem;
 }
 
+
+/* Admin tickets filter chips ---------------------------------------------- */
+.admin-filter-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+.chip--active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+  font-weight: 600;
+}
