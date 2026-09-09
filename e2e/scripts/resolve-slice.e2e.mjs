@@ -41,11 +41,13 @@ const fail = (name, detail) => {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function loginAs(page, chipText) {
-  // Header logout if a session is active, then fill & submit the auth form.
+async function loginAs(page, email, password) {
+  // Header logout if a session is active, then fill & submit the auth form
+  // (login-only screen — type credentials, no demo-chip quick fill anymore).
   const logout = page.getByRole('button', { name: 'Switch account' });
   if (await logout.isVisible().catch(() => false)) await logout.click();
-  await page.locator('.chip', { hasText: chipText }).first().click();
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Password').fill(password);
   await page.getByRole('button', { name: 'Log in' }).click();
   await page.locator('.topbar').waitFor({ state: 'visible' });
 }
@@ -65,7 +67,7 @@ async function main() {
 
   // --- 1. Alice opens a ticket --------------------------------------------
   const title = `UI E2E ${Date.now()} - docking station flickers`;
-  await loginAs(page, 'alice@corp.com');
+  await loginAs(page, 'alice@corp.com', 'password123');
   await page.getByLabel('Title').fill(title);
   await page.getByLabel('Description').fill('Docking station output flickers on the external monitor.');
   await page.getByLabel('Category').selectOption('IT');
@@ -87,7 +89,7 @@ async function main() {
   ok(`Alice list shows the ticket as Open`);
 
   // --- 2. Bob claims it from the IT queue ---------------------------------
-  await loginAs(page, 'bob@corp.com');
+  await loginAs(page, 'bob@corp.com', 'password123');
   const queueRow = page.locator('table.tickets tr', { hasText: title });
   await queueRow.waitFor({ state: 'visible' });
   await queueRow.getByRole('button', { name: 'Claim' }).click();
@@ -134,7 +136,7 @@ async function main() {
   ok('Ticket moved to "Resolved by me" section, note visible (agent view)');
   await page.screenshot({ path: path.join(SHOTS, '3-bob-resolved-view.png'), fullPage: false });
   // --- 6. Requester sees Resolved + the note -------------------------------
-  await loginAs(page, 'alice@corp.com');
+  await loginAs(page, 'alice@corp.com', 'password123');
   const aliceRow = page.locator('table.tickets tr', { hasText: title });
   await aliceRow.waitFor({ state: 'visible' });
   const aliceText = await aliceRow.innerText();

@@ -57,21 +57,22 @@ describe('Slice: assigned agent resolves a ticket (UI -> API -> UI)', () => {
     render(<App />);
 
     // ---------- login helper used below ----------
-    const login = async (emailFragment: string, expectRole: string) => {
+    const login = async (email: string, password: string, expectRole: string) => {
       const logout = screen.queryByRole('button', { name: 'Switch account' });
       if (logout) await user.click(logout);
       // Wait for the auth screen (h1 only exists there, not in the topbar).
       await screen.findByRole('heading', { name: 'Eurisko Hub' });
-      await user.click(screen.getByRole('button', { name: new RegExp(emailFragment) }));
-      // The submit button ("Log in") must be scoped: the tab bar has its own
-      // "Log in" button.
+      // Login-only screen (no demo-chip quick fill anymore): type credentials.
       const authForm = screen.getByRole('heading', { name: 'Eurisko Hub' }).closest('.auth-card')!.querySelector('form')!;
-      await user.click(within(authForm as HTMLElement).getByRole('button', { name: 'Log in' }));
+      const form = authForm as HTMLElement;
+      await user.type(within(form).getByLabelText('Email'), email);
+      await user.type(within(form).getByLabelText('Password'), password);
+      await user.click(within(form).getByRole('button', { name: 'Log in' }));
       await screen.findByText(expectRole, { selector: '.role-chip' });
     };
 
     // 1. Alice opens a ticket --------------------------------------------
-    await login('alice@corp.com', 'Requester');
+    await login('alice@corp.com', 'password123', 'Requester');
     await screen.findByLabelText('Title'); // form mounts after tickets load
     await user.type(screen.getByLabelText('Title'), title);
     await user.type(screen.getByLabelText('Description'), 'Docking station output flickers on the external monitor.');
@@ -90,7 +91,7 @@ describe('Slice: assigned agent resolves a ticket (UI -> API -> UI)', () => {
     expect(aliceRow.textContent).toContain('IT');
 
     // 2. Bob claims it from the IT queue ----------------------------------
-    await login('bob@corp.com', 'IT Agent');
+    await login('bob@corp.com', 'password123', 'IT Agent');
     const queueSection = await screen.findByRole('heading', { name: /Department queue/ }).then((h) => h.closest('section')!);
     const queueRow = await within(queueSection).findByText(title).then((t) => t.closest('tr')!);
     await user.click(within(queueRow).getByRole('button', { name: 'Claim' }));
@@ -135,7 +136,7 @@ describe('Slice: assigned agent resolves a ticket (UI -> API -> UI)', () => {
     writeFileSync(path.join(ART, '2-bob-resolved-dom.html'), document.body.innerHTML);
 
     // 6. Requester sees Resolved + the note ---------------------------------
-    await login('alice@corp.com', 'Requester');
+    await login('alice@corp.com', 'password123', 'Requester');
     const aliceTable = await screen.findByRole('heading', { name: 'My tickets' }).then((h) => h.closest('section')!);
     const finalRow = await within(aliceTable).findByText(title).then((t) => t.closest('tr')!);
     expect(finalRow.textContent).toContain('Resolved');
