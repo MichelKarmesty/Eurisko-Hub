@@ -385,3 +385,83 @@ code {
   border-radius: 4px;
   font-size: 0.85em;
 }
+
+/* Admin tab bar ----------------------------------------------------------- */
+.tab-bar {
+  display: flex;
+  gap: 0.3rem;
+  border-bottom: 2px solid var(--line);
+  padding-bottom: 0;
+}
+.tab-btn {
+  font: inherit;
+  font-size: 0.95rem;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  color: var(--muted);
+  border-radius: 6px 6px 0 0;
+  transition: color 0.15s;
+}
+.tab-btn:hover {
+  color: var(--ink);
+  background: #f1f5f9;
+}
+.tab-btn--active {
+  color: var(--brand);
+  border-bottom-color: var(--brand);
+  font-weight: 600;
+}
+
+/* Create-user form rows --------------------------------------------------- */
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.form-row .input {
+  width: 100%;
+}
+.input {
+  font: inherit;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem;
+  background: #fff;
+  color: var(--ink);
+}
+.input:focus {
+  outline: 2px solid #bfdbfe;
+  border-color: var(--brand);
+}
+
+/* Generic data table (users list) ---------------------------------------- */
+table.ticket-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9rem;
+}
+table.ticket-table th,
+table.ticket-table td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+table.ticket-table th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+table.ticket-table select {
+  font-size: 0.85rem;
+  padding: 0.3rem 0.5rem;
+}
+

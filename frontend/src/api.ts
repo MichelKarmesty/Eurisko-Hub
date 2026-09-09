@@ -10,6 +10,7 @@ import type {
   AdminStats,
   Category,
   Priority,
+  Role,
   Session,
   Ticket,
   TicketStatus,
@@ -140,4 +141,23 @@ export function apiTicketHistory(id: number): Promise<unknown[]> {
 
 export function apiStats(): Promise<AdminStats> {
   return request<AdminStats>('GET', '/admin/stats');
+}
+
+// --- User management (Admin only) -----------------------------------------
+
+export function apiListUsers(): Promise<User[]> {
+  return request<User[]>('GET', '/users');
+}
+
+export function apiCreateUser(input: {
+  name: string;
+  email: string;
+  password: string;
+  role: Role;
+}): Promise<User> {
+  return request<User>('POST', '/users', input);
+}
+
+export function apiPatchUserRole(id: number, role: Role): Promise<User> {
+  return request<User>('PATCH', `/users/${id}/role`, { role });
 }
