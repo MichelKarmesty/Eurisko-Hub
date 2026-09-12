@@ -8,16 +8,26 @@ against the *live* stack (React app → NestJS → SQLite):
 | `npx vitest run` (`npm run test:ui`) | The **real React components** (`../frontend/src`) in jsdom, with fetch proxied to the live backend on `:3000` | Everywhere — no browser needed (default) |
 | `npm run e2e:browser` | A **real Chromium** browser clicking through `http://localhost:5173` (needs a Chrome binary, see below) | When a browser is available — full fidelity + screenshots |
 
-## Prerequisites (both)
+## Prerequisites
+
+**DOM-level test (default):** only a running backend is needed — the Vitest
+global setup provisions the demo personas itself.
 
 ```bash
 cd ../backend && npm install && npm run build
-DB_FILE="$PWD/.data/hub.sqlite" npm start &     # :3000, persistent DB
-cd ../frontend && npm install && npm run dev &  # :5173 (proxies /api -> :3000)
-
-# once per fresh DB: provision demo personas + a resolved sample ticket
-cd .. && node scripts/verify-slice.mjs full
+DB_FILE="$PWD/.data/e2e.sqlite" npm start        # :3000, persistent DB
 ```
+
+**Browser test (optional):** also start the frontend dev server and provision
+the demo personas once (the Playwright script does not use the Vitest setup):
+
+```bash
+cd ../frontend && npm install && npm run dev &   # :5173 (proxies /api -> :3000)
+cd .. && node scripts/verify-slice.mjs full      # demo personas + sample data
+```
+
+Or run every automated layer at once from the repository root:
+`node scripts/run-tests.mjs`.
 
 ## DOM-level UI test (recommended default)
 
@@ -26,6 +36,14 @@ cd e2e
 npm install
 npx vitest run          # or: npm run test:ui
 ```
+
+Point at a different API with `API_URL=http://127.0.0.1:3100 npm run test:ui`.
+
+A **Vitest global setup** (`global-setup.ts`) runs first: it waits for the API
+and provisions the demo personas through the real Admin API, so a freshly
+started backend (only the seeded admin exists) is enough — no manual
+`verify-slice` run is required. If the API is unreachable it fails immediately
+with the exact command to start it.
 
 Runs `dom/resolve-slice.ui.test.tsx`: Alice opens a ticket → Bob claims it →
 empty resolution note is rejected (backend 400 rendered in the form) → Bob

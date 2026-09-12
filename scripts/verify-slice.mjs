@@ -32,9 +32,12 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@eurisko.local';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'Admin123!';
 
 // Demo personas provisioned through the real Admin /users endpoint.
+// Keep this list in sync with DEMO_ACCOUNTS in frontend/src/components/AuthScreen.tsx.
 const REQUESTER = { name: 'Alice Requester', email: 'alice@corp.com', password: 'password123' };
 const AGENT = { name: 'Bob IT Agent', email: 'bob@corp.com', password: 'password123' };
 const OTHER_AGENT = { name: 'Dave IT Agent', email: 'dave@corp.com', password: 'password123' };
+const HR_AGENT = { name: 'Carol HR Agent', email: 'carol@corp.com', password: 'password123' };
+const MAINT_AGENT = { name: 'Eve Maintenance Agent', email: 'eve@corp.com', password: 'password123' };
 const NOTE = 'Replaced the HDMI cable; display is stable now.';
 const TITLE = 'First slice E2E - monitor keeps flickering';
 
@@ -119,9 +122,13 @@ async function run() {
     const requester = await ensureUser(admin.accessToken, REQUESTER, 'Employee');
     const agent = await ensureUser(admin.accessToken, AGENT, 'IT_Agent');
     const other = await ensureUser(admin.accessToken, OTHER_AGENT, 'IT_Agent');
+    const hr = await ensureUser(admin.accessToken, HR_AGENT, 'HR_Agent');
+    const maint = await ensureUser(admin.accessToken, MAINT_AGENT, 'Maintenance_Agent');
     check('Provisioned Requester (Employee)', !!requester?.accessToken);
     check('Provisioned assigned Agent (IT_Agent)', !!agent?.accessToken);
     check('Provisioned unassigned Agent (IT_Agent)', !!other?.accessToken);
+    check('Provisioned HR Agent (HR_Agent)', !!hr?.accessToken);
+    check('Provisioned Maintenance Agent (Maintenance_Agent)', !!maint?.accessToken);
 
     // 3. Requester opens an IT ticket (product-spec §3).
     const opened = await req('POST', '/tickets', {

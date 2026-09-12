@@ -16,7 +16,20 @@ npm install
 npm run build        # tsc -> dist/
 npm start            # run compiled build
 npm run start:dev    # ts-node watch
-npm run typecheck    # tsc --noEmit
+npm run typecheck    # tsc --noEmit (src)
+npm run typecheck:test # tsc -p tsconfig.spec.json (src + tests)
+```
+
+## Tests
+Vitest + SWC (NestJS 12 is ESM-only and DI needs `emitDecoratorMetadata`, which
+SWC emits — see `vitest.config.mts`). All suites are self-contained and use an
+in-memory SQLite database; no server or database file is required.
+```bash
+npm test                 # all suites
+npm run test:unit        # business rule: the ticket lifecycle
+npm run test:integration # backend <-> real SQL database
+npm run test:api         # HTTP contract + authorization + regression
+npm run test:watch       # watch mode
 ```
 
 ## Environment
@@ -31,12 +44,19 @@ npm run typecheck    # tsc --noEmit
 ## Layout
 ```
 src/
-  main.ts               bootstrap (CORS, validation, serialization)
+  main.ts               bootstrap (listens on PORT)
+  app.setup.ts          shared HTTP pipeline (validation + serialization) used by
+                        main.ts AND the API tests, so tests hit the real boundary
   app.module.ts         module wiring + TypeORM + admin seed
   common/               domain enums + JWT/RBAC guards + decorators
   auth/                 register/login/me
   users/                admin user management (provision agents)
   tickets/              tickets + history (entities/service/controller)
+test/
+  setup.ts              deterministic env for tests (in-memory DB, seed admin)
+  domain-rules.spec.ts                  business-rule unit test
+  tickets.database.integration.spec.ts  backend <-> database integration test
+  tickets.api.spec.ts                   HTTP contract/authorization/regression test
 ```
 
 ## Quick demo
