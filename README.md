@@ -85,6 +85,22 @@ node scripts/verify-slice.mjs full
 You can also register a new Employee from the login screen; agent and admin
 accounts are provisioned by an Admin through the Users tab.
 
+### How a reviewer opens each account
+
+Everything happens on the login screen at **http://localhost:5173**. The demo
+buttons only **fill** the form — after clicking one, press **Log in**.
+
+| To test as… | Do this |
+|---|---|
+| **Employee (Requester)** | Click **`Requester (Alice) · alice@corp.com`** → **Log in**. Or open the **Register (Employee)** tab and create a brand-new employee account. |
+| **IT Agent** | Click **`IT Agent (Bob) · bob@corp.com`** → **Log in**. |
+| **HR / Maintenance Agent** | Click the **Carol** or **Eve** chip → **Log in**. |
+| **Admin** | Click **`Admin · admin@eurisko.local`** → **Log in**, then open the **👥 Users** tab to see every account and create new ones. |
+| **Any other account** | Type its email and password and press **Log in**. Only an Admin sees the Users list; Employees and Agents never do (that is the authorization rule). |
+
+To move between accounts, click **Switch account** (top-right) and log in as the
+next one.
+
 ## Exercise the slice (5 minutes)
 
 1. Open http://localhost:5173 and log in as **Alice** (click the Requester chip).

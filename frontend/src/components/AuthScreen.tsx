@@ -96,7 +96,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: (session: Session) => void 
 
         <div className="demo-hint">
           <p className="muted small">
-            <strong>Demo accounts</strong> — click to log in:
+            <strong>Demo accounts</strong> — click one to fill the form, then press “Log in”:
           </p>
           <div className="chip-row">
             {DEMO_ACCOUNTS.map((a) => (
@@ -114,6 +114,10 @@ export function AuthScreen({ onAuthed }: { onAuthed: (session: Session) => void 
               </button>
             ))}
           </div>
+          <p className="muted small">
+            Signed in as <strong>Admin</strong>? Open the <strong>Users</strong> tab to see and
+            create every account.
+          </p>
         </div>
       </div>
     </div>
