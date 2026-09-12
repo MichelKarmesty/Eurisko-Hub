@@ -30,20 +30,21 @@ required to resolve) is enforced by the NestJS backend in `../backend/`.
    npm run dev                                   # http://localhost:5173
    ```
 
-3. On a fresh database, provision the demo personas once (Admin-only
-   endpoint, see [`../scripts/verify-slice.mjs`](../scripts/verify-slice.mjs)):
+3. On a **fresh** database the backend seeds the Admin account and the demo
+   personas automatically (see `SEED_DEMO_DATA` in
+   [`../backend/README.md`](../backend/README.md)), so you can log in straight
+   away with the accounts shown on the login card (`admin@eurisko.local` /
+   `Admin123!`, `alice@corp.com` / `password123`, `bob@corp.com` /
+   `password123`, …), or register a new Employee account (product-spec.md §3 —
+   "Users can register and log in").
+
+   To also create a resolved sample ticket and run the live checks (optional,
+   backend running):
 
    ```bash
    cd ..
    node scripts/verify-slice.mjs full
    ```
-
-   This creates Alice (Requester), Bob & Dave (IT Agents), opens an IT ticket
-   and leaves it **Resolved** — the persisted demo state. Then log in through
-   the UI with the demo accounts shown on the login card
-   (`admin@eurisko.local` / `Admin123!`, `alice@corp.com` / `password123`,
-   `bob@corp.com` / `password123`), or register a new Employee account
-   (product-spec.md §3 — "Users can register and log in").
 
 ## The slice in the UI
 

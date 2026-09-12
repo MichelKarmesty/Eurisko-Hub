@@ -63,14 +63,15 @@ npm run dev
 
 The Vite dev server proxies `/api` to the backend on port 3000.
 
-**3. Provision demo data (once per fresh database).** With the backend
-running, from the repository root:
+**3. Demo accounts are seeded automatically.** On a fresh database the backend
+creates the Admin account and, in development, the demo personas below — so you
+can log in immediately, with no extra step. Set `SEED_DEMO_DATA=false` if you
+want only the Admin account. To additionally run the live HTTP
+definition-of-done checks, with the backend still running:
 
 ```bash
 node scripts/verify-slice.mjs full
 ```
-
-This creates the demo personas (and runs the live definition-of-done checks).
 
 | Account | Email | Password | Role |
 |---|---|---|---|
@@ -209,7 +210,8 @@ Read in this order:
   proxy targets 3000, so either free port 3000 or point the client at the new
   port with `VITE_API_BASE=http://localhost:3001`.
 - **Start over with an empty database:** stop the backend, `rm backend/.data/*.sqlite`,
-  and start it again — the Admin account is re-seeded automatically.
+  and start it again — the Admin account (and, in development, the demo
+  accounts) is re-seeded automatically.
 - **`npm install` fails on a restricted machine:** point npm at a writable cache:
   `npm install --cache ./.npm-cache`.
 - **E2E says the backend is not reachable:** the global setup prints the exact

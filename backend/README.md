@@ -40,6 +40,7 @@ npm run test:watch       # watch mode
 | `JWT_EXPIRES_IN` | `8h` | Token lifetime |
 | `DB_FILE` | *(in-memory)* | SQLite file path for persistence |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `admin@eurisko.local` / `Admin123!` | Seed admin |
+| `SEED_DEMO_DATA` | `true` (dev) | On an empty DB, also seed the demo personas (`false` disables; never runs when `NODE_ENV=production`) |
 
 ## Layout
 ```
@@ -47,7 +48,7 @@ src/
   main.ts               bootstrap (listens on PORT)
   app.setup.ts          shared HTTP pipeline (validation + serialization) used by
                         main.ts AND the API tests, so tests hit the real boundary
-  app.module.ts         module wiring + TypeORM + admin seed
+  app.module.ts         module wiring + TypeORM + admin/demo seed
   common/               domain enums + JWT/RBAC guards + decorators
   auth/                 register/login/me
   users/                admin user management (provision agents)
