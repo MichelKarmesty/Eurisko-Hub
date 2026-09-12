@@ -239,4 +239,53 @@ describe('Integration — ticket lifecycle is persisted in the database', () => 
       ).rejects.toBeInstanceOf(ForbiddenException);
     });
   });
+
+  describe('admin override (ADR-002) — an unclaimed ticket is never silently closed', () => {
+    it('requires an override reason and writes nothing when it is missing', async () => {
+      const ticket = await openTicket();
+
+      await expect(
+        tickets.changeStatus(ticket.id, admin, 'In Progress'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      const row = await ticketRepo.findOneByOrFail({ id: ticket.id });
+      expect(row.status).toBe('Open');
+      expect(row.assignedToId).toBeNull();
+      await expect(
+        eventRepo.findOneByOrFail({ ticketId: ticket.id, action: 'ADMIN_OVERRIDE' }),
+      ).rejects.toBeDefined();
+    });
+
+    it('records an ADMIN_OVERRIDE event when the Admin gives a reason', async () => {
+      const ticket = await openTicket();
+      const reason = 'No IT agent on shift; handled by the manager.';
+
+      const updated = await tickets.changeStatus(ticket.id, admin, 'In Progress', undefined, reason);
+      expect(updated.status).toBe('In Progress');
+
+      // The Admin did not claim the ticket — the point of the override record.
+      const row = await ticketRepo.findOneByOrFail({ id: ticket.id });
+      expect(row.assignedToId).toBeNull();
+
+      const event = await eventRepo.findOneByOrFail({ ticketId: ticket.id, action: 'ADMIN_OVERRIDE' });
+      expect(event.actorId).toBe(admin.id);
+      expect(event.note).toContain(reason);
+      expect(event.fromStatus).toBe('Open');
+      expect(event.toStatus).toBe('In Progress');
+    });
+
+    it('an override to Resolved keeps the resolution note and records both', async () => {
+      const ticket = await openAndClaim();
+      const reason = 'Agent unavailable; closed by the manager.';
+      const note = 'Replaced the cable.';
+
+      const resolved = await tickets.changeStatus(ticket.id, admin, 'Resolved', note, reason);
+      expect(resolved.status).toBe('Resolved');
+      expect(resolved.resolutionNote).toBe(note);
+
+      const event = await eventRepo.findOneByOrFail({ ticketId: ticket.id, action: 'ADMIN_OVERRIDE' });
+      expect(event.note).toContain(reason);
+      expect(event.note).toContain(note);
+    });
+  });
 });

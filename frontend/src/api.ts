@@ -125,10 +125,17 @@ export function apiClaimTicket(id: number): Promise<Ticket> {
 /**
  * The slice action: an assigned agent (or Admin) resolves the ticket.
  * Payload matches docs/api.md PATCH /tickets/:id/status.
+ *
+ * ADR-002: when an Admin acts on a ticket not assigned to them, the request
+ * must include `overrideReason`.
  */
 export function apiUpdateStatus(
   id: number,
-  body: { status: 'In Progress' | 'Resolved'; resolutionNote?: string },
+  body: {
+    status: 'In Progress' | 'Resolved';
+    resolutionNote?: string;
+    overrideReason?: string;
+  },
 ): Promise<Ticket> {
   return request<Ticket>('PATCH', `/tickets/${id}/status`, body);
 }

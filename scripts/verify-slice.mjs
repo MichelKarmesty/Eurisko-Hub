@@ -176,23 +176,33 @@ async function run() {
     check('History contains a RESOLVED event', !!resolvedEvent, JSON.stringify(resolvedEvent?.action));
     check('RESOLVED event records actor + note', resolvedEvent?.actorId === agent.user?.id && resolvedEvent?.note === NOTE, `actor=${resolvedEvent?.actorId}`);
 
-    // 9. Admin is also authorized to advance the lifecycle (docs: agent OR Admin),
-    //    still one step at a time (Open -> In Progress -> Resolved).
+    // 9. Admin override (ADR-002): an Admin may still drive a ticket nobody
+    //    claimed, but only with an explicit reason — which is recorded.
     const adminTicket = await req('POST', '/tickets', {
       token: admin.accessToken,
-      body: { title: `${ADMIN_TITLE_PREFIX}printer jam`, description: 'Admin-created to verify Admin can drive status.', category: 'HR', priority: 'Medium' },
+      body: { title: `${ADMIN_TITLE_PREFIX}printer jam`, description: 'Admin-created to verify the override policy.', category: 'HR', priority: 'Medium' },
     });
     const at = adminTicket.data;
-    const adminStarted = await req('PATCH', `/tickets/${at.id}/status`, {
+    const OVERRIDE_REASON = 'No agent on shift (verify-slice).';
+    const adminNoReason = await req('PATCH', `/tickets/${at.id}/status`, {
       token: admin.accessToken,
       body: { status: 'In Progress' },
     });
-    check('Admin can move Open -> In Progress', adminStarted.status === 200 && adminStarted.data?.status === 'In Progress', `HTTP ${adminStarted.status}`);
+    check('400: Admin override without a reason rejected', adminNoReason.status === 400, `HTTP ${adminNoReason.status}`);
+    const adminStarted = await req('PATCH', `/tickets/${at.id}/status`, {
+      token: admin.accessToken,
+      body: { status: 'In Progress', overrideReason: OVERRIDE_REASON },
+    });
+    check('Admin can move Open -> In Progress (recorded override)', adminStarted.status === 200 && adminStarted.data?.status === 'In Progress', `HTTP ${adminStarted.status}`);
+    check('Admin override leaves the ticket unassigned', adminStarted.data?.assignedToId == null, `assignedTo=${adminStarted.data?.assignedToId}`);
     const adminResolved = await req('PATCH', `/tickets/${at.id}/status`, {
       token: admin.accessToken,
-      body: { status: 'Resolved', resolutionNote: 'Cleared by admin.' },
+      body: { status: 'Resolved', resolutionNote: 'Cleared by admin.', overrideReason: OVERRIDE_REASON },
     });
-    check('Admin can resolve a ticket too', adminResolved.status === 200 && adminResolved.data?.status === 'Resolved', `HTTP ${adminResolved.status}`);
+    check('Admin can resolve a ticket too (recorded override)', adminResolved.status === 200 && adminResolved.data?.status === 'Resolved', `HTTP ${adminResolved.status}`);
+    const adminHistory = await req('GET', `/tickets/${at.id}/history`, { token: admin.accessToken });
+    const overrideEvent = adminHistory.data?.slice().reverse().find((e) => e.action === 'ADMIN_OVERRIDE');
+    check('Admin override is recorded in history', !!overrideEvent && overrideEvent.note.includes(OVERRIDE_REASON), `action=${overrideEvent?.action}`);
 
     console.log('\nFull slice verification finished. State is now persisted in SQLite (see .data/).');
     console.log(`Restart the backend (same DB_FILE) and run:  node scripts/verify-slice.mjs persist`);

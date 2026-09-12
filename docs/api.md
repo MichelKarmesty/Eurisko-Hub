@@ -22,7 +22,7 @@ client is never trusted to enforce permissions).
 | `IT_Agent` | IT | IT queue + claimed tickets |
 | `HR_Agent` | HR | HR queue + claimed tickets |
 | `Maintenance_Agent` | Maintenance | Maintenance queue + claimed tickets |
-| `Admin` | all | every ticket company-wide + stats + user management |
+| `Admin` | all | every ticket company-wide + stats + user management; may change status only as a recorded override (ADR-002) |
 
 ## Authentication
 
@@ -88,14 +88,20 @@ Agent of the matching department claims an `Open`, unclaimed ticket from their
 queue. Sets `assignedToId` and moves status → `In Progress` (`CLAIMED` event).
 Already-claimed or non-Open tickets are rejected.
 
-### PATCH /tickets/:id/status — assigned agent (or Admin)
-Body: `{ "status": "In Progress" | "Resolved", "resolutionNote": "..." }`
+### PATCH /tickets/:id/status — assigned agent, or Admin override (ADR-002)
+Body: `{ "status": "In Progress" | "Resolved", "resolutionNote": "...", "overrideReason": "..." }`
 
 * Allowed transitions only: `Open → In Progress → Resolved` (data-model §2).
 * Moving to `Resolved` **requires** a non-empty `resolutionNote`
   (data-model §2 rule) — an empty/missing note → `400 Bad Request`.
 * A `status` outside the allowed set → `400 Bad Request` (DTO validation).
 * Anyone else (including the requester, or another agent) → `403`.
+* **Admin override (ADR-002):** when the acting user is an Admin and the ticket
+  is **not assigned to them**, the request must also include a non-empty
+  `overrideReason`; otherwise → `400 Bad Request`. The change is recorded as an
+  `ADMIN_OVERRIDE` history event and the ticket stays unassigned — an unclaimed
+  ticket is never silently closed. The regular agent path is unchanged and does
+  not send `overrideReason`.
 
 ## Admin dashboard
 

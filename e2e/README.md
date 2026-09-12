@@ -45,7 +45,7 @@ started backend (only the seeded admin exists) is enough — no manual
 `verify-slice` run is required. If the API is unreachable it fails immediately
 with the exact command to start it.
 
-The suite contains two tests:
+The suite contains three tests:
 
 * `dom/resolve-slice.ui.test.tsx` — Rana opens a ticket → Karim claims it →
   empty resolution note is rejected (backend 400 rendered in the form) → Karim
@@ -55,6 +55,10 @@ The suite contains two tests:
 * `dom/demo-signin.ui.test.tsx` — the login card's **Quick sign-in** panel: one
   click opens the Employee account, then **Switch account** → one click opens
   the Admin account.
+* `dom/admin-override.ui.test.tsx` — ADR-002: an Admin cannot drive an unclaimed
+  ticket without a reason ("Start (override)" stays disabled), resolving
+  requires the override reason plus the note, and the row ends up marked
+  `— admin override`.
 
 ## Browser E2E (optional)
 

@@ -66,7 +66,13 @@ export class TicketsController {
     @CurrentUser() user: AuthUser,
     @Body() dto: UpdateStatusDto,
   ) {
-    return this.tickets.changeStatus(id, user, dto.status, dto.resolutionNote);
+    return this.tickets.changeStatus(
+      id,
+      user,
+      dto.status,
+      dto.resolutionNote,
+      dto.overrideReason,
+    );
   }
 }
 

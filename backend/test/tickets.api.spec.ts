@@ -244,4 +244,60 @@ describe('API contract — the resolve-ticket slice over HTTP', () => {
       ).toBe(401);
     });
   });
+
+  describe('admin override (ADR-002) — no ticket is silently closed', () => {
+    it('rejects an Admin override without a reason, then records it when given', async () => {
+      const owner = await provision('Employee', 'OverrideOwner');
+      const opened = await request(http)
+        .post('/tickets')
+        .set(auth(owner.token))
+        .send({
+          title: 'Unclaimed ticket',
+          description: 'Nobody has claimed this yet.',
+          category: 'IT',
+          priority: 'Medium',
+        });
+      const id = opened.body.id as number;
+
+      // The Admin may NOT close an unclaimed ticket without a reason.
+      const noReason = await request(http)
+        .patch(`/tickets/${id}/status`)
+        .set(auth(adminToken))
+        .send({ status: 'In Progress' });
+      expect(noReason.status).toBe(400);
+      expect(String(noReason.body.message)).toMatch(/override reason/i);
+
+      // With a reason it succeeds — and the ticket is still unassigned.
+      const started = await request(http)
+        .patch(`/tickets/${id}/status`)
+        .set(auth(adminToken))
+        .send({ status: 'In Progress', overrideReason: 'No IT agent on shift.' });
+      expect(started.status).toBe(200);
+      expect(started.body).toMatchObject({ status: 'In Progress', assignedToId: null });
+
+      const resolved = await request(http)
+        .patch(`/tickets/${id}/status`)
+        .set(auth(adminToken))
+        .send({
+          status: 'Resolved',
+          resolutionNote: 'Handled directly by the manager.',
+          overrideReason: 'No IT agent on shift.',
+        });
+      expect(resolved.status).toBe(200);
+      expect(resolved.body).toMatchObject({
+        status: 'Resolved',
+        assignedToId: null,
+        resolutionNote: 'Handled directly by the manager.',
+      });
+
+      // Both override steps are visible in the durable history, in order.
+      const history = await request(http).get(`/tickets/${id}/history`).set(auth(owner.token));
+      const overrides = history.body.filter((e: { action: string }) => e.action === 'ADMIN_OVERRIDE');
+      expect(overrides).toHaveLength(2);
+      expect(overrides[0]).toMatchObject({ toStatus: 'In Progress', fromStatus: 'Open' });
+      expect(overrides[1]).toMatchObject({ toStatus: 'Resolved', fromStatus: 'In Progress' });
+      expect(overrides[1].note).toMatch(/No IT agent on shift/);
+      expect(overrides[1].note).toMatch(/Handled directly by the manager/);
+    });
+  });
 });

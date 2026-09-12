@@ -12,6 +12,7 @@ const ACTION_LABEL: Record<TicketEvent['action'], string> = {
   CLAIMED: 'Claimed',
   STATUS_CHANGED: 'Status changed',
   RESOLVED: 'Resolved',
+  ADMIN_OVERRIDE: 'Admin override',
 };
 
 /**
@@ -145,7 +146,20 @@ function TicketRowGroup({
           <StatusBadge status={t.status} />
         </td>
         <td>{t.requester?.name ?? `#${t.requesterId}`}</td>
-        <td>{t.assignedTo ? t.assignedTo.name : '—'}</td>
+        <td>
+          {t.assignedTo ? (
+            t.assignedTo.name
+          ) : t.status === 'Resolved' ? (
+            <span
+              className="muted small"
+              title="No agent claimed this ticket; an Admin resolved it (ADR-002 override)."
+            >
+              — admin override
+            </span>
+          ) : (
+            '—'
+          )}
+        </td>
         <td className="small">
           {t.resolutionNote ?? '—'}
           {resolvedBy && (

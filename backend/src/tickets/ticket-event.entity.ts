@@ -13,7 +13,9 @@ export type TicketAction =
   | 'CREATED'
   | 'CLAIMED'
   | 'STATUS_CHANGED'
-  | 'RESOLVED';
+  | 'RESOLVED'
+  /** An Admin changed a ticket that was not assigned to them (ADR-002). */
+  | 'ADMIN_OVERRIDE';
 
 /**
  * Ticket history (architecture.md §2: the DB is the source of truth for

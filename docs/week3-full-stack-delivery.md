@@ -104,6 +104,20 @@ Base URL `http://localhost:3000`. All bodies are JSON. Authenticated calls send
   attempts to change the status; also any attempt to skip or reverse a step.
 * `404` — unknown ticket.
 
+**Admin override (ADR-002).** An Admin may act on a ticket that is not assigned
+to them, but only as an explicit override:
+
+```jsonc
+// Admin changing an unclaimed ticket — overrideReason is mandatory
+{ "status": "Resolved", "resolutionNote": "Cleared by the manager.",
+  "overrideReason": "No IT agent on shift." }
+```
+
+* `400` — an Admin changes a ticket not assigned to them without a non-empty
+  `overrideReason`. The override is stored as an `ADMIN_OVERRIDE` history event
+  and the ticket stays unassigned (`assignedToId: null`), so no request is ever
+  silently closed by an Admin without a stated reason.
+
 ### `GET /tickets` — role-scoped list
 
 * Employee → own tickets; Agent → their department's `Open` queue
@@ -113,22 +127,27 @@ Base URL `http://localhost:3000`. All bodies are JSON. Authenticated calls send
 
 ### `GET /tickets/:id/history` — durable audit trail
 
-`200` with `CREATED → CLAIMED → STATUS_CHANGED/RESOLVED`, each row carrying the
-actor and note. Access follows the same read rule as the ticket.
+`200` with `CREATED → CLAIMED → STATUS_CHANGED/RESOLVED` (or `ADMIN_OVERRIDE`
+for an Admin acting on an unassigned ticket), each row carrying the actor and
+note. Access follows the same read rule as the ticket.
 
 ---
 
 ## 3. Meaningful authorization rule
 
-**Rule:** *only the agent the ticket is assigned to — or an Admin — may change a
-ticket's status; an agent may only read and claim tickets from their own
-department.* Enforced server-side in
+**Rule:** *only the agent the ticket is assigned to may change a ticket's status
+through the normal path; an agent may only read and claim tickets from their own
+department.* An Admin may change any ticket, but when the ticket is not assigned
+to them it is an **explicit override** requiring a recorded reason (ADR-002).
+Enforced server-side in
 [`tickets.service.ts`](../backend/src/tickets/tickets.service.ts)
 (`getById`, `claim`, `changeStatus`), never in the client.
 
 | Case | Actor | Request | Result |
 |---|---|---|---|
 | **ALLOWED** | Karim, the assigned `IT_Agent` | `PATCH /tickets/7/status` `{status:"Resolved", resolutionNote:"…"}` | `200`, ticket becomes `Resolved` |
+| **ALLOWED (override)** | Rami, an `Admin`, on an unclaimed ticket | same + `overrideReason:"…"` | `200`, `Resolved`, `assignedToId: null`, `ADMIN_OVERRIDE` event |
+| **DENIED** | Rami, an `Admin`, without `overrideReason` | same request | `400 Bad Request` |
 | **DENIED** | Rana, the `Employee` who opened ticket 7 | same request | `403 Forbidden`, ticket stays `In Progress` |
 | **DENIED** | Nadim, a *different* `IT_Agent` | same request | `403 Forbidden` |
 | **DENIED** | Layla, an `HR_Agent` | `GET /tickets/7` (an IT ticket) | `403 Forbidden` |
@@ -143,10 +162,12 @@ the HTTP layer (see §5).
 **Invalid request we reject on purpose.** `PATCH /tickets/:id/status` with
 `status: "Resolved"` but no usable `resolutionNote` is rejected with
 `400 Bad Request` — "A resolution note is required before resolving a ticket."
-A `status` outside the enumeration (e.g. `"Cancelled"`) is rejected with `400`
-by the validation pipe. Unknown extra fields are rejected with `400`
-(`forbidNonWhitelisted`), so the contract is closed rather than permissive.
-The database is left untouched when a request is rejected.
+An **Admin override without `overrideReason`** is rejected with `400 Bad Request`
+— "An override reason is required when an Admin changes a ticket that is not
+assigned to them." A `status` outside the enumeration (e.g. `"Cancelled"`) is
+rejected with `400` by the validation pipe. Unknown extra fields are rejected
+with `400` (`forbidNonWhitelisted`), so the contract is closed rather than
+permissive. The database is left untouched when a request is rejected.
 
 **Expected failure we handle on purpose.** The UI expects the backend to refuse
 an empty note, so it renders the server's `400` message inline instead of
@@ -206,7 +227,11 @@ exercised and the requester's list visibly ends up `Resolved` with the note.
 A second E2E, [`e2e/dom/demo-signin.ui.test.tsx`](../e2e/dom/demo-signin.ui.test.tsx),
 covers the reviewer entry point: one click on the login card's **Quick sign-in**
 panel opens the Employee account; **Switch account** then opens the Admin
-account. A Playwright browser script
+account. A third, [`e2e/dom/admin-override.ui.test.tsx`](../e2e/dom/admin-override.ui.test.tsx),
+proves the ADR-002 policy in the UI: the Admin's "Start (override)" button stays
+disabled until a reason is entered, resolving an unclaimed ticket requires the
+override reason **and** the resolution note, and the finished row is marked
+`— admin override`. A Playwright browser script
 ([`e2e/scripts/resolve-slice.e2e.mjs`](../e2e/scripts/resolve-slice.e2e.mjs))
 offers the same journey in a real browser with screenshots when a Chromium
 binary is available.
@@ -237,17 +262,18 @@ The suite was executed in this repository; representative results:
 ```text
 $ cd backend && npm test
  ✓ test/domain-rules.spec.ts                  ( 7 tests)  business rule
- ✓ test/tickets.database.integration.spec.ts  (12 tests)  backend <-> database
- ✓ test/tickets.api.spec.ts                   ( 8 tests)  HTTP contract + regression
- Test Files  3 passed (3)   Tests  27 passed (27)
+ ✓ test/tickets.database.integration.spec.ts  (15 tests)  backend <-> database
+ ✓ test/tickets.api.spec.ts                   ( 9 tests)  HTTP contract + regression
+ Test Files  3 passed (3)   Tests  31 passed (31)
 
 $ node scripts/verify-slice.mjs full
- 20/20 checks passed   (live HTTP definition of done, fresh database)
+ 23/23 checks passed   (live HTTP definition of done, fresh database)
 
 $ cd e2e && npm run test:ui
  ✓ dom/resolve-slice.ui.test.tsx (1 test)   React -> API -> SQLite
  ✓ dom/demo-signin.ui.test.tsx  (1 test)   one-click role sign-in
- Test Files  2 passed (2)   Tests  2 passed (2)
+ ✓ dom/admin-override.ui.test.tsx (1 test) admin override requires a reason
+ Test Files  3 passed (3)   Tests  3 passed (3)
 ```
 
 > The exact pass counts are asserted by the suite; re-run the commands above on
@@ -273,6 +299,7 @@ $ cd e2e && npm run test:ui
 | Integration test backend ↔ database | ✅ | `backend/test/tickets.database.integration.spec.ts` |
 | Meaningful E2E test | ✅ | `e2e/dom/resolve-slice.ui.test.tsx` |
 | Regression protection | ✅ | `tickets.api.spec.ts` + integration spec + `verify-slice.mjs` |
+| Admin override governed (no silent bypass) | ✅ | ADR-002; `overrideReason` required + `ADMIN_OVERRIDE` audit event, covered by integration/HTTP tests |
 | `docs/week3-full-stack-delivery.md` | ✅ | this file |
 | README a new engineer can follow | ✅ | top-level [`README.md`](../README.md) |
 

@@ -204,8 +204,8 @@ Base URL `http://localhost:3000`; authenticated calls send
 | `POST /tickets` | any authenticated user | open a request (title, description, category, priority) |
 | `GET /tickets` | role-scoped | requester: own tickets · agent: own department's `Open` queue (`?mine=true` for claimed) · admin: all |
 | `PATCH /tickets/:id/claim` | matching agent | claim an `Open` ticket → `In Progress` |
-| `PATCH /tickets/:id/status` | **assigned agent or Admin** | advance `Open → In Progress → Resolved`; a note is required to resolve |
-| `GET /tickets/:id/history` | ticket readers | durable `CREATED → CLAIMED → RESOLVED` audit trail |
+| `PATCH /tickets/:id/status` | **assigned agent or Admin override** | advance `Open → In Progress → Resolved`; a note is required to resolve. An Admin acting on a ticket not assigned to them must also send `overrideReason` (`400` otherwise), which is recorded as an `ADMIN_OVERRIDE` event (ADR-002) |
+| `GET /tickets/:id/history` | ticket readers | durable `CREATED → CLAIMED → ADMIN_OVERRIDE* → RESOLVED` audit trail |
 | `GET /admin/stats` | Admin | company-wide counters |
 
 ## Roles and access
@@ -214,8 +214,10 @@ Base URL `http://localhost:3000`; authenticated calls send
 - **IT / HR / Maintenance Agent:** works a department queue; may only read and
   claim tickets in their own department; cannot resolve a ticket assigned to a
   colleague.
-- **Admin:** sees every ticket, may drive any ticket's lifecycle, and manages
-  users.
+- **Admin:** sees every ticket, manages users, and can change any ticket's
+  status — but a change to a ticket they are not assigned to is an explicit
+  **override** that requires a reason and is written to the ticket history, so
+  an unclaimed ticket is never silently closed (ADR-002).
 
 Role checks happen on the server only — the client never enforces permissions.
 

@@ -56,7 +56,7 @@ export interface TicketEvent {
   id: number;
   ticketId: number;
   actorId: number;
-  action: 'CREATED' | 'CLAIMED' | 'STATUS_CHANGED' | 'RESOLVED';
+  action: 'CREATED' | 'CLAIMED' | 'STATUS_CHANGED' | 'RESOLVED' | 'ADMIN_OVERRIDE';
   fromStatus: TicketStatus | null;
   toStatus: TicketStatus | null;
   note: string | null;

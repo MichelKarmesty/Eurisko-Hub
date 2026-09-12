@@ -16,7 +16,7 @@ import {
 } from '../common/domain';
 import { AuthUser } from '../common/auth.decorators';
 import { Ticket } from './ticket.entity';
-import { TicketEvent } from './ticket-event.entity';
+import { TicketAction, TicketEvent } from './ticket-event.entity';
 
 export interface CreateTicketInput {
   title: string;
@@ -201,17 +201,26 @@ export class TicketsService {
    * documented lifecycle (Open -> In Progress -> Resolved). Only the
    * assigned agent (or an Admin) may change status, and moving to Resolved
    * requires a non-empty resolution note (data-model.md §2).
+   *
+   * ADR-002 (Admin override): an Admin may still act on a ticket that is not
+   * assigned to them, but that is an explicit override — a non-empty
+   * `overrideReason` is required and the change is recorded as an
+   * ADMIN_OVERRIDE history event, so no ticket is ever silently closed
+   * without an agent (or a stated reason).
    */
   async changeStatus(
     id: number,
     user: AuthUser,
     toStatus: 'In Progress' | 'Resolved',
     resolutionNote?: string,
+    overrideReason?: string,
   ): Promise<Ticket> {
     const ticket = await this.getById(id, user);
 
     const isAssignedAgent =
       isAgentRole(user.role) && ticket.assignedToId === user.id;
+    const isOverride =
+      isAdminRole(user.role) && ticket.assignedToId !== user.id;
     const canAct = isAdminRole(user.role) || isAssignedAgent;
     if (!canAct) {
       throw new ForbiddenException(
@@ -226,6 +235,18 @@ export class TicketsService {
           STATUS_ORDER[STATUS_ORDER.indexOf(fromStatus) + 1]
         }.`,
       );
+    }
+
+    let overrideNote: string | null = null;
+    if (isOverride) {
+      overrideNote = (overrideReason ?? '').trim();
+      if (!overrideNote) {
+        // Governance rule (ADR-002): the override must be justified. A missing
+        // body field is a client error (400), not an authorization problem.
+        throw new BadRequestException(
+          'An override reason is required when an Admin changes a ticket that is not assigned to them.',
+        );
+      }
     }
 
     if (toStatus === 'Resolved') {
@@ -243,14 +264,31 @@ export class TicketsService {
 
     ticket.status = toStatus;
     const saved = await this.tickets.save(ticket);
+
+    const action: TicketAction = isOverride
+      ? 'ADMIN_OVERRIDE'
+      : toStatus === 'Resolved'
+        ? 'RESOLVED'
+        : 'STATUS_CHANGED';
+    const note = isOverride
+      ? [
+          overrideNote,
+          toStatus === 'Resolved' ? `Resolution: ${resolutionNote!.trim()}` : null,
+        ]
+          .filter(Boolean)
+          .join(' — ')
+      : toStatus === 'Resolved'
+        ? resolutionNote!.trim()
+        : null;
+
     await this.events.save(
       this.events.create({
         ticketId: saved.id,
         actorId: user.id,
-        action: toStatus === 'Resolved' ? 'RESOLVED' : 'STATUS_CHANGED',
+        action,
         fromStatus,
         toStatus,
-        note: toStatus === 'Resolved' ? resolutionNote!.trim() : null,
+        note,
       }),
     );
     return this.getById(id, user);

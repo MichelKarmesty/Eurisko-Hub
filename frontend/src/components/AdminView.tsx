@@ -40,6 +40,43 @@ const ROLE_LABELS: Record<Role, string> = {
   Admin: 'Admin',
 };
 
+/**
+ * ADR-002: an Admin moving an Open ticket to In Progress is overriding the
+ * manual queue, so a reason is mandatory. Submits
+ * PATCH /tickets/:id/status { status: 'In Progress', overrideReason }.
+ */
+function AdminStartControl({
+  busy,
+  onStart,
+}: {
+  busy: boolean;
+  onStart: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState('');
+
+  return (
+    <form
+      className="resolve-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (reason.trim()) onStart(reason);
+      }}
+    >
+      <input
+        type="text"
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="Override reason (required)…"
+        aria-label="Override reason"
+        disabled={busy}
+      />
+      <button type="submit" className="btn" disabled={busy || !reason.trim()}>
+        {busy ? '…' : 'Start (override)'}
+      </button>
+    </form>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Tickets tab
 // ---------------------------------------------------------------------------
@@ -68,12 +105,15 @@ function TicketsTab() {
   const replace = (updated: Ticket) =>
     setTickets((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
 
-  const start = async (t: Ticket) => {
+  const start = async (t: Ticket, overrideReason: string) => {
     setBusyId(t.id);
     try {
-      const updated = await apiUpdateStatus(t.id, { status: 'In Progress' });
+      const updated = await apiUpdateStatus(t.id, {
+        status: 'In Progress',
+        overrideReason: overrideReason.trim(),
+      });
       replace(updated);
-      setNotice({ kind: 'success', text: `Ticket #${t.id} is now In Progress.` });
+      setNotice({ kind: 'success', text: `Ticket #${t.id} is now In Progress (admin override recorded).` });
     } catch (err) {
       setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Action failed.' });
     } finally {
@@ -153,13 +193,16 @@ function TicketsTab() {
           actions={(t) => {
             if (t.status === 'Open') {
               return (
-                <button className="btn" disabled={busyId === t.id} onClick={() => void start(t)}>
-                  {busyId === t.id ? '…' : 'Start (In Progress)'}
-                </button>
+                <AdminStartControl
+                  busy={busyId === t.id}
+                  onStart={(reason) => void start(t, reason)}
+                />
               );
             }
             if (t.status === 'In Progress') {
-              return <ResolveControl ticket={t} onResolved={replace} />;
+              // ADR-002: an Admin is never the assignee, so this is an override
+              // and the reason is mandatory.
+              return <ResolveControl ticket={t} onResolved={replace} overrideReasonRequired />;
             }
             return <span className="muted">—</span>;
           }}
