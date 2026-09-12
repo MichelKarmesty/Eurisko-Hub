@@ -39,7 +39,7 @@ npm run test:watch       # watch mode
 | `JWT_SECRET` | dev value | JWT signing secret (set in prod!) |
 | `JWT_EXPIRES_IN` | `8h` | Token lifetime |
 | `DB_FILE` | *(in-memory)* | SQLite file path for persistence |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `admin@eurisko.local` / `Admin123!` | Seed admin |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `rami.fares@eurisko.com` / `Admin123!` | Seed admin |
 | `SEED_DEMO_DATA` | `true` (dev) | On an empty DB, also seed the demo personas (`false` disables; never runs when `NODE_ENV=production`) |
 
 ## Layout

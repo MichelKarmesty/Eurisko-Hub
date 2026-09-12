@@ -128,10 +128,10 @@ department.* Enforced server-side in
 
 | Case | Actor | Request | Result |
 |---|---|---|---|
-| **ALLOWED** | Bob, the assigned `IT_Agent` | `PATCH /tickets/7/status` `{status:"Resolved", resolutionNote:"…"}` | `200`, ticket becomes `Resolved` |
-| **DENIED** | Alice, the `Employee` who opened ticket 7 | same request | `403 Forbidden`, ticket stays `In Progress` |
-| **DENIED** | Dave, a *different* `IT_Agent` | same request | `403 Forbidden` |
-| **DENIED** | Carol, an `HR_Agent` | `GET /tickets/7` (an IT ticket) | `403 Forbidden` |
+| **ALLOWED** | Karim, the assigned `IT_Agent` | `PATCH /tickets/7/status` `{status:"Resolved", resolutionNote:"…"}` | `200`, ticket becomes `Resolved` |
+| **DENIED** | Rana, the `Employee` who opened ticket 7 | same request | `403 Forbidden`, ticket stays `In Progress` |
+| **DENIED** | Nadim, a *different* `IT_Agent` | same request | `403 Forbidden` |
+| **DENIED** | Layla, an `HR_Agent` | `GET /tickets/7` (an IT ticket) | `403 Forbidden` |
 
 The allowed and denied cases are asserted at both the service/database layer and
 the HTTP layer (see §5).

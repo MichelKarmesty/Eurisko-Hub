@@ -71,8 +71,8 @@ describe('Slice: assigned agent resolves a ticket (UI -> API -> UI)', () => {
       await screen.findByText(expectRole, { selector: '.role-chip' });
     };
 
-    // 1. Alice opens a ticket --------------------------------------------
-    await login('alice@corp.com', 'password123', 'Requester');
+    // 1. Rana opens a ticket --------------------------------------------
+    await login('rana.khoury@eurisko.com', 'password123', 'Requester');
     await screen.findByLabelText('Title'); // form mounts after tickets load
     await user.type(screen.getByLabelText('Title'), title);
     await user.type(screen.getByLabelText('Description'), 'Docking station output flickers on the external monitor.');
@@ -90,8 +90,8 @@ describe('Slice: assigned agent resolves a ticket (UI -> API -> UI)', () => {
     expect(aliceRow.textContent).toContain('Open');
     expect(aliceRow.textContent).toContain('IT');
 
-    // 2. Bob claims it from the IT queue ----------------------------------
-    await login('bob@corp.com', 'password123', 'IT Agent');
+    // 2. Karim claims it from the IT queue ----------------------------------
+    await login('karim.haddad@eurisko.com', 'password123', 'IT Agent');
     const queueSection = await screen.findByRole('heading', { name: /Department queue/ }).then((h) => h.closest('section')!);
     const queueRow = await within(queueSection).findByText(title).then((t) => t.closest('tr')!);
     await user.click(within(queueRow).getByRole('button', { name: 'Claim' }));
@@ -117,7 +117,7 @@ describe('Slice: assigned agent resolves a ticket (UI -> API -> UI)', () => {
     console.log(`\n[diagnostic] empty-note 400 shown in UI: "${formError.textContent}"`);
     expect(formError.textContent).toMatch(/resolution/i);
 
-    // 4. Bob resolves with a note ------------------------------------------
+    // 4. Karim resolves with a note ------------------------------------------
     await user.type(within(workItem).getByLabelText('Resolution note'), NOTE);
     await user.click(within(workItem).getByRole('button', { name: 'Mark Resolved' }));
     await screen.findByText(`Ticket #${id} resolved.`);
@@ -136,7 +136,7 @@ describe('Slice: assigned agent resolves a ticket (UI -> API -> UI)', () => {
     writeFileSync(path.join(ART, '2-bob-resolved-dom.html'), document.body.innerHTML);
 
     // 6. Requester sees Resolved + the note ---------------------------------
-    await login('alice@corp.com', 'password123', 'Requester');
+    await login('rana.khoury@eurisko.com', 'password123', 'Requester');
     const aliceTable = await screen.findByRole('heading', { name: 'My tickets' }).then((h) => h.closest('section')!);
     const finalRow = await within(aliceTable).findByText(title).then((t) => t.closest('tr')!);
     expect(finalRow.textContent).toContain('Resolved');

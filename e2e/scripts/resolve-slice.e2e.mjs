@@ -4,14 +4,14 @@
  *
  * Drives the REAL React app (http://localhost:5173) with no direct API calls:
  *
- *   1. Alice (Requester) opens an IT ticket.
- *   2. Bob (IT Agent) sees it in his queue and claims it (-> In Progress).
- *   3. Bob submits an EMPTY resolution note -> the backend 400 is surfaced
+ *   1. Rana (Requester) opens an IT ticket.
+ *   2. Karim (IT Agent) sees it in his queue and claims it (-> In Progress).
+ *   3. Karim submits an EMPTY resolution note -> the backend 400 is surfaced
  *      in the form (DoD: reject bad input).
- *   4. Bob types a note and clicks "Mark Resolved".
+ *   4. Karim types a note and clicks "Mark Resolved".
  *   5. The ticket visibly moves to the "Resolved by me" section with the
  *      note (DoD: UI reflects the state change immediately).
- *   6. Alice's "My tickets" shows the ticket as Resolved with the note.
+ *   6. Rana's "My tickets" shows the ticket as Resolved with the note.
  *
  * Screenshots land in artifacts/e2e/.
  *
@@ -65,9 +65,9 @@ async function main() {
   console.log(`E2E against ${BASE}`);
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
 
-  // --- 1. Alice opens a ticket --------------------------------------------
+  // --- 1. Rana opens a ticket --------------------------------------------
   const title = `UI E2E ${Date.now()} - docking station flickers`;
-  await loginAs(page, 'alice@corp.com', 'password123');
+  await loginAs(page, 'rana.khoury@eurisko.com', 'password123');
   await page.getByLabel('Title').fill(title);
   await page.getByLabel('Description').fill('Docking station output flickers on the external monitor.');
   await page.getByLabel('Category').selectOption('IT');
@@ -78,18 +78,18 @@ async function main() {
   const m = openedNotice.match(/Ticket #(\d+) opened/);
   if (!m) fail('Requester opens a ticket via the UI', `notice: ${openedNotice}`);
   const id = Number(m[1]);
-  ok(`Requester (Alice) opens ticket #${id} from the UI`);
+  ok(`Requester (Rana) opens ticket #${id} from the UI`);
 
   // Row appears under "My tickets" as Open (React result on create).
   const myRow = page.locator('table.tickets tr', { hasText: title });
   await myRow.waitFor({ state: 'visible' });
   if (!(await myRow.innerText()).includes('Open')) {
-    fail('New ticket shows as Open in Alice list', await myRow.innerText());
+    fail('New ticket shows as Open in Rana list', await myRow.innerText());
   }
-  ok(`Alice list shows the ticket as Open`);
+  ok(`Rana list shows the ticket as Open`);
 
-  // --- 2. Bob claims it from the IT queue ---------------------------------
-  await loginAs(page, 'bob@corp.com', 'password123');
+  // --- 2. Karim claims it from the IT queue ---------------------------------
+  await loginAs(page, 'karim.haddad@eurisko.com', 'password123');
   const queueRow = page.locator('table.tickets tr', { hasText: title });
   await queueRow.waitFor({ state: 'visible' });
   await queueRow.getByRole('button', { name: 'Claim' }).click();
@@ -99,7 +99,7 @@ async function main() {
   if (!(await workCard.innerText()).includes('In Progress')) {
     fail('Claimed ticket is In Progress in My work', await workCard.innerText());
   }
-  ok(`Agent (Bob) claims the ticket from the queue -> In Progress`);
+  ok(`Agent (Karim) claims the ticket from the queue -> In Progress`);
   await page.screenshot({ path: path.join(SHOTS, '1-agent-in-progress.png'), fullPage: false });
 
   // --- 3. Empty note -> backend 400 shown in the form ----------------------
@@ -113,7 +113,7 @@ async function main() {
   ok(`Empty resolution note rejected -> UI shows: "${errText}"`);
   await page.screenshot({ path: path.join(SHOTS, '2-empty-note-400.png'), fullPage: false });
 
-  // --- 4. Bob resolves with a note ----------------------------------------
+  // --- 4. Karim resolves with a note ----------------------------------------
   await workCard.getByLabel('Resolution note').fill(NOTE);
   await workCard.getByRole('button', { name: 'Mark Resolved' }).click();
 
@@ -136,7 +136,7 @@ async function main() {
   ok('Ticket moved to "Resolved by me" section, note visible (agent view)');
   await page.screenshot({ path: path.join(SHOTS, '3-bob-resolved-view.png'), fullPage: false });
   // --- 6. Requester sees Resolved + the note -------------------------------
-  await loginAs(page, 'alice@corp.com', 'password123');
+  await loginAs(page, 'rana.khoury@eurisko.com', 'password123');
   const aliceRow = page.locator('table.tickets tr', { hasText: title });
   await aliceRow.waitFor({ state: 'visible' });
   const aliceText = await aliceRow.innerText();

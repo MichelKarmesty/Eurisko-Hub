@@ -18,11 +18,11 @@ import { UsersService } from './users/users.service';
  * frontend/src/components/AuthScreen.tsx.
  */
 const DEMO_PERSONAS: ReadonlyArray<{ name: string; email: string; role: Role }> = [
-  { name: 'Alice Requester', email: 'alice@corp.com', role: 'Employee' },
-  { name: 'Bob IT Agent', email: 'bob@corp.com', role: 'IT_Agent' },
-  { name: 'Dave IT Agent', email: 'dave@corp.com', role: 'IT_Agent' },
-  { name: 'Carol HR Agent', email: 'carol@corp.com', role: 'HR_Agent' },
-  { name: 'Eve Maintenance Agent', email: 'eve@corp.com', role: 'Maintenance_Agent' },
+  { name: 'Rana Khoury', email: 'rana.khoury@eurisko.com', role: 'Employee' },
+  { name: 'Karim Haddad', email: 'karim.haddad@eurisko.com', role: 'IT_Agent' },
+  { name: 'Nadim Saad', email: 'nadim.saad@eurisko.com', role: 'IT_Agent' },
+  { name: 'Layla Nassar', email: 'layla.nassar@eurisko.com', role: 'HR_Agent' },
+  { name: 'Elias Aoun', email: 'elias.aoun@eurisko.com', role: 'Maintenance_Agent' },
 ];
 const DEMO_PASSWORD = 'password123';
 
@@ -61,7 +61,7 @@ export class AppModule implements OnApplicationBootstrap {
    * when the database has no users at all, so restarts never duplicate data.
    */
   async onApplicationBootstrap() {
-    const email = process.env.ADMIN_EMAIL ?? 'admin@eurisko.local';
+    const email = process.env.ADMIN_EMAIL ?? 'rami.fares@eurisko.com';
     const password = process.env.ADMIN_PASSWORD ?? 'Admin123!';
     const existing = await this.users.findByEmail(email);
     if (existing) return;
@@ -75,7 +75,7 @@ export class AppModule implements OnApplicationBootstrap {
     }
 
     await this.users.create({
-      name: 'Eurisko Admin',
+      name: 'Rami Fares',
       email,
       password,
       role: 'Admin',

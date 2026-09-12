@@ -15,17 +15,17 @@
  */
 const API = process.env.API_URL ?? 'http://localhost:3000';
 const ADMIN = {
-  email: process.env.ADMIN_EMAIL ?? 'admin@eurisko.local',
+  email: process.env.ADMIN_EMAIL ?? 'rami.fares@eurisko.com',
   password: process.env.ADMIN_PASSWORD ?? 'Admin123!',
 };
 const PASSWORD = 'password123';
 
 const PERSONAS: Array<{ name: string; email: string; role: string }> = [
-  { name: 'Alice Requester', email: 'alice@corp.com', role: 'Employee' },
-  { name: 'Bob IT Agent', email: 'bob@corp.com', role: 'IT_Agent' },
-  { name: 'Dave IT Agent', email: 'dave@corp.com', role: 'IT_Agent' },
-  { name: 'Carol HR Agent', email: 'carol@corp.com', role: 'HR_Agent' },
-  { name: 'Eve Maintenance Agent', email: 'eve@corp.com', role: 'Maintenance_Agent' },
+  { name: 'Rana Khoury', email: 'rana.khoury@eurisko.com', role: 'Employee' },
+  { name: 'Karim Haddad', email: 'karim.haddad@eurisko.com', role: 'IT_Agent' },
+  { name: 'Nadim Saad', email: 'nadim.saad@eurisko.com', role: 'IT_Agent' },
+  { name: 'Layla Nassar', email: 'layla.nassar@eurisko.com', role: 'HR_Agent' },
+  { name: 'Elias Aoun', email: 'elias.aoun@eurisko.com', role: 'Maintenance_Agent' },
 ];
 
 async function call(method: string, path: string, body?: unknown, token?: string) {

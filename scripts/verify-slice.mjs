@@ -21,23 +21,23 @@
  *
  * Env:
  *   BASE_URL      API base (default http://localhost:3000)
- *   ADMIN_EMAIL   seeded admin email (default admin@eurisko.local)
+ *   ADMIN_EMAIL   seeded admin email (default rami.fares@eurisko.com)
  *   ADMIN_PASSWORD                (default Admin123!)
  */
 import process from 'node:process';
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:3000';
 const MODE = process.argv[2] ?? 'full';
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@eurisko.local';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'rami.fares@eurisko.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'Admin123!';
 
 // Demo personas provisioned through the real Admin /users endpoint.
 // Keep this list in sync with DEMO_ACCOUNTS in frontend/src/components/AuthScreen.tsx.
-const REQUESTER = { name: 'Alice Requester', email: 'alice@corp.com', password: 'password123' };
-const AGENT = { name: 'Bob IT Agent', email: 'bob@corp.com', password: 'password123' };
-const OTHER_AGENT = { name: 'Dave IT Agent', email: 'dave@corp.com', password: 'password123' };
-const HR_AGENT = { name: 'Carol HR Agent', email: 'carol@corp.com', password: 'password123' };
-const MAINT_AGENT = { name: 'Eve Maintenance Agent', email: 'eve@corp.com', password: 'password123' };
+const REQUESTER = { name: 'Rana Khoury', email: 'rana.khoury@eurisko.com', password: 'password123' };
+const AGENT = { name: 'Karim Haddad', email: 'karim.haddad@eurisko.com', password: 'password123' };
+const OTHER_AGENT = { name: 'Nadim Saad', email: 'nadim.saad@eurisko.com', password: 'password123' };
+const HR_AGENT = { name: 'Layla Nassar', email: 'layla.nassar@eurisko.com', password: 'password123' };
+const MAINT_AGENT = { name: 'Elias Aoun', email: 'elias.aoun@eurisko.com', password: 'password123' };
 const NOTE = 'Replaced the HDMI cable; display is stable now.';
 const TITLE = 'First slice E2E - monitor keeps flickering';
 

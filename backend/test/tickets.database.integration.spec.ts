@@ -84,19 +84,19 @@ describe('Integration — ticket lifecycle is persisted in the database', () => 
     eventRepo = moduleRef.get(getRepositoryToken(TicketEvent));
 
     alice = asUser(
-      await users.create({ name: 'Alice', email: `alice-${run}@corp.com`, password: 'password123', role: 'Employee' }),
+      await users.create({ name: 'Alice', email: `alice-${run}@eurisko.com`, password: 'password123', role: 'Employee' }),
     );
     bob = asUser(
-      await users.create({ name: 'Bob', email: `bob-${run}@corp.com`, password: 'password123', role: 'IT_Agent' }),
+      await users.create({ name: 'Bob', email: `bob-${run}@eurisko.com`, password: 'password123', role: 'IT_Agent' }),
     );
     dave = asUser(
-      await users.create({ name: 'Dave', email: `dave-${run}@corp.com`, password: 'password123', role: 'IT_Agent' }),
+      await users.create({ name: 'Dave', email: `dave-${run}@eurisko.com`, password: 'password123', role: 'IT_Agent' }),
     );
     carol = asUser(
-      await users.create({ name: 'Carol', email: `carol-${run}@corp.com`, password: 'password123', role: 'HR_Agent' }),
+      await users.create({ name: 'Carol', email: `carol-${run}@eurisko.com`, password: 'password123', role: 'HR_Agent' }),
     );
     admin = asUser(
-      await users.create({ name: 'Root', email: `admin-${run}@corp.com`, password: 'password123', role: 'Admin' }),
+      await users.create({ name: 'Root', email: `admin-${run}@eurisko.com`, password: 'password123', role: 'Admin' }),
     );
   });
 

@@ -36,7 +36,7 @@ describe('API contract — the resolve-ticket slice over HTTP', () => {
   /** Provision an account through the Admin API and return its session. */
   async function provision(role: Role, name: string) {
     userSeq += 1;
-    const email = `${name.toLowerCase()}-${run}-${userSeq}@corp.com`;
+    const email = `${name.toLowerCase()}-${run}-${userSeq}@eurisko.com`;
     const created = await request(http)
       .post('/users')
       .set(auth(adminToken))
@@ -61,7 +61,7 @@ describe('API contract — the resolve-ticket slice over HTTP', () => {
 
     const login = await request(http)
       .post('/auth/login')
-      .send({ email: 'admin@eurisko.local', password: 'Admin123!' });
+      .send({ email: 'rami.fares@eurisko.com', password: 'Admin123!' });
     expect(login.status).toBe(200);
     adminToken = login.body.accessToken;
   });
@@ -219,7 +219,7 @@ describe('API contract — the resolve-ticket slice over HTTP', () => {
 
     it('self-registration still creates Employees only', async () => {
       userSeq += 1;
-      const email = `self-${run}-${userSeq}@corp.com`;
+      const email = `self-${run}-${userSeq}@eurisko.com`;
       const employee = await request(http)
         .post('/auth/register')
         .send({ name: 'Self', email, password: PASSWORD });
@@ -229,13 +229,13 @@ describe('API contract — the resolve-ticket slice over HTTP', () => {
 
       const asAgent = await request(http)
         .post('/auth/register')
-        .send({ name: 'Fake Agent', email: `fake-${run}-${userSeq}@corp.com`, password: PASSWORD, role: 'IT_Agent' });
+        .send({ name: 'Fake Agent', email: `fake-${run}-${userSeq}@eurisko.com`, password: PASSWORD, role: 'IT_Agent' });
       expect(asAgent.status).toBe(403);
     });
 
     it('rejects a duplicate email and bad credentials', async () => {
       userSeq += 1;
-      const email = `dup-${run}-${userSeq}@corp.com`;
+      const email = `dup-${run}-${userSeq}@eurisko.com`;
       const body = { name: 'Dup', email, password: PASSWORD };
       expect((await request(http).post('/auth/register').send(body)).status).toBe(201);
       expect((await request(http).post('/auth/register').send(body)).status).toBe(409);

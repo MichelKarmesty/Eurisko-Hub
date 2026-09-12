@@ -33,10 +33,11 @@ required to resolve) is enforced by the NestJS backend in `../backend/`.
 3. On a **fresh** database the backend seeds the Admin account and the demo
    personas automatically (see `SEED_DEMO_DATA` in
    [`../backend/README.md`](../backend/README.md)), so you can log in straight
-   away with the accounts shown on the login card (`admin@eurisko.local` /
-   `Admin123!`, `alice@corp.com` / `password123`, `bob@corp.com` /
-   `password123`, …), or register a new Employee account (product-spec.md §3 —
-   "Users can register and log in").
+   away from the **Quick sign-in** panel on the login card, or register a new
+   Employee account (product-spec.md §3 — "Users can register and log in").
+   Demo emails are Lebanese names at `@eurisko.com`
+   (`rana.khoury@…`, `karim.haddad@…`, `nadim.saad@…`, `layla.nassar@…`,
+   `elias.aoun@…`; admin `rami.fares@eurisko.com` / `Admin123!`).
 
    To also create a resolved sample ticket and run the live checks (optional,
    backend running):

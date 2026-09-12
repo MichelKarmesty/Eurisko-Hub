@@ -50,7 +50,7 @@ npm run build
 DB_FILE="$PWD/.data/hub.sqlite" npm start
 ```
 
-First boot seeds an Admin account: `admin@eurisko.local` / `Admin123!`
+First boot seeds an Admin account: `rami.fares@eurisko.com` / `Admin123!`
 (override with `ADMIN_EMAIL` / `ADMIN_PASSWORD`). Set `DB_FILE` so tickets
 survive restarts; without it the database is in-memory.
 
@@ -75,12 +75,12 @@ node scripts/verify-slice.mjs full
 
 | Account | Email | Password | Role |
 |---|---|---|---|
-| Admin | `admin@eurisko.local` | `Admin123!` | Admin (seeded on first boot) |
-| Alice | `alice@corp.com` | `password123` | Employee (Requester) |
-| Bob | `bob@corp.com` | `password123` | IT Agent |
-| Dave | `dave@corp.com` | `password123` | IT Agent |
-| Carol | `carol@corp.com` | `password123` | HR Agent |
-| Eve | `eve@corp.com` | `password123` | Maintenance Agent |
+| Rami Fares | `rami.fares@eurisko.com` | `Admin123!` | Admin (seeded on first boot) |
+| Rana Khoury | `rana.khoury@eurisko.com` | `password123` | Employee (Requester) |
+| Karim Haddad | `karim.haddad@eurisko.com` | `password123` | IT Agent |
+| Nadim Saad | `nadim.saad@eurisko.com` | `password123` | IT Agent |
+| Layla Nassar | `layla.nassar@eurisko.com` | `password123` | HR Agent |
+| Elias Aoun | `elias.aoun@eurisko.com` | `password123` | Maintenance Agent |
 
 You can also register a new Employee from the login screen; agent and admin
 accounts are provisioned by an Admin through the Users tab.
@@ -93,11 +93,11 @@ typing, no account list to hunt for):
 
 | To test as… | Click this button |
 |---|---|
-| **Employee (Requester)** | **Employee** — Alice (`alice@corp.com`) |
-| **IT Agent** | **IT Agent** — Bob (`bob@corp.com`), or Dave (`dave@corp.com`) |
-| **HR Agent** | **HR Agent** — Carol (`carol@corp.com`) |
-| **Maintenance Agent** | **Maintenance Agent** — Eve (`eve@corp.com`) |
-| **Admin** | **Admin** (`admin@eurisko.local`) → then open the **👥 Users** tab |
+| **Employee (Requester)** | **Employee** — Rana Khoury (`rana.khoury@eurisko.com`) |
+| **IT Agent** | **IT Agent** — Karim Haddad (`karim.haddad@eurisko.com`), or Nadim Saad (`nadim.saad@eurisko.com`) |
+| **HR Agent** | **HR Agent** — Layla Nassar (`layla.nassar@eurisko.com`) |
+| **Maintenance Agent** | **Maintenance Agent** — Elias Aoun (`elias.aoun@eurisko.com`) |
+| **Admin** | **Admin** — Rami Fares (`rami.fares@eurisko.com`) → then open the **👥 Users** tab |
 
 To create a brand-new Employee, use the **Register (Employee)** tab. To create
 agent/admin accounts, sign in as Admin and use the **Users** tab. To move between
@@ -115,9 +115,9 @@ Agents never do (that is the authorization rule).
 
 1. Open http://localhost:5173 and click **Employee** in the Quick sign-in panel.
 2. Under **New request**, enter a title, choose **IT** / **High**, add a
-   description, and click **Open ticket**. Alice's **My tickets** shows it as
+   description, and click **Open ticket**. Rana's **My tickets** shows it as
    `Open`.
-3. Click **Switch account** → click **IT Agent** (Bob). The ticket is in the
+3. Click **Switch account** → click **IT Agent** (Karim). The ticket is in the
    **Department queue**.
 4. Click **Claim** — it moves to **My work · In Progress**.
 5. Click **Mark Resolved** *without* typing a note. The backend refuses the
@@ -125,7 +125,7 @@ Agents never do (that is the authorization rule).
    invalid request; nothing is saved).
 6. Type a resolution note (e.g. *"Replaced the display cable."*) and click
    **Mark Resolved** — the ticket moves to **Resolved by me**.
-7. Switch back to **Alice**. **My tickets** now shows `Resolved` with the note.
+7. Switch back to **Rana**. **My tickets** now shows `Resolved` with the note.
    Expand **▾ History** on any row to see `CREATED → CLAIMED → RESOLVED`, who
    did it, and when.
 

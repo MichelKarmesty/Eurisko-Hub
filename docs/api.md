@@ -31,13 +31,13 @@ Self-registration; **always creates an `Employee`**. Agent/Admin accounts are
 provisioned by an Admin through `POST /users` (RBAC, product-spec §3).
 
 ```json
-{ "name": "Alice", "email": "alice@corp.com", "password": "password123" }
+{ "name": "Rana Khoury", "email": "rana.khoury@eurisko.com", "password": "password123" }
 ```
 → `201` `{ "accessToken": "...", "user": { id, name, email, role } }`
 
 ### POST /auth/login  — public
 ```json
-{ "email": "alice@corp.com", "password": "password123" }
+{ "email": "rana.khoury@eurisko.com", "password": "password123" }
 ```
 → `200` `{ "accessToken": "...", "user": { ... } }`
 
@@ -50,7 +50,7 @@ provisioned by an Admin through `POST /users` (RBAC, product-spec §3).
 `POST /users` creates accounts with an explicit role (used to provision agents):
 
 ```json
-{ "name": "Bob", "email": "bob@corp.com", "password": "password123", "role": "IT_Agent" }
+{ "name": "Karim Haddad", "email": "karim.haddad@eurisko.com", "password": "password123", "role": "IT_Agent" }
 ```
 `PATCH /users/3/role` body: `{ "role": "HR_Agent" }`
 
@@ -109,8 +109,8 @@ Global metrics (computed on read per data-model §3):
 
 ## Scenario walk-through (acceptance criteria)
 
-1. **Opening a ticket** — Alice logs in, `POST /tickets` (IT, High). It appears in her `GET /tickets` as `Open`.
-2. **Resolving with a note** — Bob (IT agent) sees it in his queue, `PATCH /tickets/1/claim`, then `PATCH /tickets/1/status` with `{ "status": "Resolved", "resolutionNote": "Replaced HDMI cable" }`. Alice now sees `Resolved` + the note.
+1. **Opening a ticket** — Rana logs in, `POST /tickets` (IT, High). It appears in her `GET /tickets` as `Open`.
+2. **Resolving with a note** — Karim (IT agent) sees it in his queue, `PATCH /tickets/1/claim`, then `PATCH /tickets/1/status` with `{ "status": "Resolved", "resolutionNote": "Replaced HDMI cable" }`. Rana now sees `Resolved` + the note.
 3. **Admin global view** — Admin's `GET /tickets` returns tickets from all three departments; `GET /admin/stats` shows the aggregates.
 
 ## Getting started
@@ -122,7 +122,7 @@ npm run build && npm start        # http://localhost:3000
 npm run start:dev                 # watch mode (ts-node)
 ```
 
-First boot seeds an Admin (`admin@eurisko.local` / `Admin123!` — override via
+First boot seeds an Admin (`rami.fares@eurisko.com` / `Admin123!` — override via
 `ADMIN_EMAIL` / `ADMIN_PASSWORD`). By default the API uses an in-memory
 SQLite database (TypeORM `sqljs` driver — zero setup); set `DB_FILE=/path/db.sqlite`
 to persist it, or swap the TypeORM config for PostgreSQL later.

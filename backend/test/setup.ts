@@ -11,6 +11,6 @@
 import 'reflect-metadata';
 
 delete process.env.DB_FILE;
-process.env.ADMIN_EMAIL = 'admin@eurisko.local';
+process.env.ADMIN_EMAIL = 'rami.fares@eurisko.com';
 process.env.ADMIN_PASSWORD = 'Admin123!';
 process.env.SEED_DEMO_DATA = 'false';

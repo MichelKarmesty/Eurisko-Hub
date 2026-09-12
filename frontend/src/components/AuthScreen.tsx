@@ -16,12 +16,12 @@ import { Notice } from './ui';
  * backend/src/app.module.ts.
  */
 const DEMO_ACCOUNTS = [
-  { label: 'Employee', name: 'Alice', email: 'alice@corp.com', password: 'password123', hint: 'Requester — opens tickets and follows their status' },
-  { label: 'IT Agent', name: 'Bob', email: 'bob@corp.com', password: 'password123', hint: 'Serves the IT queue' },
-  { label: 'IT Agent', name: 'Dave', email: 'dave@corp.com', password: 'password123', hint: 'Second IT agent — useful for the “not assigned” denied case' },
-  { label: 'HR Agent', name: 'Carol', email: 'carol@corp.com', password: 'password123', hint: 'Serves the HR queue' },
-  { label: 'Maintenance Agent', name: 'Eve', email: 'eve@corp.com', password: 'password123', hint: 'Serves the Maintenance queue' },
-  { label: 'Admin', name: 'Admin', email: 'admin@eurisko.local', password: 'Admin123!', hint: 'Sees every ticket and manages users' },
+  { label: 'Employee', name: 'Rana Khoury', email: 'rana.khoury@eurisko.com', password: 'password123', hint: 'Requester — opens tickets and follows their status' },
+  { label: 'IT Agent', name: 'Karim Haddad', email: 'karim.haddad@eurisko.com', password: 'password123', hint: 'Serves the IT queue' },
+  { label: 'IT Agent', name: 'Nadim Saad', email: 'nadim.saad@eurisko.com', password: 'password123', hint: 'Second IT agent — useful for the “not assigned” denied case' },
+  { label: 'HR Agent', name: 'Layla Nassar', email: 'layla.nassar@eurisko.com', password: 'password123', hint: 'Serves the HR queue' },
+  { label: 'Maintenance Agent', name: 'Elias Aoun', email: 'elias.aoun@eurisko.com', password: 'password123', hint: 'Serves the Maintenance queue' },
+  { label: 'Admin', name: 'Rami Fares', email: 'rami.fares@eurisko.com', password: 'Admin123!', hint: 'Sees every ticket and manages users' },
 ];
 
 export function AuthScreen({ onAuthed }: { onAuthed: (session: Session) => void }) {
