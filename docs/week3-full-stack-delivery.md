@@ -203,7 +203,11 @@ fact that password hashes never appear in responses.
 with every request proxied to a **live NestJS backend** over HTTP, so the whole
 loop `React action → PATCH /tickets/:id/status → SQLite → React result` is
 exercised and the requester's list visibly ends up `Resolved` with the note.
-A Playwright browser script ([`e2e/scripts/resolve-slice.e2e.mjs`](../e2e/scripts/resolve-slice.e2e.mjs))
+A second E2E, [`e2e/dom/demo-signin.ui.test.tsx`](../e2e/dom/demo-signin.ui.test.tsx),
+covers the reviewer entry point: one click on the login card's **Quick sign-in**
+panel opens the Employee account; **Switch account** then opens the Admin
+account. A Playwright browser script
+([`e2e/scripts/resolve-slice.e2e.mjs`](../e2e/scripts/resolve-slice.e2e.mjs))
 offers the same journey in a real browser with screenshots when a Chromium
 binary is available.
 
@@ -242,7 +246,8 @@ $ node scripts/verify-slice.mjs full
 
 $ cd e2e && npm run test:ui
  ✓ dom/resolve-slice.ui.test.tsx (1 test)   React -> API -> SQLite
- Test Files  1 passed (1)   Tests  1 passed (1)
+ ✓ dom/demo-signin.ui.test.tsx  (1 test)   one-click role sign-in
+ Test Files  2 passed (2)   Tests  2 passed (2)
 ```
 
 > The exact pass counts are asserted by the suite; re-run the commands above on

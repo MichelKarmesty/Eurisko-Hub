@@ -308,9 +308,12 @@ table.tickets th {
 .auth-wrap {
   min-height: 100vh;
   display: flex;
-  align-items: center;
+  /* `safe` keeps the top of the card reachable when it is taller than the
+     viewport (plain centering can clip it); older browsers fall back to center. */
+  align-items: safe center;
   justify-content: center;
-  padding: 1rem;
+  padding: 1.5rem 1rem;
+  overflow-y: auto;
 }
 .auth-card {
   width: 100%;
@@ -345,6 +348,9 @@ table.tickets th {
   border-top: 1px dashed var(--line);
   padding-top: 0.6rem;
 }
+.demo-hint--top {
+  margin-top: 0.4rem;
+}
 .chip-row {
   display: flex;
   gap: 0.5rem;
@@ -362,6 +368,49 @@ table.tickets th {
 }
 .chip:hover {
   background: #eff6ff;
+}
+
+/* One-click demo sign-in grid --------------------------------------------- */
+.demo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+.demo-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.05rem;
+  font: inherit;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  padding: 0.5rem 0.7rem;
+  cursor: pointer;
+  color: var(--ink);
+}
+.demo-btn:hover:not(:disabled) {
+  background: #eff6ff;
+  border-color: var(--brand);
+}
+.demo-btn:disabled {
+  cursor: progress;
+  opacity: 0.65;
+}
+.demo-role {
+  font-weight: 600;
+  color: var(--brand);
+  font-size: 0.85rem;
+}
+.demo-footnote {
+  margin: 0.9rem 0 0;
+}
+@media (max-width: 480px) {
+  .demo-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Spinner ----------------------------------------------------------------- */

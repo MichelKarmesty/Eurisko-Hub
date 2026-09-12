@@ -85,29 +85,39 @@ node scripts/verify-slice.mjs full
 You can also register a new Employee from the login screen; agent and admin
 accounts are provisioned by an Admin through the Users tab.
 
-### How a reviewer opens each account
+### How a reviewer opens any account
 
-Everything happens on the login screen at **http://localhost:5173**. The demo
-buttons only **fill** the form — after clicking one, press **Log in**.
+Open **http://localhost:5173**. The login card shows a **Quick sign-in** panel
+with one button per role — click it and you are logged straight in (no password
+typing, no account list to hunt for):
 
-| To test as… | Do this |
+| To test as… | Click this button |
 |---|---|
-| **Employee (Requester)** | Click **`Requester (Alice) · alice@corp.com`** → **Log in**. Or open the **Register (Employee)** tab and create a brand-new employee account. |
-| **IT Agent** | Click **`IT Agent (Bob) · bob@corp.com`** → **Log in**. |
-| **HR / Maintenance Agent** | Click the **Carol** or **Eve** chip → **Log in**. |
-| **Admin** | Click **`Admin · admin@eurisko.local`** → **Log in**, then open the **👥 Users** tab to see every account and create new ones. |
-| **Any other account** | Type its email and password and press **Log in**. Only an Admin sees the Users list; Employees and Agents never do (that is the authorization rule). |
+| **Employee (Requester)** | **Employee** — Alice (`alice@corp.com`) |
+| **IT Agent** | **IT Agent** — Bob (`bob@corp.com`), or Dave (`dave@corp.com`) |
+| **HR Agent** | **HR Agent** — Carol (`carol@corp.com`) |
+| **Maintenance Agent** | **Maintenance Agent** — Eve (`eve@corp.com`) |
+| **Admin** | **Admin** (`admin@eurisko.local`) → then open the **👥 Users** tab |
 
-To move between accounts, click **Switch account** (top-right) and log in as the
-next one.
+To create a brand-new Employee, use the **Register (Employee)** tab. To create
+agent/admin accounts, sign in as Admin and use the **Users** tab. To move between
+accounts, click **Switch account** (top-right) and pick another Quick sign-in
+button. You can still type an email + password in the manual form for any
+account not in the list. Only an Admin ever sees the Users list — Employees and
+Agents never do (that is the authorization rule).
+
+> If a Quick sign-in button says the credentials are invalid, the API is
+> running an older build or its database was created with
+> `SEED_DEMO_DATA=false`: run `npm run build` in `backend/` and restart against a
+> fresh `DB_FILE`.
 
 ## Exercise the slice (5 minutes)
 
-1. Open http://localhost:5173 and log in as **Alice** (click the Requester chip).
+1. Open http://localhost:5173 and click **Employee** in the Quick sign-in panel.
 2. Under **New request**, enter a title, choose **IT** / **High**, add a
    description, and click **Open ticket**. Alice's **My tickets** shows it as
    `Open`.
-3. Click **Switch account** → log in as **Bob** (IT Agent). The ticket is in the
+3. Click **Switch account** → click **IT Agent** (Bob). The ticket is in the
    **Department queue**.
 4. Click **Claim** — it moves to **My work · In Progress**.
 5. Click **Mark Resolved** *without* typing a note. The backend refuses the

@@ -8,18 +8,20 @@ import { Notice } from './ui';
  *
  * product-spec.md §3 + docs/api.md: "Users can register and log in".
  * Self-registration always creates an Employee account (the backend enforces
- * this); agent/admin accounts are provisioned by an Admin (Users tab) or via
- * scripts/verify-slice.mjs.
+ * this); agent/admin accounts are provisioned by an Admin (Users tab).
+ *
+ * For local/demo use the backend seeds these personas on a fresh database
+ * (SEED_DEMO_DATA), so the "Quick sign-in" buttons below log a reviewer in as
+ * any role in one click. Keep this list in sync with DEMO_PERSONAS in
+ * backend/src/app.module.ts.
  */
-
-/** Demo personas created by scripts/verify-slice.mjs against a fresh DB. */
 const DEMO_ACCOUNTS = [
-  { label: 'Admin', email: 'admin@eurisko.local', password: 'Admin123!', hint: 'seeded on first boot' },
-  { label: 'Requester (Alice)', email: 'alice@corp.com', password: 'password123', hint: 'Employee' },
-  { label: 'IT Agent (Bob)', email: 'bob@corp.com', password: 'password123', hint: 'IT_Agent' },
-  { label: 'IT Agent (Dave)', email: 'dave@corp.com', password: 'password123', hint: 'IT_Agent' },
-  { label: 'HR Agent (Carol)', email: 'carol@corp.com', password: 'password123', hint: 'HR_Agent' },
-  { label: 'Maintenance Agent (Eve)', email: 'eve@corp.com', password: 'password123', hint: 'Maintenance_Agent' },
+  { label: 'Employee', name: 'Alice', email: 'alice@corp.com', password: 'password123', hint: 'Requester — opens tickets and follows their status' },
+  { label: 'IT Agent', name: 'Bob', email: 'bob@corp.com', password: 'password123', hint: 'Serves the IT queue' },
+  { label: 'IT Agent', name: 'Dave', email: 'dave@corp.com', password: 'password123', hint: 'Second IT agent — useful for the “not assigned” denied case' },
+  { label: 'HR Agent', name: 'Carol', email: 'carol@corp.com', password: 'password123', hint: 'Serves the HR queue' },
+  { label: 'Maintenance Agent', name: 'Eve', email: 'eve@corp.com', password: 'password123', hint: 'Serves the Maintenance queue' },
+  { label: 'Admin', name: 'Admin', email: 'admin@eurisko.local', password: 'Admin123!', hint: 'Sees every ticket and manages users' },
 ];
 
 export function AuthScreen({ onAuthed }: { onAuthed: (session: Session) => void }) {
@@ -28,6 +30,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: (session: Session) => void 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [quickBusy, setQuickBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
@@ -47,6 +50,19 @@ export function AuthScreen({ onAuthed }: { onAuthed: (session: Session) => void 
     }
   };
 
+  /** One-click sign-in for the seeded demo personas. */
+  const quickLogin = async (account: (typeof DEMO_ACCOUNTS)[number]) => {
+    setQuickBusy(account.email);
+    setError(null);
+    try {
+      onAuthed(await apiLogin(account.email, account.password));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Could not sign in as ${account.email}.`);
+    } finally {
+      setQuickBusy(null);
+    }
+  };
+
   return (
     <div className="auth-wrap">
       <div className="card auth-card">
@@ -54,6 +70,35 @@ export function AuthScreen({ onAuthed }: { onAuthed: (session: Session) => void 
         <p className="muted">
           Internal Operations Service Hub — log in or register as an employee.
         </p>
+
+        <div className="demo-hint demo-hint--top">
+          <p className="muted small">
+            <strong>Quick sign-in</strong> — pick any role (demo accounts, one click):
+          </p>
+          <div className="demo-grid">
+            {DEMO_ACCOUNTS.map((a) => (
+              <button
+                key={a.email}
+                type="button"
+                className="demo-btn"
+                onClick={() => void quickLogin(a)}
+                disabled={quickBusy !== null}
+                title={a.hint}
+              >
+                <span className="demo-role">{a.label}</span>
+                <span className="muted small">
+                  {a.name} · {a.email}
+                </span>
+                {quickBusy === a.email ? (
+                  <span className="muted small">Signing in…</span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <Notice kind="error">{error}</Notice>
+
         <div className="tabs">
           <button className={mode === 'login' ? 'tab active' : 'tab'} onClick={() => setMode('login')}>
             Log in
@@ -62,8 +107,6 @@ export function AuthScreen({ onAuthed }: { onAuthed: (session: Session) => void 
             Register (Employee)
           </button>
         </div>
-
-        <Notice kind="error">{error}</Notice>
 
         <form className="grid-form" onSubmit={submit}>
           {mode === 'register' && (
@@ -94,31 +137,10 @@ export function AuthScreen({ onAuthed }: { onAuthed: (session: Session) => void 
           </div>
         </form>
 
-        <div className="demo-hint">
-          <p className="muted small">
-            <strong>Demo accounts</strong> — click one to fill the form, then press “Log in”:
-          </p>
-          <div className="chip-row">
-            {DEMO_ACCOUNTS.map((a) => (
-              <button
-                key={a.email}
-                className="chip"
-                onClick={() => {
-                  setMode('login');
-                  setEmail(a.email);
-                  setPassword(a.password);
-                }}
-                title={a.hint}
-              >
-                {a.label} · {a.email}
-              </button>
-            ))}
-          </div>
-          <p className="muted small">
-            Signed in as <strong>Admin</strong>? Open the <strong>Users</strong> tab to see and
-            create every account.
-          </p>
-        </div>
+        <p className="muted small demo-footnote">
+          Signed in as <strong>Admin</strong>? Open the <strong>Users</strong> tab to see and
+          create every account.
+        </p>
       </div>
     </div>
   );

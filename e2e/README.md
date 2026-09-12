@@ -45,11 +45,16 @@ started backend (only the seeded admin exists) is enough — no manual
 `verify-slice` run is required. If the API is unreachable it fails immediately
 with the exact command to start it.
 
-Runs `dom/resolve-slice.ui.test.tsx`: Alice opens a ticket → Bob claims it →
-empty resolution note is rejected (backend 400 rendered in the form) → Bob
-resolves it with a note → the ticket moves to the "Resolved by me" section
-with the note → Alice's "My tickets" shows Resolved + note. DOM snapshots are
-written to `../artifacts/dom/`.
+The suite contains two tests:
+
+* `dom/resolve-slice.ui.test.tsx` — Alice opens a ticket → Bob claims it →
+  empty resolution note is rejected (backend 400 rendered in the form) → Bob
+  resolves it with a note → the ticket moves to the "Resolved by me" section
+  with the note → Alice's "My tickets" shows Resolved + note. DOM snapshots are
+  written to `../artifacts/dom/`.
+* `dom/demo-signin.ui.test.tsx` — the login card's **Quick sign-in** panel: one
+  click opens the Employee account, then **Switch account** → one click opens
+  the Admin account.
 
 ## Browser E2E (optional)
 
