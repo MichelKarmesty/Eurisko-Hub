@@ -18,6 +18,7 @@ Employees currently ask for IT, HR, or Maintenance help through WhatsApp and sca
 * **Agent Queue:** Agents can view open tickets for their department.
 * **Status Updates & Notes:** Agents can claim a ticket, change its status (`Open` -> `In Progress` -> `Resolved`), and add a simple text "Resolution Note" when closing it.
 * **Admin Dashboard:** Admins and managers can view all tickets across all departments in one place.
+* **Admin Ticket Actions (RBAC, [ADR-002](decisions/ADR-002.md) / [ADR-003](decisions/ADR-003.md)):** An Admin can **assign** an unclaimed ticket to an agent of the matching department, **cancel** a request softly with a required reason (the ticket and its history are kept — never hard-deleted), and change any ticket's status only as an explicit **override** that records a reason. These are the "actions beyond viewing" this spec originally deferred.
 
 ## 4. Non-Functional Requirements
 **What should using it feel like?**
@@ -48,6 +49,6 @@ Employees currently ask for IT, HR, or Maintenance help through WhatsApp and sca
 * **Scenario 2: Resolving a Ticket with a Note**
   * *Action:* An IT agent logs in, sees the "broken screen" ticket in the IT queue, claims it, fixes it, adds a note saying "Replaced HDMI cable", and changes status to `Resolved`.
   * *Result:* The ticket moves to the "Resolved" section, and the employee sees the updated status and the resolution note.
-* **Scenario 3: Admin Global View**
+* **Scenario 3: Admin Global View & Actions**
   * *Action:* The Admin logs in and opens their dashboard.
-  * *Result:* The admin sees tickets from IT, HR, and Maintenance in one combined list. Admin actions beyond viewing can be added later.
+  * *Result:* The admin sees tickets from IT, HR, and Maintenance in one combined list, and may act on them under guard: assign an unclaimed ticket to a matching agent, cancel a request with a reason (kept for audit, never deleted), or change a status as a recorded override (ADR-002/ADR-003). Employees and Agents still cannot see other departments or change statuses they do not own.

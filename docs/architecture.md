@@ -13,7 +13,7 @@ This document turns the product specification into a practical system design. Th
 ## Outside the Boundary (Actors):
   * **Requester (Employee):** Submits tickets and checks their status.
   * **Support Agent:** Works from a department-specific queue and updates ticket status.
-  * **Admin/Manager:** Can view all tickets across all departments. Actions beyond viewing can be added later.
+  * **Admin/Manager:** Views all tickets across all departments and manages user accounts. May also **assign** an unclaimed ticket to a matching agent, **cancel** a request softly (audited, never deleted), or change a ticket's status only as a recorded **override** with a reason ([ADR-002](decisions/ADR-002.md) / [ADR-003](decisions/ADR-003.md)).
   * **External dependencies:** None in the Phase 1 MVP. There is no SSO, external email service, or ERP integration, which keeps the first release isolated and straightforward to deliver.
 
 ## 2. Structure & Flow
@@ -33,6 +33,7 @@ To keep the system easy to understand and operate, the first version is a modula
 ### Trust & Authorization Boundaries
 * **Client vs. Server:** The Web Client cannot be trusted to enforce permissions. Every authorization check, such as preventing an IT agent from reading HR tickets, must happen at the Backend API boundary.
 * **Role-Based Access Control (RBAC):** The Auth Module applies permissions using the user's role from the database.
+* **Admin actions are governed, not unlimited:** assignment is checked against the ticket's department, cancellation is soft (the row and history survive), and any status change on a ticket the Admin is not assigned to is an explicit override that requires a recorded reason. All three are enforced in the Ticket Module, never in the client.
 
 ### Failure Scenarios (Component & In-Between Network Level):
 * **Web Client failure:** If the browser tab freezes or crashes, the user can refresh the page. Unsaved form data will be lost, but saved tickets remain safe.
