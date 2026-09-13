@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "E2E verification for the 'assigned agent resolves a ticket' slice (Eurisko Hub).",
+  "description": "E2E verification for the Service Request slice (Eurisko Hub): DOM tests + a self-contained browser E2E.",
   "scripts": {
-    "e2e:browser": "node scripts/resolve-slice.e2e.mjs",
+    "e2e:browser": "node ../scripts/run-browser-e2e.mjs",
     "test:ui": "vitest run",
     "test:ui:watch": "vitest"
   },

@@ -170,11 +170,18 @@ async function main() {
     const env = { ...process.env, APP_URL: appUrl };
     if (chrome) env.CHROME_PATH = chrome;
     else env.PLAYWRIGHT_BUNDLED = '1';
+    // Hard cap: a hung browser launch (e.g. a constrained container) must never
+    // hang the whole suite. The child is killed on timeout.
     const run = spawnSync(process.execPath, [path.join(E2E, 'scripts', 'resolve-slice.e2e.mjs')], {
       cwd: ROOT,
       env,
       stdio: 'inherit',
+      timeout: 3 * 60 * 1000,
+      killSignal: 'SIGKILL',
     });
+    if (run.error) {
+      console.error(`[browser-e2e] ${run.error.message}`);
+    }
     process.exitCode = run.status ?? 1;
   } catch (err) {
     console.error(`[browser-e2e] ${err instanceof Error ? err.message : err}`);
