@@ -18,3 +18,7 @@ artifacts/
 *.log
 .env
 .DS_Store
+
+# Private study handbook (personal notes, generated) — never publish
+docs/Eurisko-Hub-Handbook.docx
+scripts/make-handover-docx.mjs
