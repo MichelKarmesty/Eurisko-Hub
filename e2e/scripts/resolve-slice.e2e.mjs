@@ -21,7 +21,7 @@
  * Run:  node scripts/resolve-slice.e2e.mjs
  */
 import { chromium } from 'playwright';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -41,22 +41,33 @@ const fail = (name, detail) => {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function loginAs(page, email, password) {
-  // Header logout if a session is active, then fill & submit the auth form
-  // (login-only screen — type credentials, no demo-chip quick fill anymore).
+/**
+ * Log in via the login card's Quick sign-in panel (driven by the backend's
+ * demo-account list), so this script hardcodes no emails or passwords.
+ * `label` is a regex matched against the button's role label, e.g. /^Employee/.
+ */
+async function loginAs(page, label) {
   const logout = page.getByRole('button', { name: 'Switch account' });
   if (await logout.isVisible().catch(() => false)) await logout.click();
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Log in' }).click();
+  await page.getByRole('button', { name: label }).click();
   await page.locator('.topbar').waitFor({ state: 'visible' });
 }
 
 async function main() {
   mkdirSync(SHOTS, { recursive: true });
-  const defaultChrome = path.join(ROOT, 'e2e', '.browsers', 'chrome-headless-shell-linux64', 'chrome-headless-shell');
+  // Prefer an explicit CHROME_PATH, then a repo-local chrome-headless-shell,
+  // then Playwright's own installed browser (the runner installs it if needed).
+  // PLAYWRIGHT_BUNDLED=1 tells us the runner already probed and chose Playwright's.
+  const repoChrome = path.join(ROOT, 'e2e', '.browsers', 'chrome-headless-shell-linux64', 'chrome-headless-shell');
+  const executablePath = process.env.CHROME_PATH
+    ? process.env.CHROME_PATH
+    : process.env.PLAYWRIGHT_BUNDLED === '1'
+      ? undefined
+      : existsSync(repoChrome)
+        ? repoChrome
+        : undefined;
   const browser = await chromium.launch({
-    executablePath: process.env.CHROME_PATH ?? defaultChrome,
+    ...(executablePath ? { executablePath } : {}),
     headless: true,
   });
   const page = await browser.newPage({ viewport: { width: 1360, height: 950 } });
@@ -67,7 +78,7 @@ async function main() {
 
   // --- 1. Rana opens a ticket --------------------------------------------
   const title = `UI E2E ${Date.now()} - docking station flickers`;
-  await loginAs(page, 'rana.khoury@eurisko.com', 'password123');
+  await loginAs(page, /^Employee/);
   await page.getByLabel('Title').fill(title);
   await page.getByLabel('Description').fill('Docking station output flickers on the external monitor.');
   await page.getByLabel('Category').selectOption('IT');
@@ -89,7 +100,7 @@ async function main() {
   ok(`Rana list shows the ticket as Open`);
 
   // --- 2. Karim claims it from the IT queue ---------------------------------
-  await loginAs(page, 'karim.haddad@eurisko.com', 'password123');
+  await loginAs(page, /Karim/);
   const queueRow = page.locator('table.tickets tr', { hasText: title });
   await queueRow.waitFor({ state: 'visible' });
   await queueRow.getByRole('button', { name: 'Claim' }).click();
@@ -107,7 +118,9 @@ async function main() {
   const formError = workCard.locator('.form-error');
   await formError.waitFor({ state: 'visible' });
   const errText = (await formError.innerText()).trim();
-  if (!/resolution note is required/i.test(errText)) {
+  // Empty string is rejected by the DTO; a whitespace-only note would be
+  // rejected by the service rule. Either way the 400 surfaces here.
+  if (!/resolution/i.test(errText)) {
     fail('Empty resolution note is rejected (400 surfaced in UI)', errText);
   }
   ok(`Empty resolution note rejected -> UI shows: "${errText}"`);
@@ -136,7 +149,7 @@ async function main() {
   ok('Ticket moved to "Resolved by me" section, note visible (agent view)');
   await page.screenshot({ path: path.join(SHOTS, '3-bob-resolved-view.png'), fullPage: false });
   // --- 6. Requester sees Resolved + the note -------------------------------
-  await loginAs(page, 'rana.khoury@eurisko.com', 'password123');
+  await loginAs(page, /^Employee/);
   const aliceRow = page.locator('table.tickets tr', { hasText: title });
   await aliceRow.waitFor({ state: 'visible' });
   const aliceText = await aliceRow.innerText();

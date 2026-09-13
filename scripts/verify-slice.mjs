@@ -31,13 +31,34 @@ const MODE = process.argv[2] ?? 'full';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'rami.fares@eurisko.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'Admin123!';
 
-// Demo personas provisioned through the real Admin /users endpoint.
-// Keep this list in sync with DEMO_ACCOUNTS in frontend/src/components/AuthScreen.tsx.
-const REQUESTER = { name: 'Rana Khoury', email: 'rana.khoury@eurisko.com', password: 'password123' };
-const AGENT = { name: 'Karim Haddad', email: 'karim.haddad@eurisko.com', password: 'password123' };
-const OTHER_AGENT = { name: 'Nadim Saad', email: 'nadim.saad@eurisko.com', password: 'password123' };
-const HR_AGENT = { name: 'Layla Nassar', email: 'layla.nassar@eurisko.com', password: 'password123' };
-const MAINT_AGENT = { name: 'Elias Aoun', email: 'elias.aoun@eurisko.com', password: 'password123' };
+/**
+ * Demo personas are read from the backend — the single source of truth is
+ * `backend/src/common/demo-accounts.ts`, exposed by the dev-only
+ * `GET /demo/accounts`. This script keeps no copy of its own.
+ */
+let REQUESTER;
+let AGENT;
+let OTHER_AGENT;
+let HR_AGENT;
+let MAINT_AGENT;
+
+function toCredentials(account) {
+  return account ? { name: account.name, email: account.email, password: account.password } : null;
+}
+
+async function loadDemoPersonas() {
+  const res = await req('GET', '/demo/accounts');
+  const accounts = res.data?.accounts ?? [];
+  const byRole = (role) => accounts.filter((a) => a.role === role);
+  const itAgents = byRole('IT_Agent');
+  REQUESTER = toCredentials(byRole('Employee')[0]);
+  AGENT = toCredentials(itAgents[0]);
+  OTHER_AGENT = toCredentials(itAgents[1]);
+  HR_AGENT = toCredentials(byRole('HR_Agent')[0]);
+  MAINT_AGENT = toCredentials(byRole('Maintenance_Agent')[0]);
+  return [REQUESTER, AGENT, OTHER_AGENT, HR_AGENT, MAINT_AGENT].every(Boolean);
+}
+
 const NOTE = 'Replaced the HDMI cable; display is stable now.';
 const TITLE = 'First slice E2E - monitor keeps flickering';
 
@@ -116,6 +137,15 @@ async function run() {
     return;
   }
   const admin = adminLoginRes.data;
+
+  // 1b. The demo persona list comes from the backend itself (no local copy).
+  const personasOk = await loadDemoPersonas();
+  check('Demo accounts available via GET /demo/accounts', personasOk);
+  if (!personasOk) {
+    console.log('\nDemo seeding appears disabled — cannot continue. Start the backend with demo seeding enabled.');
+    process.exitCode = 1;
+    return;
+  }
 
   if (MODE === 'full') {
     // 2. Provision personas through the Admin user-management API.
@@ -203,6 +233,32 @@ async function run() {
     const adminHistory = await req('GET', `/tickets/${at.id}/history`, { token: admin.accessToken });
     const overrideEvent = adminHistory.data?.slice().reverse().find((e) => e.action === 'ADMIN_OVERRIDE');
     check('Admin override is recorded in history', !!overrideEvent && overrideEvent.note.includes(OVERRIDE_REASON), `action=${overrideEvent?.action}`);
+
+    // 10. Admin assignment (ADR-003): give an unclaimed, urgent ticket a named
+    //     owner instead of overriding it.
+    const toAssign = await req('POST', '/tickets', {
+      token: requester.accessToken,
+      body: { title: `${REQUESTER_TITLE_PREFIX}assign me`, description: 'Unclaimed and urgent.', category: 'IT', priority: 'High' },
+    });
+    const assigned = await req('PATCH', `/tickets/${toAssign.data.id}/assign`, {
+      token: admin.accessToken,
+      body: { assigneeId: agent.user?.id, note: 'Urgent — please take this.' },
+    });
+    check('Admin assigns an unclaimed ticket to an agent', assigned.status === 200 && assigned.data?.assignedToId === agent.user?.id, `HTTP ${assigned.status}`);
+    check('Assigned ticket is In Progress', assigned.data?.status === 'In Progress', String(assigned.data?.status));
+
+    // 11. Admin cancel (ADR-003): soft cancel keeps the ticket and its history.
+    const toCancel = await req('POST', '/tickets', {
+      token: requester.accessToken,
+      body: { title: `${REQUESTER_TITLE_PREFIX}duplicate`, description: 'Duplicate request.', category: 'IT', priority: 'Low' },
+    });
+    const cancelled = await req('PATCH', `/tickets/${toCancel.data.id}/cancel`, {
+      token: admin.accessToken,
+      body: { reason: 'Duplicate of an existing request (verify-slice).' },
+    });
+    check('Admin cancels a ticket (soft cancel)', cancelled.status === 200 && cancelled.data?.status === 'Cancelled', `HTTP ${cancelled.status}`);
+    const stillThere = await req('GET', `/tickets/${toCancel.data.id}`, { token: requester.accessToken });
+    check('Cancelled ticket is kept, not deleted', stillThere.status === 200 && stillThere.data?.status === 'Cancelled', `HTTP ${stillThere.status}`);
 
     console.log('\nFull slice verification finished. State is now persisted in SQLite (see .data/).');
     console.log(`Restart the backend (same DB_FILE) and run:  node scripts/verify-slice.mjs persist`);

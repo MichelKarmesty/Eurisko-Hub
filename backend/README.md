@@ -50,15 +50,22 @@ src/
                         main.ts AND the API tests, so tests hit the real boundary
   app.module.ts         module wiring + TypeORM + admin/demo seed
   common/               domain enums + JWT/RBAC guards + decorators
-  auth/                 register/login/me
+  auth/                 register/login/me + dev-only GET /demo/accounts
   users/                admin user management (provision agents)
-  tickets/              tickets + history (entities/service/controller)
+  tickets/              tickets + history (entities/service/controller);
+                        claim, admin assign, admin cancel, status/override
+  common/demo-accounts.ts  single source of truth for the demo accounts + seeding gate
 test/
   setup.ts              deterministic env for tests (in-memory DB, seed admin)
   domain-rules.spec.ts                  business-rule unit test
   tickets.database.integration.spec.ts  backend <-> database integration test
   tickets.api.spec.ts                   HTTP contract/authorization/regression test
 ```
+
+## Security
+The demo accounts use well-known passwords and the dev-only `GET /demo/accounts`
+exposes them (never in production). See [`../docs/security.md`](../docs/security.md)
+for the gating rules and what to change before a real deployment.
 
 ## Quick demo
 ```bash

@@ -5,8 +5,10 @@ import {
   apiListUsers,
   apiCreateUser,
   apiPatchUserRole,
+  apiAssignTicket,
+  apiCancelTicket,
 } from '../api';
-import type { AdminStats, Ticket, User } from '../types';
+import type { AdminStats, Category, Ticket, User } from '../types';
 import { ROLES, type Role } from '../types';
 import { ResolveControl } from './ResolveControl';
 import { TicketTable } from './TicketTable';
@@ -40,9 +42,112 @@ const ROLE_LABELS: Record<Role, string> = {
   Admin: 'Admin',
 };
 
+/** Mirrors backend ROLE_DEPARTMENT: an agent only serves one category. */
+const AGENT_DEPARTMENT: Partial<Record<Role, Category>> = {
+  IT_Agent: 'IT',
+  HR_Agent: 'HR',
+  Maintenance_Agent: 'Maintenance',
+};
+
 /**
- * ADR-002: an Admin moving an Open ticket to In Progress is overriding the
- * manual queue, so a reason is mandatory. Submits
+ * ADR-003: the normal Admin action for an unclaimed ticket — hand it to an
+ * agent of the matching department so it has a named owner (Open -> In
+ * Progress). Submits PATCH /tickets/:id/assign { assigneeId }.
+ */
+function AdminAssignControl({
+  agents,
+  busy,
+  onAssign,
+}: {
+  agents: User[];
+  busy: boolean;
+  onAssign: (assigneeId: number) => void;
+}) {
+  const [assigneeId, setAssigneeId] = useState<number | ''>(agents[0]?.id ?? '');
+
+  if (agents.length === 0) return null;
+
+  return (
+    <form
+      className="resolve-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (assigneeId) onAssign(Number(assigneeId));
+      }}
+    >
+      <select
+        className="input"
+        value={assigneeId}
+        onChange={(e) => setAssigneeId(e.target.value ? Number(e.target.value) : '')}
+        aria-label="Assign to agent"
+        disabled={busy}
+      >
+        {agents.map((a) => (
+          <option key={a.id} value={a.id}>
+            {a.name} ({ROLE_LABELS[a.role]})
+          </option>
+        ))}
+      </select>
+      <button type="submit" className="btn" disabled={busy || !assigneeId}>
+        {busy ? '…' : 'Assign'}
+      </button>
+    </form>
+  );
+}
+
+/**
+ * ADR-003: retire a request that should not be worked. Soft cancel — the
+ * ticket and its history are kept, never deleted. Submits
+ * PATCH /tickets/:id/cancel { reason }.
+ */
+function AdminCancelControl({
+  busy,
+  onCancel,
+}: {
+  busy: boolean;
+  onCancel: (reason: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState('');
+
+  if (!open) {
+    return (
+      <button type="button" className="btn btn-ghost" onClick={() => setOpen(true)} disabled={busy}>
+        Cancel request…
+      </button>
+    );
+  }
+
+  return (
+    <form
+      className="resolve-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (reason.trim()) {
+          onCancel(reason);
+          setOpen(false);
+          setReason('');
+        }
+      }}
+    >
+      <input
+        type="text"
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="Cancellation reason (required)…"
+        aria-label="Cancellation reason"
+        disabled={busy}
+      />
+      <button type="submit" className="btn" disabled={busy || !reason.trim()}>
+        {busy ? '…' : 'Cancel ticket'}
+      </button>
+    </form>
+  );
+}
+
+/**
+ * ADR-002: an Admin moving an Open ticket to In Progress without assigning it
+ * is overriding the manual queue, so a reason is mandatory. Submits
  * PATCH /tickets/:id/status { status: 'In Progress', overrideReason }.
  */
 function AdminStartControl({
@@ -83,15 +188,18 @@ function AdminStartControl({
 
 function TicketsTab() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [agents, setAgents] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [notice, setNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
-  const [filter, setFilter] = useState<'all' | 'unclaimed' | 'inProgress' | 'resolved'>('all');
+  const [filter, setFilter] = useState<'all' | 'unclaimed' | 'inProgress' | 'resolved' | 'cancelled'>('all');
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setTickets(await apiListTickets());
+      const [ticketList, userList] = await Promise.all([apiListTickets(), apiListUsers()]);
+      setTickets(ticketList);
+      setAgents(userList.filter((u) => AGENT_DEPARTMENT[u.role]));
       setNotice(null);
     } catch (err) {
       setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Could not load tickets.' });
@@ -105,21 +213,31 @@ function TicketsTab() {
   const replace = (updated: Ticket) =>
     setTickets((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
 
-  const start = async (t: Ticket, overrideReason: string) => {
+  /** Shared busy/notice wrapper for the Admin actions. */
+  const run = async (t: Ticket, action: () => Promise<Ticket>, success: string) => {
     setBusyId(t.id);
     try {
-      const updated = await apiUpdateStatus(t.id, {
-        status: 'In Progress',
-        overrideReason: overrideReason.trim(),
-      });
-      replace(updated);
-      setNotice({ kind: 'success', text: `Ticket #${t.id} is now In Progress (admin override recorded).` });
+      replace(await action());
+      setNotice({ kind: 'success', text: success });
     } catch (err) {
       setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Action failed.' });
     } finally {
       setBusyId(null);
     }
   };
+
+  const start = (t: Ticket, overrideReason: string) =>
+    run(
+      t,
+      () => apiUpdateStatus(t.id, { status: 'In Progress', overrideReason: overrideReason.trim() }),
+      `Ticket #${t.id} is now In Progress (admin override recorded).`,
+    );
+
+  const assign = (t: Ticket, assigneeId: number) =>
+    run(t, () => apiAssignTicket(t.id, assigneeId), `Ticket #${t.id} assigned.`);
+
+  const cancel = (t: Ticket, reason: string) =>
+    run(t, () => apiCancelTicket(t.id, reason.trim()), `Ticket #${t.id} cancelled.`);
 
   if (loading) return <Spinner />;
 
@@ -155,6 +273,7 @@ function TicketsTab() {
               ['unclaimed', `Unclaimed (${stats.openUnclaimed})`],
               ['inProgress', `In Progress (${stats.byStatus['In Progress'] ?? 0})`],
               ['resolved', `Resolved (${stats.byStatus['Resolved'] ?? 0})`],
+              ['cancelled', `Cancelled (${stats.byStatus['Cancelled'] ?? 0})`],
             ] as const
           ).map(([key, label]) => (
             <button
@@ -169,8 +288,8 @@ function TicketsTab() {
 
         {filter === 'unclaimed' && (
           <p className="muted small">
-            Open tickets with no agent yet — claim them from the department queue, or the
-            Admin can start them below.
+            Unclaimed Open tickets — assign one to a matching agent to get it moving,
+            or start it yourself as a recorded override.
           </p>
         )}
 
@@ -179,6 +298,7 @@ function TicketsTab() {
             if (filter === 'unclaimed') return t.status === 'Open' && t.assignedToId == null;
             if (filter === 'inProgress') return t.status === 'In Progress';
             if (filter === 'resolved') return t.status === 'Resolved';
+            if (filter === 'cancelled') return t.status === 'Cancelled';
             return true;
           })}
           empty={
@@ -188,21 +308,43 @@ function TicketsTab() {
                 ? 'Nothing unclaimed — every Open ticket is being handled.'
                 : filter === 'inProgress'
                   ? 'No tickets in progress right now.'
-                  : 'No resolved tickets yet.'
+                  : filter === 'resolved'
+                    ? 'No resolved tickets yet.'
+                    : 'No cancelled tickets.'
           }
           actions={(t) => {
             if (t.status === 'Open') {
+              const eligible = agents.filter((a) => AGENT_DEPARTMENT[a.role] === t.category);
               return (
-                <AdminStartControl
-                  busy={busyId === t.id}
-                  onStart={(reason) => void start(t, reason)}
-                />
+                <div className="admin-actions">
+                  {eligible.length > 0 ? (
+                    // Preferred: give the ticket an owner (ADR-003).
+                    <AdminAssignControl
+                      agents={eligible}
+                      busy={busyId === t.id}
+                      onAssign={(assigneeId) => void assign(t, assigneeId)}
+                    />
+                  ) : (
+                    // No matching agent exists — the only way forward is an
+                    // explicit, recorded override (ADR-002).
+                    <AdminStartControl
+                      busy={busyId === t.id}
+                      onStart={(reason) => void start(t, reason)}
+                    />
+                  )}
+                  <AdminCancelControl busy={busyId === t.id} onCancel={(reason) => void cancel(t, reason)} />
+                </div>
               );
             }
             if (t.status === 'In Progress') {
-              // ADR-002: an Admin is never the assignee, so this is an override
-              // and the reason is mandatory.
-              return <ResolveControl ticket={t} onResolved={replace} overrideReasonRequired />;
+              return (
+                <div className="admin-actions">
+                  {/* ADR-002: an Admin is never the assignee, so this is an
+                      override and the reason is mandatory. */}
+                  <ResolveControl ticket={t} onResolved={replace} overrideReasonRequired />
+                  <AdminCancelControl busy={busyId === t.id} onCancel={(reason) => void cancel(t, reason)} />
+                </div>
+              );
             }
             return <span className="muted">—</span>;
           }}

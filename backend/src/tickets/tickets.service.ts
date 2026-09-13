@@ -15,6 +15,7 @@ import {
   TicketStatus,
 } from '../common/domain';
 import { AuthUser } from '../common/auth.decorators';
+import { UsersService } from '../users/users.service';
 import { Ticket } from './ticket.entity';
 import { TicketAction, TicketEvent } from './ticket-event.entity';
 
@@ -51,6 +52,7 @@ export class TicketsService {
     private readonly tickets: Repository<Ticket>,
     @InjectRepository(TicketEvent)
     private readonly events: Repository<TicketEvent>,
+    private readonly users: UsersService,
   ) {}
 
   /**
@@ -67,6 +69,7 @@ export class TicketsService {
       status: 'Open',
       requesterId: user.id,
       assignedToId: null,
+      resolvedById: null,
       resolutionNote: null,
     });
     const saved = await this.tickets.save(ticket);
@@ -123,7 +126,7 @@ export class TicketsService {
 
     return this.tickets.find({
       where,
-      relations: { requester: true, assignedTo: true },
+      relations: { requester: true, assignedTo: true, resolvedBy: true },
       // Sequential, predictable order (oldest ticket number first) so lists
       // read 1,2,3,… instead of newest-first.
       order: { id: 'ASC' },
@@ -137,7 +140,7 @@ export class TicketsService {
   async getById(id: number, user: AuthUser): Promise<Ticket> {
     const ticket = await this.tickets.findOne({
       where: { id },
-      relations: { requester: true, assignedTo: true },
+      relations: { requester: true, assignedTo: true, resolvedBy: true },
     });
     if (!ticket) throw new NotFoundException(`Ticket ${id} not found.`);
 
@@ -260,6 +263,8 @@ export class TicketsService {
         );
       }
       ticket.resolutionNote = note;
+      // Name the real resolver (assigned agent, or Admin on an override).
+      ticket.resolvedById = user.id;
     }
 
     ticket.status = toStatus;
@@ -289,6 +294,97 @@ export class TicketsService {
         fromStatus,
         toStatus,
         note,
+      }),
+    );
+    return this.getById(id, user);
+  }
+
+  /**
+   * ADR-003: PATCH /tickets/:id/assign — an Admin gives an unclaimed ticket an
+   * owner by assigning it to an agent of the matching department. Moves the
+   * ticket Open -> In Progress (the documented claim transition) and records an
+   * ASSIGNED event, so urgent work gets a named owner without an override.
+   */
+  async assign(
+    id: number,
+    user: AuthUser,
+    assigneeId: number,
+    note?: string,
+  ): Promise<Ticket> {
+    if (!isAdminRole(user.role)) {
+      throw new ForbiddenException('Only an Admin can assign tickets.');
+    }
+    const ticket = await this.getById(id, user);
+    if (ticket.status !== 'Open') {
+      throw new ForbiddenException(
+        `Only OPEN tickets can be assigned (current status: ${ticket.status}).`,
+      );
+    }
+    if (ticket.assignedToId != null) {
+      throw new ForbiddenException('This ticket is already assigned.');
+    }
+
+    const assignee = await this.users.findById(assigneeId);
+    if (!assignee) throw new NotFoundException(`User ${assigneeId} not found.`);
+    if (!isAgentRole(assignee.role)) {
+      throw new BadRequestException('Tickets can only be assigned to agents.');
+    }
+    const department =
+      ROLE_DEPARTMENT[assignee.role as keyof typeof ROLE_DEPARTMENT];
+    if (department !== ticket.category) {
+      throw new BadRequestException(
+        `${assignee.role} serves ${department}, but this ticket is ${ticket.category}.`,
+      );
+    }
+
+    ticket.assignedToId = assignee.id;
+    ticket.status = 'In Progress';
+    const saved = await this.tickets.save(ticket);
+    await this.events.save(
+      this.events.create({
+        ticketId: saved.id,
+        actorId: user.id,
+        action: 'ASSIGNED',
+        fromStatus: 'Open',
+        toStatus: 'In Progress',
+        note: `Assigned to ${assignee.name}${note?.trim() ? ` — ${note.trim()}` : ''}`,
+      }),
+    );
+    return this.getById(id, user);
+  }
+
+  /**
+   * ADR-003: PATCH /tickets/:id/cancel — an Admin retires a request that should
+   * not be worked (duplicate, obsolete, withdrawn). This is a SOFT cancel: the
+   * ticket keeps its row and full history with status `Cancelled`; we never
+   * hard-delete tickets, because the audit trail is a core product requirement.
+   */
+  async cancel(id: number, user: AuthUser, reason: string): Promise<Ticket> {
+    if (!isAdminRole(user.role)) {
+      throw new ForbiddenException('Only an Admin can cancel tickets.');
+    }
+    const ticket = await this.getById(id, user);
+    if (ticket.status === 'Resolved' || ticket.status === 'Cancelled') {
+      throw new ForbiddenException(
+        `A ${ticket.status} ticket cannot be cancelled.`,
+      );
+    }
+    const trimmed = (reason ?? '').trim();
+    if (!trimmed) {
+      throw new BadRequestException('A cancellation reason is required.');
+    }
+
+    const fromStatus = ticket.status as TicketStatus;
+    ticket.status = 'Cancelled';
+    const saved = await this.tickets.save(ticket);
+    await this.events.save(
+      this.events.create({
+        ticketId: saved.id,
+        actorId: user.id,
+        action: 'CANCELLED',
+        fromStatus,
+        toStatus: 'Cancelled',
+        note: trimmed,
       }),
     );
     return this.getById(id, user);

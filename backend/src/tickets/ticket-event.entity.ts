@@ -12,10 +12,14 @@ import { Ticket } from './ticket.entity';
 export type TicketAction =
   | 'CREATED'
   | 'CLAIMED'
+  /** An Admin assigned an unclaimed ticket to an agent (ADR-003). */
+  | 'ASSIGNED'
   | 'STATUS_CHANGED'
   | 'RESOLVED'
   /** An Admin changed a ticket that was not assigned to them (ADR-002). */
-  | 'ADMIN_OVERRIDE';
+  | 'ADMIN_OVERRIDE'
+  /** An Admin cancelled a request instead of deleting it (ADR-003). */
+  | 'CANCELLED';
 
 /**
  * Ticket history (architecture.md §2: the DB is the source of truth for

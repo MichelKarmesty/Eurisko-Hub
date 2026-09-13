@@ -14,10 +14,15 @@
 
 ## 2. Lifecycle & Rules
 *   **Status flow:** A ticket moves from `Open` to `In Progress` to `Resolved`.
+    *   `Cancelled` is a separate **terminal** status an Admin can set directly
+        (ADR-003). It is not part of the linear flow, so a normal status change
+        can never skip to it.
 *   **Rules:**
     *   A ticket needs a valid category: IT, HR, or Maintenance.
     *   A ticket cannot move to `Resolved` without a resolution note.
-*   **Permission rule:** An agent can read or claim a ticket only when its category matches the agent's department.
+    *   A ticket records who actually resolved it (`resolvedById`) — the assigned
+        agent, or the Admin in an override.
+*   **Permission rule:** An agent can read or claim a ticket only when its category matches the agent's department. An Admin may **assign** an `Open`, unclaimed ticket to a matching agent, **override** with a recorded reason (ADR-002), or **cancel** it softly (ADR-003) — but never delete it.
 
 ## 3. Storage
 *   **Why SQL:** The system has clear schemas, predictable User-to-Ticket relationships, and needs strong consistency (ACID properties) so ticket data is not lost or corrupted.

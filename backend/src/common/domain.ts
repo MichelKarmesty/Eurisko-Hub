@@ -10,8 +10,13 @@ export type Category = (typeof CATEGORIES)[number];
 export const PRIORITIES = ['Low', 'Medium', 'High'] as const;
 export type Priority = (typeof PRIORITIES)[number];
 
-/** docs/data-model.md §2 / docs/api.md — lifecycle: Open -> In Progress -> Resolved. */
-export const STATUSES = ['Open', 'In Progress', 'Resolved'] as const;
+/**
+ * docs/data-model.md §2 / docs/api.md — lifecycle: Open -> In Progress -> Resolved.
+ * `Cancelled` is a terminal state an Admin can set directly (ADR-003); it is
+ * deliberately NOT part of the linear STATUS_ORDER so `statusCanTransition`
+ * never allows it as a normal step.
+ */
+export const STATUSES = ['Open', 'In Progress', 'Resolved', 'Cancelled'] as const;
 export type TicketStatus = (typeof STATUSES)[number];
 
 export const ROLES = [

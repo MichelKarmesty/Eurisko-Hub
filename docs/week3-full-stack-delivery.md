@@ -118,6 +118,35 @@ to them, but only as an explicit override:
   and the ticket stays unassigned (`assignedToId: null`), so no request is ever
   silently closed by an Admin without a stated reason.
 
+### `PATCH /tickets/:id/assign` — Admin (ADR-003)
+
+```jsonc
+{ "assigneeId": 3, "note": "Urgent — please take this." }
+// 200 -> { "status": "In Progress", "assignedToId": 3, … }
+```
+
+Gives an `Open`, unclaimed ticket a named owner (an agent of the matching
+department), records an `ASSIGNED` event, and enforces the department rule
+(`400` for a non-agent or wrong-department assignee; `403` if already claimed).
+
+### `PATCH /tickets/:id/cancel` — Admin, soft (ADR-003)
+
+```jsonc
+{ "reason": "Duplicate of an existing request." }
+// 200 -> { "status": "Cancelled", … }
+```
+
+Retires a request without deleting it: the row and its history are kept, the
+status becomes the terminal `Cancelled`, and a `CANCELLED` event records who and
+why. A missing/blank reason → `400`; a `Resolved`/`Cancelled` ticket → `403`.
+
+### `GET /demo/accounts` — public, development only
+
+One source of truth for the seeded demo accounts (consumed by the login card,
+`verify-slice` and the E2E harnesses). Returns `{ "accounts": [] }` when demo
+seeding is off; the Admin password is withheld if `ADMIN_PASSWORD` was
+overridden. See [`security.md`](security.md).
+
 ### `GET /tickets` — role-scoped list
 
 * Employee → own tickets; Agent → their department's `Open` queue
@@ -127,9 +156,10 @@ to them, but only as an explicit override:
 
 ### `GET /tickets/:id/history` — durable audit trail
 
-`200` with `CREATED → CLAIMED → STATUS_CHANGED/RESOLVED` (or `ADMIN_OVERRIDE`
-for an Admin acting on an unassigned ticket), each row carrying the actor and
-note. Access follows the same read rule as the ticket.
+`200` with `CREATED → CLAIMED/ASSIGNED → STATUS_CHANGED/RESOLVED` (or
+`ADMIN_OVERRIDE` for an Admin acting on an unassigned ticket, or `CANCELLED`),
+each row carrying the actor and note. Access follows the same read rule as the
+ticket.
 
 ---
 
@@ -138,22 +168,27 @@ note. Access follows the same read rule as the ticket.
 **Rule:** *only the agent the ticket is assigned to may change a ticket's status
 through the normal path; an agent may only read and claim tickets from their own
 department.* An Admin may change any ticket, but when the ticket is not assigned
-to them it is an **explicit override** requiring a recorded reason (ADR-002).
-Enforced server-side in
+to them it is an **explicit override** requiring a recorded reason (ADR-002);
+an Admin can also **assign** unclaimed tickets and **cancel** them softly
+(ADR-003). Enforced server-side in
 [`tickets.service.ts`](../backend/src/tickets/tickets.service.ts)
-(`getById`, `claim`, `changeStatus`), never in the client.
+(`getById`, `claim`, `assign`, `cancel`, `changeStatus`), never in the client.
 
 | Case | Actor | Request | Result |
 |---|---|---|---|
 | **ALLOWED** | Karim, the assigned `IT_Agent` | `PATCH /tickets/7/status` `{status:"Resolved", resolutionNote:"…"}` | `200`, ticket becomes `Resolved` |
-| **ALLOWED (override)** | Rami, an `Admin`, on an unclaimed ticket | same + `overrideReason:"…"` | `200`, `Resolved`, `assignedToId: null`, `ADMIN_OVERRIDE` event |
-| **DENIED** | Rami, an `Admin`, without `overrideReason` | same request | `400 Bad Request` |
-| **DENIED** | Rana, the `Employee` who opened ticket 7 | same request | `403 Forbidden`, ticket stays `In Progress` |
-| **DENIED** | Nadim, a *different* `IT_Agent` | same request | `403 Forbidden` |
+| **ALLOWED (override)** | Rami, an `Admin`, on a ticket assigned to an agent | same + `overrideReason:"…"` | `200`, `Resolved`, `ADMIN_OVERRIDE` event, `resolvedById` = Rami |
+| **ALLOWED (assign)** | Rami, an `Admin`, on an unclaimed IT ticket | `PATCH /tickets/7/assign` `{assigneeId: <IT agent>}` | `200`, `In Progress`, `assignedToId` set, `ASSIGNED` event |
+| **ALLOWED (cancel)** | Rami, an `Admin` | `PATCH /tickets/7/cancel` `{reason:"…"}` | `200`, terminal `Cancelled`, row and history kept |
+| **DENIED** | Rami, an `Admin`, without `overrideReason` | status change | `400 Bad Request` |
+| **DENIED** | Rami, an `Admin`, assigning an HR agent to an IT ticket | assign | `400 Bad Request` |
+| **DENIED** | Rana, the `Employee` who opened ticket 7 | status change / assign / cancel | `403 Forbidden` |
+| **DENIED** | Nadim, a *different* `IT_Agent` | status change | `403 Forbidden` |
 | **DENIED** | Layla, an `HR_Agent` | `GET /tickets/7` (an IT ticket) | `403 Forbidden` |
 
 The allowed and denied cases are asserted at both the service/database layer and
-the HTTP layer (see §5).
+the HTTP layer (see §5). Tickets are **never hard-deleted** — "erase" is the
+audited soft `Cancelled` status.
 
 ---
 
@@ -195,7 +230,7 @@ The Week 3 requirement is *"it is not lots of code and it is not lots of tests
 | 1 | Automated test for a business rule | [`backend/test/domain-rules.spec.ts`](../backend/test/domain-rules.spec.ts) | `cd backend && npm run test:unit` |
 | 2 | Integration test between backend and database | [`backend/test/tickets.database.integration.spec.ts`](../backend/test/tickets.database.integration.spec.ts) | `cd backend && npm run test:integration` |
 | 3 | HTTP contract + authorization + regression | [`backend/test/tickets.api.spec.ts`](../backend/test/tickets.api.spec.ts) | `cd backend && npm run test:api` |
-| 4 | Meaningful E2E test (real UI → real API → DB) | [`e2e/dom/resolve-slice.ui.test.tsx`](../e2e/dom/resolve-slice.ui.test.tsx) | `cd e2e && npm run test:ui` |
+| 4 | Meaningful E2E tests (real UI → real API → DB) | [`e2e/dom/`](../e2e/dom/) (4 tests) + [`e2e/scripts/resolve-slice.e2e.mjs`](../e2e/scripts/resolve-slice.e2e.mjs) (real browser) | `cd e2e && npm run test:ui` · `node scripts/run-browser-e2e.mjs` |
 | | everything, isolated and automated | [`scripts/run-tests.mjs`](../scripts/run-tests.mjs) | `node scripts/run-tests.mjs` |
 
 **1 — Business rule (pure, fast).** Proves the lifecycle rule
@@ -224,17 +259,19 @@ fact that password hashes never appear in responses.
 with every request proxied to a **live NestJS backend** over HTTP, so the whole
 loop `React action → PATCH /tickets/:id/status → SQLite → React result` is
 exercised and the requester's list visibly ends up `Resolved` with the note.
-A second E2E, [`e2e/dom/demo-signin.ui.test.tsx`](../e2e/dom/demo-signin.ui.test.tsx),
-covers the reviewer entry point: one click on the login card's **Quick sign-in**
-panel opens the Employee account; **Switch account** then opens the Admin
-account. A third, [`e2e/dom/admin-override.ui.test.tsx`](../e2e/dom/admin-override.ui.test.tsx),
-proves the ADR-002 policy in the UI: the Admin's "Start (override)" button stays
-disabled until a reason is entered, resolving an unclaimed ticket requires the
-override reason **and** the resolution note, and the finished row is marked
-`— admin override`. A Playwright browser script
-([`e2e/scripts/resolve-slice.e2e.mjs`](../e2e/scripts/resolve-slice.e2e.mjs))
-offers the same journey in a real browser with screenshots when a Chromium
-binary is available.
+There are four DOM tests:
+
+* [`e2e/dom/resolve-slice.ui.test.tsx`](../e2e/dom/resolve-slice.ui.test.tsx) — the slice itself;
+* [`e2e/dom/demo-signin.ui.test.tsx`](../e2e/dom/demo-signin.ui.test.tsx) — one-click role sign-in;
+* [`e2e/dom/admin-override.ui.test.tsx`](../e2e/dom/admin-override.ui.test.tsx) — ADR-002: resolving a ticket assigned to an agent demands an override reason **and** the resolution note, and the row names the real resolver;
+* [`e2e/dom/admin-actions.ui.test.tsx`](../e2e/dom/admin-actions.ui.test.tsx) — ADR-003: the Admin **assigns** an unclaimed ticket and **soft-cancels** a duplicate.
+
+A **real-browser** E2E ([`scripts/run-browser-e2e.mjs`](../scripts/run-browser-e2e.mjs)
+driving [`e2e/scripts/resolve-slice.e2e.mjs`](../e2e/scripts/resolve-slice.e2e.mjs))
+runs the same journey in Chromium with screenshots. It is self-contained (starts
+its own API + Vite) and self-installing (`npx playwright install chromium`), and
+skips gracefully when no browser can launch. Both layers run inside
+`node scripts/run-tests.mjs`.
 
 **Regression protection** is therefore explicit in two places (the `regression
 protection` describe-block in the HTTP suite, and the regression block in the
@@ -250,8 +287,9 @@ node scripts/run-tests.mjs
 
 This builds the backend, runs the three backend suites, starts an isolated
 backend on a free port with a throwaway SQLite file, runs the live HTTP checks,
-runs the UI E2E, then tears everything down and deletes the throwaway database.
-It exits non-zero if anything fails.
+runs the DOM UI E2E and the real-browser E2E, then tears everything down and
+deletes the throwaway database. It exits non-zero if anything fails (a browser
+E2E that cannot obtain a Chromium is reported as skipped, not failed).
 
 ---
 
@@ -262,18 +300,28 @@ The suite was executed in this repository; representative results:
 ```text
 $ cd backend && npm test
  ✓ test/domain-rules.spec.ts                  ( 7 tests)  business rule
- ✓ test/tickets.database.integration.spec.ts  (15 tests)  backend <-> database
- ✓ test/tickets.api.spec.ts                   ( 9 tests)  HTTP contract + regression
- Test Files  3 passed (3)   Tests  31 passed (31)
+ ✓ test/tickets.database.integration.spec.ts  (21 tests)  backend <-> database
+ ✓ test/tickets.api.spec.ts                   (11 tests)  HTTP contract + regression
+ Test Files  3 passed (3)   Tests  39 passed (39)
 
 $ node scripts/verify-slice.mjs full
- 23/23 checks passed   (live HTTP definition of done, fresh database)
+ 28/28 checks passed   (live HTTP definition of done, fresh database)
 
 $ cd e2e && npm run test:ui
- ✓ dom/resolve-slice.ui.test.tsx (1 test)   React -> API -> SQLite
- ✓ dom/demo-signin.ui.test.tsx  (1 test)   one-click role sign-in
- ✓ dom/admin-override.ui.test.tsx (1 test) admin override requires a reason
- Test Files  3 passed (3)   Tests  3 passed (3)
+ ✓ dom/resolve-slice.ui.test.tsx  (1 test)   React -> API -> SQLite
+ ✓ dom/demo-signin.ui.test.tsx    (1 test)   one-click role sign-in
+ ✓ dom/admin-override.ui.test.tsx (1 test)   admin override requires a reason
+ ✓ dom/admin-actions.ui.test.tsx  (1 test)   admin assign + soft cancel
+ Test Files  4 passed (4)   Tests  4 passed (4)
+
+$ node scripts/run-browser-e2e.mjs
+ PASS  Requester (Rana) opens ticket #1 from the UI
+ PASS  Rana list shows the ticket as Open
+ PASS  Agent (Karim) claims the ticket from the queue -> In Progress
+ PASS  Empty resolution note rejected -> UI shows: "resolutionNote must be longer…"
+ PASS  Ticket moved to "Resolved by me" section, note visible (agent view)
+ PASS  Requester "My tickets" reflects Resolved status + resolution note
+ 6 UI checks passed. Screenshots: artifacts/e2e
 ```
 
 > The exact pass counts are asserted by the suite; re-run the commands above on
@@ -297,9 +345,11 @@ $ cd e2e && npm run test:ui
 | Expected failure handled on purpose | ✅ | §4; `ResolveControl` + E2E empty-note step |
 | Automated test for a business rule | ✅ | `backend/test/domain-rules.spec.ts` |
 | Integration test backend ↔ database | ✅ | `backend/test/tickets.database.integration.spec.ts` |
-| Meaningful E2E test | ✅ | `e2e/dom/resolve-slice.ui.test.tsx` |
+| Meaningful E2E test | ✅ | `e2e/dom/` (4 tests) + real-browser `scripts/run-browser-e2e.mjs` |
 | Regression protection | ✅ | `tickets.api.spec.ts` + integration spec + `verify-slice.mjs` |
 | Admin override governed (no silent bypass) | ✅ | ADR-002; `overrideReason` required + `ADMIN_OVERRIDE` audit event, covered by integration/HTTP tests |
+| Admin assign & soft cancel (no hard delete) | ✅ | ADR-003; `ASSIGNED`/`CANCELLED` events, department-checked assignment, covered by integration/HTTP/live/UI tests |
+| Demo accounts have one source of truth | ✅ | `backend/src/common/demo-accounts.ts` + dev-only `GET /demo/accounts` consumed by UI/scripts/E2E |
 | `docs/week3-full-stack-delivery.md` | ✅ | this file |
 | README a new engineer can follow | ✅ | top-level [`README.md`](../README.md) |
 

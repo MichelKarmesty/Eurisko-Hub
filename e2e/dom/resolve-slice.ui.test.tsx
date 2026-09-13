@@ -57,22 +57,19 @@ describe('Slice: assigned agent resolves a ticket (UI -> API -> UI)', () => {
     render(<App />);
 
     // ---------- login helper used below ----------
-    const login = async (email: string, password: string, expectRole: string) => {
+    // Uses the login card's Quick sign-in panel, which is driven by the
+    // backend's demo-account list — so this test hardcodes no emails.
+    const loginAs = async (label: RegExp, expectRole: string) => {
       const logout = screen.queryByRole('button', { name: 'Switch account' });
       if (logout) await user.click(logout);
       // Wait for the auth screen (h1 only exists there, not in the topbar).
       await screen.findByRole('heading', { name: 'Eurisko Hub' });
-      // Login-only screen (no demo-chip quick fill anymore): type credentials.
-      const authForm = screen.getByRole('heading', { name: 'Eurisko Hub' }).closest('.auth-card')!.querySelector('form')!;
-      const form = authForm as HTMLElement;
-      await user.type(within(form).getByLabelText('Email'), email);
-      await user.type(within(form).getByLabelText('Password'), password);
-      await user.click(within(form).getByRole('button', { name: 'Log in' }));
+      await user.click(await screen.findByRole('button', { name: label }));
       await screen.findByText(expectRole, { selector: '.role-chip' });
     };
 
     // 1. Rana opens a ticket --------------------------------------------
-    await login('rana.khoury@eurisko.com', 'password123', 'Requester');
+    await loginAs(/^Employee/, 'Requester');
     await screen.findByLabelText('Title'); // form mounts after tickets load
     await user.type(screen.getByLabelText('Title'), title);
     await user.type(screen.getByLabelText('Description'), 'Docking station output flickers on the external monitor.');
@@ -91,7 +88,7 @@ describe('Slice: assigned agent resolves a ticket (UI -> API -> UI)', () => {
     expect(aliceRow.textContent).toContain('IT');
 
     // 2. Karim claims it from the IT queue ----------------------------------
-    await login('karim.haddad@eurisko.com', 'password123', 'IT Agent');
+    await loginAs(/Karim/, 'IT Agent');
     const queueSection = await screen.findByRole('heading', { name: /Department queue/ }).then((h) => h.closest('section')!);
     const queueRow = await within(queueSection).findByText(title).then((t) => t.closest('tr')!);
     await user.click(within(queueRow).getByRole('button', { name: 'Claim' }));
@@ -136,7 +133,7 @@ describe('Slice: assigned agent resolves a ticket (UI -> API -> UI)', () => {
     writeFileSync(path.join(ART, '2-bob-resolved-dom.html'), document.body.innerHTML);
 
     // 6. Requester sees Resolved + the note ---------------------------------
-    await login('rana.khoury@eurisko.com', 'password123', 'Requester');
+    await loginAs(/^Employee/, 'Requester');
     const aliceTable = await screen.findByRole('heading', { name: 'My tickets' }).then((h) => h.closest('section')!);
     const finalRow = await within(aliceTable).findByText(title).then((t) => t.closest('tr')!);
     expect(finalRow.textContent).toContain('Resolved');

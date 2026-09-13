@@ -11,7 +11,10 @@ it was resolved.
 > the requester sees it Resolved.** React frontend → NestJS backend → real
 > SQLite persistence, behind an explicit request/response contract, with an
 > authorization rule (allowed + denied), deliberate rejection of invalid input,
-> and an automated test suite. Full delivery record:
+> and an automated test suite (business rule, backend↔database integration, HTTP
+> contract/regression, DOM UI E2E, and a real-browser Playwright E2E). The Admin
+> role is governed too: assign an unclaimed ticket, override with a recorded
+> reason, or cancel softly — never delete. Full delivery record:
 > [`docs/week3-full-stack-delivery.md`](docs/week3-full-stack-delivery.md).
 
 ## Repository layout
@@ -65,9 +68,12 @@ The Vite dev server proxies `/api` to the backend on port 3000.
 
 **3. Demo accounts are seeded automatically.** On a fresh database the backend
 creates the Admin account and, in development, the demo personas below — so you
-can log in immediately, with no extra step. Set `SEED_DEMO_DATA=false` if you
-want only the Admin account. To additionally run the live HTTP
-definition-of-done checks, with the backend still running:
+can log in immediately, with no extra step. The login card reads them from the
+dev-only `GET /demo/accounts`, so the list exists in exactly one place
+(`backend/src/common/demo-accounts.ts`). Set `SEED_DEMO_DATA=false` if you want
+only the Admin account; see [`docs/security.md`](docs/security.md). To
+additionally run the live HTTP definition-of-done checks, with the backend still
+running:
 
 ```bash
 node scripts/verify-slice.mjs full
@@ -128,6 +134,10 @@ Agents never do (that is the authorization rule).
 7. Switch back to **Rana**. **My tickets** now shows `Resolved` with the note.
    Expand **▾ History** on any row to see `CREATED → CLAIMED → RESOLVED`, who
    did it, and when.
+8. Optional — Admin actions: **Switch account** → **Admin** → **Tickets** tab.
+   On an unclaimed ticket use **Assign** (give it an owner) or **Cancel request…**
+   (retire a duplicate with a reason); on an in-progress ticket, resolving asks
+   for an **override reason** because the Admin is not the assignee.
 
 Requests the API refuses (e.g. an employee trying to change a status) surface as
 a visible notice instead of failing silently.
@@ -141,8 +151,10 @@ node scripts/run-tests.mjs
 ```
 
 It builds the backend, runs all backend suites, starts an isolated backend on a
-free port with a throwaway SQLite file, runs the live HTTP checks and the UI
-E2E, then tears everything down. It exits non-zero if any layer fails.
+free port with a throwaway SQLite file, runs the live HTTP checks, the DOM UI
+E2E, and the real-browser E2E, then tears everything down. It exits non-zero if
+any layer fails (a browser E2E that cannot obtain a Chromium is reported as
+skipped, not failed).
 
 ### Layer by layer
 
@@ -162,26 +174,38 @@ npm run test:api          # HTTP contract, authorization (allowed/denied), regre
 | Integration test backend ↔ database | `npm run test:integration` | `backend/test/tickets.database.integration.spec.ts` |
 | HTTP contract + authorization + regression | `npm run test:api` | `backend/test/tickets.api.spec.ts` |
 
-**E2E UI test** (drives the real React app against a live backend):
+**UI E2E — two layers:**
 
-```bash
-# terminal A — start the API
-cd backend && npm run build
-DB_FILE="$PWD/.data/e2e.sqlite" npm start
+* **DOM E2E (fast, no browser needed):** renders the real React app in jsdom
+  against a live API.
 
-# terminal B — run the E2E (it waits for the API and provisions demo users)
-cd e2e
-npm run test:ui
-```
+  ```bash
+  # terminal A — start the API
+  cd backend && npm run build
+  DB_FILE="$PWD/.data/e2e.sqlite" npm start
 
-Point the E2E at a different host/port with `API_URL=http://127.0.0.1:3100 npm run test:ui`.
-A real-browser variant is available too (optional; needs a Chromium binary):
+  # terminal B — run the E2E (waits for the API, provisions demo users)
+  cd e2e
+  npm run test:ui
+  ```
 
-```bash
-cd e2e
-npx playwright install chromium     # or set CHROME_PATH=/path/to/chrome
-npm run e2e:browser                 # needs the frontend dev server on :5173
-```
+  Point it elsewhere with `API_URL=http://127.0.0.1:3100 npm run test:ui`.
+  The four tests cover the resolve slice, one-click role sign-in, the Admin
+  override, and Admin assign/cancel.
+
+* **Real-browser E2E (Playwright — self-contained, self-installing):**
+
+  ```bash
+  node scripts/run-browser-e2e.mjs
+  ```
+
+  It starts its own isolated backend and Vite dev server, makes sure a Chromium
+  is available (`CHROME_PATH`, a repo-local binary, or
+  `npx playwright install chromium`), drives the real UI, then tears everything
+  down. If no browser can launch (e.g. missing system libraries) it **skips**
+  with a clear message — set `STRICT_BROWSER_E2E=1` to fail instead.
+
+Both layers run as part of `node scripts/run-tests.mjs`.
 
 **Live HTTP definition-of-done checks** (backend running, from the repo root):
 
@@ -201,11 +225,14 @@ Base URL `http://localhost:3000`; authenticated calls send
 | Method & path | Who | Purpose |
 |---|---|---|
 | `POST /auth/register` · `POST /auth/login` | public | get a session token |
+| `GET /demo/accounts` | public, dev only | the seeded demo accounts (single source of truth); `[]` when seeding is off |
 | `POST /tickets` | any authenticated user | open a request (title, description, category, priority) |
 | `GET /tickets` | role-scoped | requester: own tickets · agent: own department's `Open` queue (`?mine=true` for claimed) · admin: all |
 | `PATCH /tickets/:id/claim` | matching agent | claim an `Open` ticket → `In Progress` |
-| `PATCH /tickets/:id/status` | **assigned agent or Admin override** | advance `Open → In Progress → Resolved`; a note is required to resolve. An Admin acting on a ticket not assigned to them must also send `overrideReason` (`400` otherwise), which is recorded as an `ADMIN_OVERRIDE` event (ADR-002) |
-| `GET /tickets/:id/history` | ticket readers | durable `CREATED → CLAIMED → ADMIN_OVERRIDE* → RESOLVED` audit trail |
+| `PATCH /tickets/:id/assign` | Admin | give an `Open`, unclaimed ticket a matching agent (ADR-003) |
+| `PATCH /tickets/:id/status` | **assigned agent or Admin override** | advance `Open → In Progress → Resolved`; a note is required to resolve. An Admin acting on a ticket not assigned to them must also send `overrideReason` (`400` otherwise), recorded as `ADMIN_OVERRIDE` (ADR-002) |
+| `PATCH /tickets/:id/cancel` | Admin | soft-cancel a request with a reason — kept and audited, never deleted (ADR-003) |
+| `GET /tickets/:id/history` | ticket readers | durable `CREATED → CLAIMED/ASSIGNED → RESOLVED` trail, plus `ADMIN_OVERRIDE` / `CANCELLED` where applicable |
 | `GET /admin/stats` | Admin | company-wide counters |
 
 ## Roles and access
@@ -214,10 +241,11 @@ Base URL `http://localhost:3000`; authenticated calls send
 - **IT / HR / Maintenance Agent:** works a department queue; may only read and
   claim tickets in their own department; cannot resolve a ticket assigned to a
   colleague.
-- **Admin:** sees every ticket, manages users, and can change any ticket's
-  status — but a change to a ticket they are not assigned to is an explicit
-  **override** that requires a reason and is written to the ticket history, so
-  an unclaimed ticket is never silently closed (ADR-002).
+- **Admin:** sees every ticket, manages users, and can **assign** an unclaimed
+  ticket to a matching agent, **cancel** a request softly (never a hard delete),
+  or change any ticket's status — but a change to a ticket they are not assigned
+  to is an explicit **override** that requires a reason and is written to the
+  ticket history (ADR-002), so an unclaimed ticket is never silently closed.
 
 Role checks happen on the server only — the client never enforces permissions.
 
@@ -228,9 +256,12 @@ Read in this order:
 1. [`docs/product-spec.md`](docs/product-spec.md)
 2. [`docs/architecture.md`](docs/architecture.md)
 3. [`docs/data-model.md`](docs/data-model.md)
-4. [`docs/decisions/ADR-001.md`](docs/decisions/ADR-001.md)
-5. [`docs/api.md`](docs/api.md)
-6. [`docs/week3-full-stack-delivery.md`](docs/week3-full-stack-delivery.md) — the Week 3 delivery record
+4. [`docs/decisions/ADR-001.md`](docs/decisions/ADR-001.md) — manual queue claiming
+5. [`docs/decisions/ADR-002.md`](docs/decisions/ADR-002.md) — Admin override policy
+6. [`docs/decisions/ADR-003.md`](docs/decisions/ADR-003.md) — Admin assign & soft cancel
+7. [`docs/api.md`](docs/api.md)
+8. [`docs/security.md`](docs/security.md) — dev-only demo accounts & seeding
+9. [`docs/week3-full-stack-delivery.md`](docs/week3-full-stack-delivery.md) — the Week 3 delivery record
 
 ## Troubleshooting
 
@@ -245,6 +276,10 @@ Read in this order:
 - **E2E says the backend is not reachable:** the global setup prints the exact
   start command; make sure the API is running and pass `API_URL` if it is not on
   port 3000.
+- **Browser E2E skips:** it needs Chromium and its system libraries. Install them
+  (`npx playwright install chromium`; on Debian/Ubuntu `npx playwright install-deps`)
+  or set `CHROME_PATH=/path/to/chrome`. It skips rather than failing unless
+  `STRICT_BROWSER_E2E=1`.
 
 ## Current status
 

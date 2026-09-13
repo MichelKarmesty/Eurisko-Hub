@@ -10,9 +10,11 @@ function fmt(d: string | undefined | null): string {
 const ACTION_LABEL: Record<TicketEvent['action'], string> = {
   CREATED: 'Created',
   CLAIMED: 'Claimed',
+  ASSIGNED: 'Assigned by admin',
   STATUS_CHANGED: 'Status changed',
   RESOLVED: 'Resolved',
   ADMIN_OVERRIDE: 'Admin override',
+  CANCELLED: 'Cancelled',
 };
 
 /**
@@ -86,7 +88,7 @@ export function TicketTable({
           {tickets.map((t) => {
             const isOpen = expandedId === t.id;
             const events = history[t.id];
-            const resolvedBy = t.status === 'Resolved' ? (t.assignedTo?.name ?? null) : null;
+            const resolvedBy = t.status === 'Resolved' ? (t.resolvedBy?.name ?? t.assignedTo?.name ?? null) : null;
             return (
               <TicketRowGroup
                 key={t.id}

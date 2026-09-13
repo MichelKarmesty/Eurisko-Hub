@@ -6,17 +6,20 @@
  *
  * What it does:
  *   1. builds the NestJS backend;
- *   2. runs the backend Jest suites (business rule, backend<->database
- *      integration, HTTP contract/authorization/regression);
- *   3. starts an isolated backend on a free port with a throwaway SQLite file;
- *   4. runs scripts/verify-slice.mjs (live HTTP definition-of-done checks);
- *   5. runs the DOM-level UI E2E (real React app -> live API -> SQLite);
- *   6. tears everything down and deletes the throwaway database.
+ *   2. runs the backend suites (business rule, backend<->database integration,
+ *      HTTP contract/authorization/regression);
+ *   3. runs the self-contained real-browser E2E (Playwright; skips gracefully
+ *      if no Chromium can launch);
+ *   4. starts an isolated backend on a free port with a throwaway SQLite file;
+ *   5. runs scripts/verify-slice.mjs (live HTTP definition-of-done checks);
+ *   6. runs the DOM-level UI E2E (real React app -> live API -> SQLite);
+ *   7. tears everything down and deletes the throwaway database.
  *
  * Options (env vars):
- *   TEST_PORT=3100     force the API port (default: a free port)
+ *   TEST_PORT=3100         force the API port (default: a free port)
  *   SKIP_BACKEND_TESTS=1   skip step 2
- *   SKIP_E2E=1             skip step 5
+ *   SKIP_BROWSER_E2E=1     skip step 3
+ *   SKIP_E2E=1             skip step 6 (DOM E2E)
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
@@ -95,7 +98,22 @@ async function main() {
       banner('Backend tests — SKIPPED (SKIP_BACKEND_TESTS=1)');
     }
 
-    // 3. Start an isolated backend for the live HTTP/UI checks.
+    // 3. Real-browser E2E. It is self-contained (own backend + Vite) and
+    //    self-installing, and skips gracefully if no Chromium can be obtained.
+    //    Run it before we start our own piped servers so nothing competes for
+    //    stdio while it drives the browser.
+    if (process.env.SKIP_BROWSER_E2E !== '1') {
+      run(
+        'Browser E2E (Playwright, real Chromium)',
+        process.execPath,
+        [path.join(ROOT, 'scripts', 'run-browser-e2e.mjs')],
+        ROOT,
+      );
+    } else {
+      banner('Browser E2E — SKIPPED (SKIP_BROWSER_E2E=1)');
+    }
+
+    // 4. Start an isolated backend for the live HTTP/UI checks.
     rmSync(DB_FILE, { force: true });
     banner(`Start isolated backend on ${base} (DB: ${path.relative(ROOT, DB_FILE)})`);
     api = spawn(process.execPath, [path.join(BACKEND, 'dist', 'main.js')], {
@@ -110,12 +128,12 @@ async function main() {
       throw new Error(`isolated backend did not become ready at ${base}`);
     }
 
-    // 4. Live HTTP definition-of-done checks (provisions demo personas).
+    // 5. Live HTTP definition-of-done checks (provisions demo personas).
     run('Live API checks (verify-slice full)', process.execPath, [path.join(ROOT, 'scripts', 'verify-slice.mjs'), 'full'], ROOT, {
       BASE_URL: base,
     });
 
-    // 5. DOM-level UI E2E: real React components -> live API -> SQLite.
+    // 6. DOM-level UI E2E: real React components -> live API -> SQLite.
     if (process.env.SKIP_E2E !== '1') {
       run('UI E2E (React -> API -> SQLite)', isWindows ? 'npx.cmd' : 'npx', ['vitest', 'run'], E2E, {
         API_URL: base,

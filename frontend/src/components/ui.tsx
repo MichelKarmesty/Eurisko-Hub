@@ -6,7 +6,9 @@ export function StatusBadge({ status }: { status: string }) {
       ? 'badge-open'
       : status === 'In Progress'
         ? 'badge-progress'
-        : 'badge-resolved';
+        : status === 'Cancelled'
+          ? 'badge-cancelled'
+          : 'badge-resolved';
   return <span className={`badge ${cls}`}>{status}</span>;
 }
 

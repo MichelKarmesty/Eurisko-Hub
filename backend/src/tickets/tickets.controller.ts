@@ -11,7 +11,12 @@ import {
   Query,
 } from '@nestjs/common';
 import { TicketsService } from './tickets.service';
-import { CreateTicketDto, UpdateStatusDto } from './dto';
+import {
+  AssignTicketDto,
+  CancelTicketDto,
+  CreateTicketDto,
+  UpdateStatusDto,
+} from './dto';
 import { AuthUser, CurrentUser, Roles } from '../common/auth.decorators';
 
 @Controller('tickets')
@@ -73,6 +78,36 @@ export class TicketsController {
       dto.resolutionNote,
       dto.overrideReason,
     );
+  }
+
+  /**
+   * ADR-003: PATCH /tickets/:id/assign — Admin assigns an OPEN, unclaimed
+   * ticket to an agent of the matching department (it then becomes In Progress).
+   */
+  @Roles('Admin')
+  @Patch(':id/assign')
+  @HttpCode(HttpStatus.OK)
+  assign(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: AssignTicketDto,
+  ) {
+    return this.tickets.assign(id, user, dto.assigneeId, dto.note);
+  }
+
+  /**
+   * ADR-003: PATCH /tickets/:id/cancel — Admin retires a request (soft cancel;
+   * the ticket and its history are kept, never deleted).
+   */
+  @Roles('Admin')
+  @Patch(':id/cancel')
+  @HttpCode(HttpStatus.OK)
+  cancel(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CancelTicketDto,
+  ) {
+    return this.tickets.cancel(id, user, dto.reason);
   }
 }
 

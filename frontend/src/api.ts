@@ -9,6 +9,7 @@
 import type {
   AdminStats,
   Category,
+  DemoAccount,
   Priority,
   Role,
   Session,
@@ -89,6 +90,15 @@ export function apiMe(): Promise<User> {
   return request<User>('GET', '/auth/me');
 }
 
+/**
+ * Dev-only discovery of the seeded demo accounts (single source of truth =
+ * backend/src/common/demo-accounts.ts). Returns [] when demo seeding is off.
+ */
+export async function apiDemoAccounts(): Promise<DemoAccount[]> {
+  const res = await request<{ accounts: DemoAccount[] }>('GET', '/demo/accounts');
+  return res.accounts;
+}
+
 // --- Tickets --------------------------------------------------------------
 
 export interface TicketListQuery {
@@ -142,6 +152,22 @@ export function apiUpdateStatus(
 
 export function apiTicketHistory(id: number): Promise<unknown[]> {
   return request('GET', `/tickets/${id}/history`);
+}
+
+/**
+ * ADR-003: an Admin gives an unclaimed ticket an owner by assigning it to an
+ * agent of the matching department (Open -> In Progress, `ASSIGNED` event).
+ */
+export function apiAssignTicket(id: number, assigneeId: number, note?: string): Promise<Ticket> {
+  return request<Ticket>('PATCH', `/tickets/${id}/assign`, { assigneeId, note });
+}
+
+/**
+ * ADR-003: an Admin retires a request. Soft cancel — the ticket and its
+ * history are kept (status becomes `Cancelled`); it is never deleted.
+ */
+export function apiCancelTicket(id: number, reason: string): Promise<Ticket> {
+  return request<Ticket>('PATCH', `/tickets/${id}/cancel`, { reason });
 }
 
 // --- Admin ----------------------------------------------------------------

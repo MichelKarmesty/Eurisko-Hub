@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
 import { CATEGORIES, Category, PRIORITIES, Priority } from '../common/domain';
 
 /** POST /tickets — requester submits a ticket (product-spec.md §3). */
@@ -43,4 +43,31 @@ export class UpdateStatusDto {
   @IsString()
   @MinLength(1)
   overrideReason?: string;
+}
+
+/**
+ * PATCH /tickets/:id/assign — an Admin gives an unclaimed ticket an owner by
+ * assigning it to an agent of the matching department (ADR-003). This is the
+ * normal, non-override way to get urgent work moving.
+ */
+export class AssignTicketDto {
+  @IsInt()
+  @Min(1)
+  assigneeId: number;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  note?: string;
+}
+
+/**
+ * PATCH /tickets/:id/cancel — an Admin retires a request that should not be
+ * worked (duplicate, obsolete, withdrawn). Soft by design: the ticket and its
+ * history are kept, never hard-deleted (ADR-003).
+ */
+export class CancelTicketDto {
+  @IsString()
+  @MinLength(1)
+  reason: string;
 }

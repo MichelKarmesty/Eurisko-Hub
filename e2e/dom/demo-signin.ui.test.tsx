@@ -42,13 +42,14 @@ describe('Demo quick sign-in', () => {
     await screen.findByRole('heading', { name: 'Eurisko Hub' });
 
     // One click on "Employee" -> signed in as the Requester.
-    await user.click(screen.getByRole('button', { name: /^Employee/ }));
+    // (Demo accounts are fetched from the backend, so wait for the button.)
+    await user.click(await screen.findByRole('button', { name: /^Employee/ }));
     await screen.findByText('Requester', { selector: '.role-chip' });
 
     // Back to the picker, then one click on "Admin".
     await user.click(screen.getByRole('button', { name: 'Switch account' }));
     await screen.findByRole('heading', { name: 'Eurisko Hub' });
-    await user.click(screen.getByRole('button', { name: /^Admin/ }));
+    await user.click(await screen.findByRole('button', { name: /^Admin/ }));
     await screen.findByText('Admin', { selector: '.role-chip' });
   }, 30000);
 });

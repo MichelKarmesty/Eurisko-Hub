@@ -175,6 +175,11 @@ body {
   color: var(--ok);
   border-color: #a7f3d0;
 }
+.badge-cancelled {
+  background: #f1f5f9;
+  color: #64748b;
+  border-color: #cbd5e1;
+}
 
 /* Forms ------------------------------------------------------------------- */
 .grid-form {
@@ -277,6 +282,17 @@ table.tickets th {
 }
 .resolve-form .form-error {
   flex-basis: 100%;
+}
+
+/* Stacked Admin actions inside a table cell (assign / resolve / cancel) ---- */
+.admin-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: flex-start;
+}
+.admin-actions .resolve-form {
+  margin-top: 0;
 }
 
 /* Stats ------------------------------------------------------------------- */

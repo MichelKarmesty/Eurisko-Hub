@@ -288,4 +288,76 @@ describe('Integration — ticket lifecycle is persisted in the database', () => 
       expect(event.note).toContain(note);
     });
   });
+
+  describe('admin assign & cancel (ADR-003)', () => {
+    it('assigns an unclaimed ticket to a matching agent and records ASSIGNED', async () => {
+      const ticket = await openTicket(); // IT, Open
+
+      const assigned = await tickets.assign(ticket.id, admin, bob.id, 'Urgent — please take this.');
+      expect(assigned.status).toBe('In Progress');
+      expect(assigned.assignedToId).toBe(bob.id);
+
+      const row = await ticketRepo.findOneByOrFail({ id: ticket.id });
+      expect(row.assignedToId).toBe(bob.id);
+      const event = await eventRepo.findOneByOrFail({ ticketId: ticket.id, action: 'ASSIGNED' });
+      expect(event.actorId).toBe(admin.id);
+      expect(event.note).toContain('Urgent — please take this.');
+    });
+
+    it('rejects assigning an agent from another department (400)', async () => {
+      const ticket = await openTicket(); // IT
+      await expect(tickets.assign(ticket.id, admin, carol.id)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+    });
+
+    it('rejects assigning a ticket that is already claimed (403)', async () => {
+      const ticket = await openAndClaim(); // already In Progress / assigned to Bob
+      await expect(tickets.assign(ticket.id, admin, dave.id)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+
+    it('cancels softly: the row and its history survive (CANCELLED)', async () => {
+      const ticket = await openTicket();
+
+      const cancelled = await tickets.cancel(ticket.id, admin, 'Duplicate of another request.');
+      expect(cancelled.status).toBe('Cancelled');
+
+      const row = await ticketRepo.findOneByOrFail({ id: ticket.id });
+      expect(row.status).toBe('Cancelled'); // never deleted
+      const event = await eventRepo.findOneByOrFail({ ticketId: ticket.id, action: 'CANCELLED' });
+      expect(event.actorId).toBe(admin.id);
+      expect(event.note).toBe('Duplicate of another request.');
+    });
+
+    it('only an Admin can cancel, and a Resolved ticket cannot be cancelled (403)', async () => {
+      const open = await openTicket();
+      await expect(tickets.cancel(open.id, bob, 'not allowed')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+
+      const resolved = await openAndClaim();
+      await tickets.changeStatus(resolved.id, bob, 'Resolved', 'Fixed.');
+      await expect(tickets.cancel(resolved.id, admin, 'too late')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+
+    it('records resolvedById for both an agent and an Admin override', async () => {
+      const byAgent = await openAndClaim();
+      const r1 = await tickets.changeStatus(byAgent.id, bob, 'Resolved', 'Agent fixed it.');
+      expect(r1.resolvedById).toBe(bob.id);
+
+      const byAdmin = await openAndClaim();
+      const r2 = await tickets.changeStatus(
+        byAdmin.id,
+        admin,
+        'Resolved',
+        'Admin fixed it.',
+        'Agent unavailable.',
+      );
+      expect(r2.resolvedById).toBe(admin.id);
+    });
+  });
 });

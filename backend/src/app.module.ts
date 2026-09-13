@@ -3,7 +3,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './common/jwt-auth.guard';
 import { RolesGuard } from './common/roles.guard';
-import { Role } from './common/domain';
+import {
+  DEMO_ADMIN,
+  DEMO_PERSONAS,
+  adminEmail,
+  adminPassword,
+  demoSeedingEnabled,
+} from './common/demo-accounts';
 import { User } from './users/user.entity';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
@@ -11,20 +17,6 @@ import { TicketsModule } from './tickets/tickets.module';
 import { Ticket } from './tickets/ticket.entity';
 import { TicketEvent } from './tickets/ticket-event.entity';
 import { UsersService } from './users/users.service';
-
-/**
- * Demo personas for local development, so a fresh database is immediately
- * usable from the login screen. Keep in sync with DEMO_ACCOUNTS in
- * frontend/src/components/AuthScreen.tsx.
- */
-const DEMO_PERSONAS: ReadonlyArray<{ name: string; email: string; role: Role }> = [
-  { name: 'Rana Khoury', email: 'rana.khoury@eurisko.com', role: 'Employee' },
-  { name: 'Karim Haddad', email: 'karim.haddad@eurisko.com', role: 'IT_Agent' },
-  { name: 'Nadim Saad', email: 'nadim.saad@eurisko.com', role: 'IT_Agent' },
-  { name: 'Layla Nassar', email: 'layla.nassar@eurisko.com', role: 'HR_Agent' },
-  { name: 'Elias Aoun', email: 'elias.aoun@eurisko.com', role: 'Maintenance_Agent' },
-];
-const DEMO_PASSWORD = 'password123';
 
 /**
  * Modular monolith (architecture.md §2): Auth Module + Ticket Module + one
@@ -61,8 +53,7 @@ export class AppModule implements OnApplicationBootstrap {
    * when the database has no users at all, so restarts never duplicate data.
    */
   async onApplicationBootstrap() {
-    const email = process.env.ADMIN_EMAIL ?? 'rami.fares@eurisko.com';
-    const password = process.env.ADMIN_PASSWORD ?? 'Admin123!';
+    const email = adminEmail();
     const existing = await this.users.findByEmail(email);
     if (existing) return;
 
@@ -75,31 +66,40 @@ export class AppModule implements OnApplicationBootstrap {
     }
 
     await this.users.create({
-      name: 'Rami Fares',
+      name: DEMO_ADMIN.name,
       email,
-      password,
+      password: adminPassword(),
       role: 'Admin',
     });
-    this.logger.log(`Seeded admin account: ${email} / ${password}`);
+    this.logger.log(`Seeded admin account: ${email}`);
     await this.seedDemoAccounts();
   }
 
   /**
    * Dev convenience: a fresh database also gets the demo requester/agents so
-   * the resolve-ticket slice can be exercised straight from the login screen —
-   * no terminal provisioning step needed. Disable with SEED_DEMO_DATA=false
-   * (and it never runs when NODE_ENV=production). In normal operation, agent
-   * and admin accounts are still provisioned by an Admin via POST /users.
+   * the slice can be exercised straight from the login screen — no terminal
+   * provisioning step needed. Never runs in production; disable in dev with
+   * `SEED_DEMO_DATA=false`. See docs/security.md.
    */
   private async seedDemoAccounts() {
-    if (process.env.NODE_ENV === 'production' || process.env.SEED_DEMO_DATA === 'false') {
+    if (!demoSeedingEnabled()) {
+      this.logger.warn(
+        'Demo account seeding is disabled (SEED_DEMO_DATA=false or NODE_ENV=production).',
+      );
       return;
     }
     for (const persona of DEMO_PERSONAS) {
-      await this.users.create({ ...persona, password: DEMO_PASSWORD });
+      await this.users.create({
+        name: persona.name,
+        email: persona.email,
+        password: persona.password,
+        role: persona.role,
+      });
     }
-    this.logger.log(
-      `Seeded ${DEMO_PERSONAS.length} demo accounts (password: ${DEMO_PASSWORD}).`,
+    this.logger.warn(
+      `Seeded ${DEMO_PERSONAS.length} DEMO accounts with well-known passwords ` +
+        `(${DEMO_PERSONAS.map((p) => p.email).join(', ')}). ` +
+        'Development only — never enable this in production.',
     );
   }
 }

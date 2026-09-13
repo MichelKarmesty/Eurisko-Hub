@@ -35,9 +35,8 @@ required to resolve) is enforced by the NestJS backend in `../backend/`.
    [`../backend/README.md`](../backend/README.md)), so you can log in straight
    away from the **Quick sign-in** panel on the login card, or register a new
    Employee account (product-spec.md §3 — "Users can register and log in").
-   Demo emails are Lebanese names at `@eurisko.com`
-   (`rana.khoury@…`, `karim.haddad@…`, `nadim.saad@…`, `layla.nassar@…`,
-   `elias.aoun@…`; admin `rami.fares@eurisko.com` / `Admin123!`).
+   The panel is driven by the dev-only `GET /demo/accounts`, so it always shows
+   the accounts that were actually seeded (Lebanese names at `@eurisko.com`).
 
    To also create a resolved sample ticket and run the live checks (optional,
    backend running):
@@ -53,7 +52,7 @@ required to resolve) is enforced by the NestJS backend in `../backend/`.
 |---|---|---|
 | Requester (`Employee`) | `RequesterView` | opens a ticket, watches its status (cannot change it — RBAC) |
 | Support Agent | `AgentView` | claims from the department queue (→ `In Progress`), then **resolves** with a note |
-| Admin | `AdminView` | every ticket + stats; may also advance the lifecycle |
+| Admin | `AdminView` | every ticket + stats + user management; **assigns** unclaimed tickets, **cancels** requests softly, or resolves as a recorded **override** |
 
 The "React action" lives in
 [`src/components/ResolveControl.tsx`](src/components/ResolveControl.tsx): it
@@ -61,23 +60,25 @@ submits `PATCH /tickets/:id/status` with
 `{ "status": "Resolved", "resolutionNote": "…" }`. When the backend answers,
 the returned ticket replaces the old one in local state, so the ticket moves
 from the *In Progress* section to the *Resolved* section and the note appears
-immediately. An empty note surfaces the backend's `400` right in the form.
+immediately. An empty note surfaces the backend's `400` right in the form. The
+Admin variant additionally requires an **override reason** and shows the real
+resolver in the table.
 
 ## Layout
 
 ```
-vite.config.ts       dev proxy: /api -> http://localhost:3000
+vite.config.ts       dev proxy: /api -> http://localhost:3000 (API_PROXY_TARGET overrides)
 src/
-  api.ts             typed fetch client (auth + tickets + stats)
+  api.ts             typed fetch client (auth + demo accounts + tickets + admin actions + stats)
   types.ts           domain vocabulary mirrored from backend/src/common/domain.ts
   App.tsx            session handling + role-based view routing
   components/
-    AuthScreen.tsx        login / register as Employee (+ demo-account quick fill)
+    AuthScreen.tsx        login / register + API-driven Quick sign-in
     RequesterView.tsx     open a ticket + my tickets (React result)
     AgentView.tsx         queue -> claim -> resolve (the slice flow)
-    AdminView.tsx         global list + stats
-    ResolveControl.tsx    the slice's React action (PATCH status)
-    TicketTable.tsx       shared table with per-row action cell
+    AdminView.tsx         global list + stats + users + assign/cancel controls
+    ResolveControl.tsx    the slice's React action (PATCH status; override reason)
+    TicketTable.tsx       shared table with per-row action cell + history
     ui.tsx                StatusBadge / Notice / Spinner
 ```
 

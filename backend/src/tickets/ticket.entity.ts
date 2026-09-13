@@ -50,6 +50,14 @@ export class Ticket {
   @Column({ type: 'int', nullable: true })
   assignedToId: number | null;
 
+  /**
+   * FK -> users.id of whoever actually resolved the ticket. Normally the
+   * assigned agent, but for an Admin override it is the Admin — so the UI can
+   * name the real resolver instead of guessing from the assignment.
+   */
+  @Column({ type: 'int', nullable: true })
+  resolvedById: number | null;
+
   /** Resolution note; required before a ticket may become Resolved. */
   @Column({ type: 'text', nullable: true })
   resolutionNote: string | null;
@@ -65,6 +73,9 @@ export class Ticket {
 
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   assignedTo: User | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  resolvedBy: User | null;
 }
 
 export const TICKET_STATUSES = STATUSES;

@@ -300,4 +300,79 @@ describe('API contract — the resolve-ticket slice over HTTP', () => {
       expect(overrides[1].note).toMatch(/Handled directly by the manager/);
     });
   });
+
+  describe('admin assign & cancel (ADR-003)', () => {
+    it('assigns an unclaimed ticket to an agent, and cancels another (soft)', async () => {
+      const owner = await provision('Employee', 'AssignOwner');
+      const agent = await provision('IT_Agent', 'AssignAgent');
+
+      // --- assign: urgent, unclaimed IT ticket gets a named owner ---
+      const opened = await request(http)
+        .post('/tickets')
+        .set(auth(owner.token))
+        .send({ title: 'Needs an owner', description: 'Urgent, unclaimed.', category: 'IT', priority: 'High' });
+      const id = opened.body.id as number;
+
+      const assigned = await request(http)
+        .patch(`/tickets/${id}/assign`)
+        .set(auth(adminToken))
+        .send({ assigneeId: agent.id, note: 'Urgent — please take this.' });
+      expect(assigned.status).toBe(200);
+      expect(assigned.body).toMatchObject({ status: 'In Progress', assignedToId: agent.id });
+
+      // assignment is an Admin action
+      const nonAdmin = await request(http)
+        .patch(`/tickets/${id}/assign`)
+        .set(auth(owner.token))
+        .send({ assigneeId: agent.id });
+      expect(nonAdmin.status).toBe(403);
+
+      // --- cancel: retire a duplicate without deleting history ---
+      const duplicate = await request(http)
+        .post('/tickets')
+        .set(auth(owner.token))
+        .send({ title: 'Duplicate request', description: 'Same as above.', category: 'IT', priority: 'Low' });
+
+      const cancelled = await request(http)
+        .patch(`/tickets/${duplicate.body.id}/cancel`)
+        .set(auth(adminToken))
+        .send({ reason: 'Duplicate of an existing request.' });
+      expect(cancelled.status).toBe(200);
+      expect(cancelled.body.status).toBe('Cancelled');
+
+      // Still readable (not deleted) and the cancellation is audited.
+      const stillThere = await request(http).get(`/tickets/${duplicate.body.id}`).set(auth(owner.token));
+      expect(stillThere.status).toBe(200);
+      const history = await request(http).get(`/tickets/${duplicate.body.id}/history`).set(auth(owner.token));
+      const cancelEvent = history.body.find((e: { action: string }) => e.action === 'CANCELLED');
+      expect(cancelEvent).toMatchObject({ toStatus: 'Cancelled' });
+      expect(cancelEvent.note).toMatch(/Duplicate/);
+
+      // A missing cancellation reason is rejected (400).
+      const noReason = await request(http)
+        .post('/tickets')
+        .set(auth(owner.token))
+        .send({ title: 'Cancel me', description: 'no reason given', category: 'IT', priority: 'Low' })
+        .then((r) => request(http).patch(`/tickets/${r.body.id}/cancel`).set(auth(adminToken)).send({ reason: '   ' }));
+      expect(noReason.status).toBe(400);
+    });
+
+    it('resolves name the real resolver (assigned agent vs Admin override)', async () => {
+      const owner = await provision('Employee', 'AttributionOwner');
+      const agent = await provision('IT_Agent', 'AttributionAgent');
+
+      const opened = await request(http)
+        .post('/tickets')
+        .set(auth(owner.token))
+        .send({ title: 'Attribution check', description: 'Who resolved it?', category: 'IT', priority: 'Medium' });
+      const id = opened.body.id as number;
+
+      await request(http).patch(`/tickets/${id}/claim`).set(auth(agent.token));
+      const resolved = await request(http)
+        .patch(`/tickets/${id}/status`)
+        .set(auth(agent.token))
+        .send({ status: 'Resolved', resolutionNote: 'Done by the agent.' });
+      expect(resolved.body.resolvedById).toBe(agent.id);
+    });
+  });
 });

@@ -18,15 +18,6 @@ const ADMIN = {
   email: process.env.ADMIN_EMAIL ?? 'rami.fares@eurisko.com',
   password: process.env.ADMIN_PASSWORD ?? 'Admin123!',
 };
-const PASSWORD = 'password123';
-
-const PERSONAS: Array<{ name: string; email: string; role: string }> = [
-  { name: 'Rana Khoury', email: 'rana.khoury@eurisko.com', role: 'Employee' },
-  { name: 'Karim Haddad', email: 'karim.haddad@eurisko.com', role: 'IT_Agent' },
-  { name: 'Nadim Saad', email: 'nadim.saad@eurisko.com', role: 'IT_Agent' },
-  { name: 'Layla Nassar', email: 'layla.nassar@eurisko.com', role: 'HR_Agent' },
-  { name: 'Elias Aoun', email: 'elias.aoun@eurisko.com', role: 'Maintenance_Agent' },
-];
 
 async function call(method: string, path: string, body?: unknown, token?: string) {
   const headers: Record<string, string> = {};
@@ -80,27 +71,44 @@ export default async function setup() {
   }
   const token = admin.data.accessToken as string;
 
-  for (const persona of PERSONAS) {
+  // The account list comes from the backend (single source of truth:
+  // backend/src/common/demo-accounts.ts) via the dev-only GET /demo/accounts.
+  const demo = await call('GET', '/demo/accounts');
+  const accounts = (demo.data?.accounts ?? []) as Array<{
+    name: string;
+    email: string;
+    role: string;
+    password: string | null;
+  }>;
+
+  if (accounts.length === 0) {
+    // eslint-disable-next-line no-console
+    console.warn('[e2e] Demo seeding looks disabled; no demo accounts to provision.');
+    return;
+  }
+
+  for (const account of accounts) {
+    if (!account.password) continue; // admin password overridden — keep it private
     const login = await call('POST', '/auth/login', {
-      email: persona.email,
-      password: PASSWORD,
+      email: account.email,
+      password: account.password,
     });
     if (login.status === 200) continue;
 
     const created = await call(
       'POST',
       '/users',
-      { ...persona, password: PASSWORD },
+      { name: account.name, email: account.email, password: account.password, role: account.role },
       token,
     );
     if (created.status !== 201) {
       throw new Error(
-        `Could not provision ${persona.role} ${persona.email}: HTTP ${created.status} ` +
+        `Could not provision ${account.role} ${account.email}: HTTP ${created.status} ` +
           JSON.stringify(created.data),
       );
     }
   }
 
   // eslint-disable-next-line no-console
-  console.log(`\n[e2e] Backend ready at ${API}; demo personas provisioned.`);
+  console.log(`\n[e2e] Backend ready at ${API}; ${accounts.length} demo accounts available.`);
 }
