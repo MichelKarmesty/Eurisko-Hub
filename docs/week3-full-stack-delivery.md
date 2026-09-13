@@ -140,12 +140,17 @@ Retires a request without deleting it: the row and its history are kept, the
 status becomes the terminal `Cancelled`, and a `CANCELLED` event records who and
 why. A missing/blank reason → `400`; a `Resolved`/`Cancelled` ticket → `403`.
 
-### `GET /demo/accounts` — public, development only
+### `POST /auth/login` — public (and the only public auth route)
 
-One source of truth for the seeded demo accounts (consumed by the login card,
-`verify-slice` and the E2E harnesses). Returns `{ "accounts": [] }` when demo
-seeding is off; the Admin password is withheld if `ADMIN_PASSWORD` was
-overridden. See [`security.md`](security.md).
+```jsonc
+{ "email": "admin@eurisko.com", "password": "Admin123!" }
+// 200 -> { "accessToken": "…", "user": { … } }
+```
+
+**No public registration (ADR-004):** `POST /auth/register` does not exist
+(`404`). The backend seeds only the Admin; every other account is created by the
+Admin through `POST /users` (Admin-only, explicit role). A wrong email and a
+wrong password both return the same generic `401`.
 
 ### `GET /tickets` — role-scoped list
 
@@ -230,7 +235,7 @@ The Week 3 requirement is *"it is not lots of code and it is not lots of tests
 | 1 | Automated test for a business rule | [`backend/test/domain-rules.spec.ts`](../backend/test/domain-rules.spec.ts) | `cd backend && npm run test:unit` |
 | 2 | Integration test between backend and database | [`backend/test/tickets.database.integration.spec.ts`](../backend/test/tickets.database.integration.spec.ts) | `cd backend && npm run test:integration` |
 | 3 | HTTP contract + authorization + regression | [`backend/test/tickets.api.spec.ts`](../backend/test/tickets.api.spec.ts) | `cd backend && npm run test:api` |
-| 4 | Meaningful E2E tests (real UI → real API → DB) | [`e2e/dom/`](../e2e/dom/) (4 tests) + [`e2e/scripts/resolve-slice.e2e.mjs`](../e2e/scripts/resolve-slice.e2e.mjs) (real browser) | `cd e2e && npm run test:ui` · `node scripts/run-browser-e2e.mjs` |
+| 4 | Meaningful E2E tests (real UI → real API → DB) | [`e2e/dom/`](../e2e/dom/) (3 tests) + [`e2e/scripts/resolve-slice.e2e.mjs`](../e2e/scripts/resolve-slice.e2e.mjs) (real browser) | `cd e2e && npm run test:ui` · `node scripts/run-browser-e2e.mjs` |
 | | everything, isolated and automated | [`scripts/run-tests.mjs`](../scripts/run-tests.mjs) | `node scripts/run-tests.mjs` |
 
 **1 — Business rule (pure, fast).** Proves the lifecycle rule
@@ -251,20 +256,23 @@ same pipeline as `src/main.ts` (`configureApp`) and drives it with `supertest`:
 `401` without a token, the full `open → claim → resolve → read back` flow,
 `400` for invalid requests, `403` for denied actors, and `200` for the allowed
 actor. Its `regression protection` block locks in behaviour that already worked
-before this slice: requester/agent/admin listing scopes, department isolation,
-self-registration rules, duplicate-email `409`, bad-credential `401`, and the
-fact that password hashes never appear in responses.
+before this slice: Admin-only account provisioning (public registration is gone,
+ADR-004), requester/agent/admin listing scopes, department isolation,
+duplicate-email `409`, bad-credential `401`, and the fact that password hashes
+never appear in responses.
 
 **4 — E2E.** Renders the **real React app** in jsdom and drives it like a user,
 with every request proxied to a **live NestJS backend** over HTTP, so the whole
 loop `React action → PATCH /tickets/:id/status → SQLite → React result` is
 exercised and the requester's list visibly ends up `Resolved` with the note.
-There are four DOM tests:
+There are three DOM tests:
 
 * [`e2e/dom/resolve-slice.ui.test.tsx`](../e2e/dom/resolve-slice.ui.test.tsx) — the slice itself;
-* [`e2e/dom/demo-signin.ui.test.tsx`](../e2e/dom/demo-signin.ui.test.tsx) — one-click role sign-in;
 * [`e2e/dom/admin-override.ui.test.tsx`](../e2e/dom/admin-override.ui.test.tsx) — ADR-002: resolving a ticket assigned to an agent demands an override reason **and** the resolution note, and the row names the real resolver;
 * [`e2e/dom/admin-actions.ui.test.tsx`](../e2e/dom/admin-actions.ui.test.tsx) — ADR-003: the Admin **assigns** an unclaimed ticket and **soft-cancels** a duplicate.
+
+(The Vitest global setup creates the accounts these tests use through the Admin
+API — test fixtures only; the app itself seeds only the Admin.)
 
 A **real-browser** E2E ([`scripts/run-browser-e2e.mjs`](../scripts/run-browser-e2e.mjs)
 driving [`e2e/scripts/resolve-slice.e2e.mjs`](../e2e/scripts/resolve-slice.e2e.mjs))
@@ -309,10 +317,9 @@ $ node scripts/verify-slice.mjs full
 
 $ cd e2e && npm run test:ui
  ✓ dom/resolve-slice.ui.test.tsx  (1 test)   React -> API -> SQLite
- ✓ dom/demo-signin.ui.test.tsx    (1 test)   one-click role sign-in
  ✓ dom/admin-override.ui.test.tsx (1 test)   admin override requires a reason
  ✓ dom/admin-actions.ui.test.tsx  (1 test)   admin assign + soft cancel
- Test Files  4 passed (4)   Tests  4 passed (4)
+ Test Files  3 passed (3)   Tests  3 passed (3)
 
 $ node scripts/run-browser-e2e.mjs
  PASS  Requester (Rana) opens ticket #1 from the UI
@@ -345,11 +352,11 @@ $ node scripts/run-browser-e2e.mjs
 | Expected failure handled on purpose | ✅ | §4; `ResolveControl` + E2E empty-note step |
 | Automated test for a business rule | ✅ | `backend/test/domain-rules.spec.ts` |
 | Integration test backend ↔ database | ✅ | `backend/test/tickets.database.integration.spec.ts` |
-| Meaningful E2E test | ✅ | `e2e/dom/` (4 tests) + real-browser `scripts/run-browser-e2e.mjs` |
+| Meaningful E2E test | ✅ | `e2e/dom/` (3 tests) + real-browser `scripts/run-browser-e2e.mjs` |
 | Regression protection | ✅ | `tickets.api.spec.ts` + integration spec + `verify-slice.mjs` |
 | Admin override governed (no silent bypass) | ✅ | ADR-002; `overrideReason` required + `ADMIN_OVERRIDE` audit event, covered by integration/HTTP tests |
 | Admin assign & soft cancel (no hard delete) | ✅ | ADR-003; `ASSIGNED`/`CANCELLED` events, department-checked assignment, covered by integration/HTTP/live/UI tests |
-| Demo accounts have one source of truth | ✅ | `backend/src/common/demo-accounts.ts` + dev-only `GET /demo/accounts` consumed by UI/scripts/E2E |
+| No public registration; Admin-provisioned accounts | ✅ | ADR-004; `POST /auth/register` removed (404), only the Admin is seeded, `POST /users` is Admin-only |
 | `docs/week3-full-stack-delivery.md` | ✅ | this file |
 | README a new engineer can follow | ✅ | top-level [`README.md`](../README.md) |
 

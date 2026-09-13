@@ -30,16 +30,14 @@ required to resolve) is enforced by the NestJS backend in `../backend/`.
    npm run dev                                   # http://localhost:5173
    ```
 
-3. On a **fresh** database the backend seeds the Admin account and the demo
-   personas automatically (see `SEED_DEMO_DATA` in
-   [`../backend/README.md`](../backend/README.md)), so you can log in straight
-   away from the **Quick sign-in** panel on the login card, or register a new
-   Employee account (product-spec.md §3 — "Users can register and log in").
-   The panel is driven by the dev-only `GET /demo/accounts`, so it always shows
-   the accounts that were actually seeded (Lebanese names at `@eurisko.com`).
+3. On a **fresh** database the backend seeds exactly **one** account — the Admin
+   (`admin@eurisko.com` / `Admin123!`, override via `ADMIN_EMAIL` /
+   `ADMIN_PASSWORD`). Sign in with it and create everyone else from the
+   **👥 Users** tab. There is **no public registration** and no demo data
+   (ADR-004): the login screen is a plain sign-in form.
 
-   To also create a resolved sample ticket and run the live checks (optional,
-   backend running):
+   To also run the live HTTP definition-of-done checks (they provision their own
+   test accounts through the Admin API), with the backend running:
 
    ```bash
    cd ..
@@ -69,11 +67,11 @@ resolver in the table.
 ```
 vite.config.ts       dev proxy: /api -> http://localhost:3000 (API_PROXY_TARGET overrides)
 src/
-  api.ts             typed fetch client (auth + demo accounts + tickets + admin actions + stats)
+  api.ts             typed fetch client (auth + tickets + admin actions + stats)
   types.ts           domain vocabulary mirrored from backend/src/common/domain.ts
   App.tsx            session handling + role-based view routing
   components/
-    AuthScreen.tsx        login / register + API-driven Quick sign-in
+    AuthScreen.tsx        sign-in only (no registration, no demo accounts)
     RequesterView.tsx     open a ticket + my tickets (React result)
     AgentView.tsx         queue -> claim -> resolve (the slice flow)
     AdminView.tsx         global list + stats + users + assign/cancel controls

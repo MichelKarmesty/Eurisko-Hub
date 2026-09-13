@@ -9,6 +9,8 @@ NestJS + TypeORM implementation of the Internal Operations Service Hub
 - **JWT** auth + **RBAC** roles: Employee, IT_Agent, HR_Agent, Maintenance_Agent, Admin
 - **class-validator** DTO validation; passwords hashed with bcryptjs; ticket
   history recorded durably in a `ticket_events` table
+- **No public registration** (ADR-004): the backend seeds only the Admin; the
+  Admin creates every other account via the Admin-only Users API
 
 ## Commands
 ```bash
@@ -39,8 +41,7 @@ npm run test:watch       # watch mode
 | `JWT_SECRET` | dev value | JWT signing secret (set in prod!) |
 | `JWT_EXPIRES_IN` | `8h` | Token lifetime |
 | `DB_FILE` | *(in-memory)* | SQLite file path for persistence |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `rami.fares@eurisko.com` / `Admin123!` | Seed admin |
-| `SEED_DEMO_DATA` | `true` (dev) | On an empty DB, also seed the demo personas (`false` disables; never runs when `NODE_ENV=production`) |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `admin@eurisko.com` / `Admin123!` | The one seeded Admin account |
 
 ## Layout
 ```
@@ -48,13 +49,12 @@ src/
   main.ts               bootstrap (listens on PORT)
   app.setup.ts          shared HTTP pipeline (validation + serialization) used by
                         main.ts AND the API tests, so tests hit the real boundary
-  app.module.ts         module wiring + TypeORM + admin/demo seed
+  app.module.ts         module wiring + TypeORM + admin-only seed
   common/               domain enums + JWT/RBAC guards + decorators
-  auth/                 register/login/me + dev-only GET /demo/accounts
-  users/                admin user management (provision agents)
+  auth/                 login/me (no public registration, ADR-004)
+  users/                Admin-only account provisioning (the only way to create users)
   tickets/              tickets + history (entities/service/controller);
                         claim, admin assign, admin cancel, status/override
-  common/demo-accounts.ts  single source of truth for the demo accounts + seeding gate
 test/
   setup.ts              deterministic env for tests (in-memory DB, seed admin)
   domain-rules.spec.ts                  business-rule unit test
@@ -63,12 +63,13 @@ test/
 ```
 
 ## Security
-The demo accounts use well-known passwords and the dev-only `GET /demo/accounts`
-exposes them (never in production). See [`../docs/security.md`](../docs/security.md)
-for the gating rules and what to change before a real deployment.
+The backend seeds exactly one account (the Admin) and exposes no public
+registration. See [`../docs/security.md`](../docs/security.md) — set a strong
+`ADMIN_PASSWORD` and `JWT_SECRET` before any real deployment.
 
-## Quick demo
+## Quick start
 ```bash
 npm run build && npm start
-# then follow "Scenario walk-through" in ../docs/api.md
+# sign in as admin@eurisko.com / Admin123!, then create users from the Users tab
+# (or follow "Scenario walk-through" in ../docs/api.md)
 ```

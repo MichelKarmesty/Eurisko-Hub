@@ -21,7 +21,7 @@ This document turns the product specification into a practical system design. Th
 To keep the system easy to understand and operate, the first version is a modular monolith with three main parts:
 1. **Web Client (Frontend App):** Renders the submission forms, requester dashboard, agent queue, and admin view. It presents data but does not enforce business rules.
 2. **Backend API (Core Server):** Enforces the rules and exposes the application operations. It contains two main modules:
-  * **Auth Module:** Handles login and identifies each user's role.
+  * **Auth Module:** Handles login and identifies each user's role. There is no public registration (ADR-004); accounts are provisioned by an Admin through the Users API.
   * **Ticket Module:** Handles ticket operations, limits agents to their department, and processes status changes.
 3. **Primary Database:** The source of truth for user credentials, tickets, and ticket history.
 

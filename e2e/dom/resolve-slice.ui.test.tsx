@@ -9,8 +9,8 @@
  *
  *   React action -> PATCH /tickets/:id/status -> SQLite -> React result.
  *
- * Prereqs: backend on :3000 with a persistent DB and the demo accounts
- * (run: node ../scripts/verify-slice.mjs full once), then:
+ * Prereqs: backend on :3000 with a persistent DB; the Vitest global setup
+ * provisions the test fixtures through the Admin API (ADR-004), then:
  *   npx vitest run
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -57,19 +57,24 @@ describe('Slice: assigned agent resolves a ticket (UI -> API -> UI)', () => {
     render(<App />);
 
     // ---------- login helper used below ----------
-    // Uses the login card's Quick sign-in panel, which is driven by the
-    // backend's demo-account list — so this test hardcodes no emails.
-    const loginAs = async (label: RegExp, expectRole: string) => {
+    // Test fixtures are provisioned by the global setup through the Admin API
+    // (the app seeds only the Admin and has no public registration; ADR-004),
+    // so the tests sign in with the fixture credentials.
+    const login = async (email: string, password: string, expectRole: string) => {
       const logout = screen.queryByRole('button', { name: 'Switch account' });
       if (logout) await user.click(logout);
       // Wait for the auth screen (h1 only exists there, not in the topbar).
       await screen.findByRole('heading', { name: 'Eurisko Hub' });
-      await user.click(await screen.findByRole('button', { name: label }));
+      const card = screen.getByRole('heading', { name: 'Eurisko Hub' }).closest('.auth-card')!;
+      const form = card.querySelector('form')! as HTMLElement;
+      await user.type(within(form).getByLabelText('Email'), email);
+      await user.type(within(form).getByLabelText('Password'), password);
+      await user.click(within(form).getByRole('button', { name: 'Log in' }));
       await screen.findByText(expectRole, { selector: '.role-chip' });
     };
 
     // 1. Rana opens a ticket --------------------------------------------
-    await loginAs(/^Employee/, 'Requester');
+    await login('rana.khoury@eurisko.com', 'password123', 'Requester');
     await screen.findByLabelText('Title'); // form mounts after tickets load
     await user.type(screen.getByLabelText('Title'), title);
     await user.type(screen.getByLabelText('Description'), 'Docking station output flickers on the external monitor.');
@@ -88,7 +93,7 @@ describe('Slice: assigned agent resolves a ticket (UI -> API -> UI)', () => {
     expect(aliceRow.textContent).toContain('IT');
 
     // 2. Karim claims it from the IT queue ----------------------------------
-    await loginAs(/Karim/, 'IT Agent');
+    await login('karim.haddad@eurisko.com', 'password123', 'IT Agent');
     const queueSection = await screen.findByRole('heading', { name: /Department queue/ }).then((h) => h.closest('section')!);
     const queueRow = await within(queueSection).findByText(title).then((t) => t.closest('tr')!);
     await user.click(within(queueRow).getByRole('button', { name: 'Claim' }));
@@ -133,7 +138,7 @@ describe('Slice: assigned agent resolves a ticket (UI -> API -> UI)', () => {
     writeFileSync(path.join(ART, '2-bob-resolved-dom.html'), document.body.innerHTML);
 
     // 6. Requester sees Resolved + the note ---------------------------------
-    await loginAs(/^Employee/, 'Requester');
+    await login('rana.khoury@eurisko.com', 'password123', 'Requester');
     const aliceTable = await screen.findByRole('heading', { name: 'My tickets' }).then((h) => h.closest('section')!);
     const finalRow = await within(aliceTable).findByText(title).then((t) => t.closest('tr')!);
     expect(finalRow.textContent).toContain('Resolved');

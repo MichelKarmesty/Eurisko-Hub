@@ -10,7 +10,7 @@ client is never trusted to enforce permissions).
 ## Conventions
 
 * Base URL: `http://localhost:3000` (no prefix — routes match ADR-001 exactly).
-* Auth: `Authorization: Bearer <accessToken>` returned by login/register.
+* Auth: `Authorization: Bearer <accessToken>` returned by login.
 * Request/response bodies are JSON.
 * Errors follow NestJS conventions: `{ "message": ..., "error": ..., "statusCode": ... }`.
 
@@ -26,43 +26,36 @@ client is never trusted to enforce permissions).
 
 ## Authentication
 
-### POST /auth/register  — public
-Self-registration; **always creates an `Employee`**. Agent/Admin accounts are
-provisioned by an Admin through `POST /users` (RBAC, product-spec §3).
-
-```json
-{ "name": "Rana Khoury", "email": "rana.khoury@eurisko.com", "password": "password123" }
-```
-→ `201` `{ "accessToken": "...", "user": { id, name, email, role } }`
+There is **no public registration** (ADR-004). The backend seeds exactly one
+account — the Admin (`ADMIN_EMAIL` / `ADMIN_PASSWORD`, default
+`admin@eurisko.com` / `Admin123!`) — and the Admin creates every other account
+through `POST /users` (below).
 
 ### POST /auth/login  — public
 ```json
-{ "email": "rana.khoury@eurisko.com", "password": "password123" }
+{ "email": "admin@eurisko.com", "password": "Admin123!" }
 ```
 → `200` `{ "accessToken": "...", "user": { ... } }`
+
+A wrong email and a wrong password both return the same generic
+`401 Invalid credentials.`, so the endpoint cannot be used to discover accounts.
 
 ### GET /auth/me
 → current user profile `{ id, email, role }`.
 
-### GET /demo/accounts  — public, development only
-Returns the seeded demo accounts so the login card, `scripts/verify-slice.mjs`
-and the E2E harnesses share one source of truth (`backend/src/common/demo-accounts.ts`):
-```json
-{ "accounts": [ { "label": "Admin", "name": "Rami Fares", "email": "…",
-                  "password": "Admin123!", "role": "Admin", "hint": "…" }, … ] }
-```
-Returns `{ "accounts": [] }` when demo seeding is disabled
-(`NODE_ENV=production` or `SEED_DEMO_DATA=false`); the Admin password is `null`
-if `ADMIN_PASSWORD` was overridden. See [security.md](security.md).
+> `POST /auth/register` does **not** exist: an outsider cannot create an
+> account, and any request to it returns `404 Not Found`.
 
-## User management (Admin only)
+## User management (Admin only) — the only way to create accounts
 
 ### GET /users · POST /users · PATCH /users/:id/role
-`POST /users` creates accounts with an explicit role (used to provision agents):
+`POST /users` creates an account with an explicit role and password:
 
 ```json
 { "name": "Karim Haddad", "email": "karim.haddad@eurisko.com", "password": "password123", "role": "IT_Agent" }
 ```
+→ `201` with the created user (never its password hash). A duplicate email →
+`409`; a non-Admin caller → `403`.
 `PATCH /users/3/role` body: `{ "role": "HR_Agent" }`
 
 ## Tickets
@@ -153,8 +146,9 @@ Global metrics (computed on read per data-model §3):
 
 ## Scenario walk-through (acceptance criteria)
 
-1. **Opening a ticket** — Rana logs in, `POST /tickets` (IT, High). It appears in her `GET /tickets` as `Open`.
-2. **Resolving with a note** — Karim (IT agent) sees it in his queue, `PATCH /tickets/1/claim`, then `PATCH /tickets/1/status` with `{ "status": "Resolved", "resolutionNote": "Replaced HDMI cable" }`. Rana now sees `Resolved` + the note.
+0. **Provisioning** — the Admin signs in and creates the people who will use the app (`POST /users`): an Employee, IT/HR/Maintenance agents, etc. There is no self-registration (ADR-004).
+1. **Opening a ticket** — the Employee signs in, `POST /tickets` (IT, High). It appears in their `GET /tickets` as `Open`.
+2. **Resolving with a note** — Karim (IT agent) sees it in his queue, `PATCH /tickets/1/claim`, then `PATCH /tickets/1/status` with `{ "status": "Resolved", "resolutionNote": "Replaced HDMI cable" }`. The Employee now sees `Resolved` + the note.
 3. **Admin global view** — Admin's `GET /tickets` returns tickets from all three departments; `GET /admin/stats` shows the aggregates.
 4. **Admin assigning an urgent ticket** — an `Open`, unclaimed ticket is assigned with `PATCH /tickets/2/assign` `{ "assigneeId": 3 }`; it becomes `In Progress` with an owner and an `ASSIGNED` event (ADR-003).
 5. **Admin retiring a duplicate** — `PATCH /tickets/2/cancel` `{ "reason": "Duplicate" }` moves it to the terminal `Cancelled` status; the ticket and its history remain readable (ADR-003).
@@ -168,9 +162,10 @@ npm run build && npm start        # http://localhost:3000
 npm run start:dev                 # watch mode (ts-node)
 ```
 
-First boot seeds an Admin (`rami.fares@eurisko.com` / `Admin123!` — override via
-`ADMIN_EMAIL` / `ADMIN_PASSWORD`) and, in development, the demo personas
-(`GET /demo/accounts`) — see [security.md](security.md). By default the API uses
-an in-memory SQLite database (TypeORM `sqljs` driver — zero setup); set
+First boot seeds exactly **one** account — the Admin
+(`admin@eurisko.com` / `Admin123!`, override via `ADMIN_EMAIL` / `ADMIN_PASSWORD`).
+Sign in with it and create everyone else from the **Users** tab (ADR-004); there
+is no public registration and no demo data. By default the API uses an in-memory
+SQLite database (TypeORM `sqljs` driver — zero setup); set
 `DB_FILE=/path/db.sqlite` to persist it, or swap the TypeORM config for
 PostgreSQL later.

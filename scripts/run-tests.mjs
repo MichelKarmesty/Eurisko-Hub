@@ -128,7 +128,7 @@ async function main() {
       throw new Error(`isolated backend did not become ready at ${base}`);
     }
 
-    // 5. Live HTTP definition-of-done checks (provisions demo personas).
+    // 5. Live HTTP definition-of-done checks (provisions test fixtures).
     run('Live API checks (verify-slice full)', process.execPath, [path.join(ROOT, 'scripts', 'verify-slice.mjs'), 'full'], ROOT, {
       BASE_URL: base,
     });

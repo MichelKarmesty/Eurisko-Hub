@@ -9,7 +9,6 @@
 import type {
   AdminStats,
   Category,
-  DemoAccount,
   Priority,
   Role,
   Session,
@@ -78,25 +77,13 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 // --- Authentication -------------------------------------------------------
 
+/** The only public auth call. There is no registration (ADR-004). */
 export function apiLogin(email: string, password: string): Promise<Session> {
   return request<Session>('POST', '/auth/login', { email, password });
 }
 
-export function apiRegister(name: string, email: string, password: string): Promise<Session> {
-  return request<Session>('POST', '/auth/register', { name, email, password });
-}
-
 export function apiMe(): Promise<User> {
   return request<User>('GET', '/auth/me');
-}
-
-/**
- * Dev-only discovery of the seeded demo accounts (single source of truth =
- * backend/src/common/demo-accounts.ts). Returns [] when demo seeding is off.
- */
-export async function apiDemoAccounts(): Promise<DemoAccount[]> {
-  const res = await request<{ accounts: DemoAccount[] }>('GET', '/demo/accounts');
-  return res.accounts;
 }
 
 // --- Tickets --------------------------------------------------------------

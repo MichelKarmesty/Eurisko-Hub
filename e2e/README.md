@@ -12,8 +12,8 @@ Both run inside `node scripts/run-tests.mjs`.
 
 ## DOM-level tests
 
-Only a running backend is needed — the Vitest global setup fetches the demo
-accounts from the backend and provisions any that are missing.
+Only a running backend is needed — the Vitest global setup provisions the test
+fixtures through the Admin API (the app itself seeds only the Admin; ADR-004).
 
 ```bash
 cd ../backend && npm install && npm run build
@@ -24,16 +24,13 @@ npx vitest run                                   # or: npm run test:ui
 ```
 
 Point at a different API with `API_URL=http://127.0.0.1:3100 npm run test:ui`.
-The suite contains four tests:
+The suite contains three tests:
 
 * `dom/resolve-slice.ui.test.tsx` — Rana opens a ticket → Karim claims it →
   empty resolution note is rejected (backend 400 rendered in the form) → Karim
   resolves it with a note → the ticket moves to the "Resolved by me" section →
   Rana's "My tickets" shows Resolved + note. DOM snapshots go to
   `../artifacts/dom/`.
-* `dom/demo-signin.ui.test.tsx` — the login card's **Quick sign-in** panel: one
-  click opens the Employee account, then **Switch account** → one click opens
-  the Admin account.
 * `dom/admin-override.ui.test.tsx` — ADR-002: resolving a ticket assigned to an
   agent demands an **override reason** plus the resolution note, and the row
   names the real resolver.
@@ -46,9 +43,10 @@ The suite contains four tests:
 node ../scripts/run-browser-e2e.mjs
 ```
 
-It starts its own backend (fresh DB, auto-seeded demo accounts) and Vite dev
-server pointed at it, makes sure a Chromium can launch, drives the real UI, then
-tears everything down. Browser resolution order:
+It starts its own backend (fresh DB; the app seeds only the Admin), provisions
+the test fixtures through the Admin API, starts the Vite dev server pointed at
+that backend, makes sure a Chromium can launch, drives the real UI, then tears
+everything down. Browser resolution order:
 
 1. `CHROME_PATH` if set;
 2. a repo-local `e2e/.browsers/chrome-headless-shell-linux64/chrome-headless-shell`;

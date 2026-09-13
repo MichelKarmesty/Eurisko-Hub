@@ -5,12 +5,12 @@
  *  - never touch a real on-disk database: with DB_FILE unset, AppModule uses an
  *    in-memory sqljs database (backend/.data/ is gitignored, so tests must not
  *    create files there);
- *  - use the documented seed admin credentials so HTTP tests can log in;
- *  - skip the dev demo-account seeding so suites start from a minimal state.
+ *  - use the documented seed Admin credentials so HTTP tests can log in. The
+ *    Admin is the only seeded account; tests provision the users they need
+ *    through the Admin API (ADR-004).
  */
 import 'reflect-metadata';
 
 delete process.env.DB_FILE;
-process.env.ADMIN_EMAIL = 'rami.fares@eurisko.com';
+process.env.ADMIN_EMAIL = 'admin@eurisko.com';
 process.env.ADMIN_PASSWORD = 'Admin123!';
-process.env.SEED_DEMO_DATA = 'false';

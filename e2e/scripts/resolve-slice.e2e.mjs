@@ -15,8 +15,9 @@
  *
  * Screenshots land in artifacts/e2e/.
  *
- * Prereqs: backend on :3000 (DB_FILE persistent), `npm run dev` on :5173,
- * demo accounts provisioned (run ../scripts/verify-slice.mjs full once).
+ * Prereqs: backend on :3000 (DB_FILE persistent) with the test fixtures
+ * provisioned (node scripts/verify-slice.mjs full), `npm run dev` on :5173.
+ * The self-contained runner scripts/run-browser-e2e.mjs does all of this.
  *
  * Run:  node scripts/resolve-slice.e2e.mjs
  */
@@ -42,14 +43,16 @@ const fail = (name, detail) => {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * Log in via the login card's Quick sign-in panel (driven by the backend's
- * demo-account list), so this script hardcodes no emails or passwords.
- * `label` is a regex matched against the button's role label, e.g. /^Employee/.
+ * Sign in with the test-fixture credentials. The app seeds only the Admin and
+ * has no public registration (ADR-004), so the runner provisions these
+ * fixtures via the Admin API before this script executes.
  */
-async function loginAs(page, label) {
+async function loginAs(page, email, password) {
   const logout = page.getByRole('button', { name: 'Switch account' });
   if (await logout.isVisible().catch(() => false)) await logout.click();
-  await page.getByRole('button', { name: label }).click();
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Password').fill(password);
+  await page.getByRole('button', { name: 'Log in' }).click();
   await page.locator('.topbar').waitFor({ state: 'visible' });
 }
 
@@ -78,7 +81,7 @@ async function main() {
 
   // --- 1. Rana opens a ticket --------------------------------------------
   const title = `UI E2E ${Date.now()} - docking station flickers`;
-  await loginAs(page, /^Employee/);
+  await loginAs(page, 'rana.khoury@eurisko.com', 'password123');
   await page.getByLabel('Title').fill(title);
   await page.getByLabel('Description').fill('Docking station output flickers on the external monitor.');
   await page.getByLabel('Category').selectOption('IT');
@@ -100,7 +103,7 @@ async function main() {
   ok(`Rana list shows the ticket as Open`);
 
   // --- 2. Karim claims it from the IT queue ---------------------------------
-  await loginAs(page, /Karim/);
+  await loginAs(page, 'karim.haddad@eurisko.com', 'password123');
   const queueRow = page.locator('table.tickets tr', { hasText: title });
   await queueRow.waitFor({ state: 'visible' });
   await queueRow.getByRole('button', { name: 'Claim' }).click();
@@ -133,11 +136,14 @@ async function main() {
   await page.locator('.notice-success', { hasText: `Ticket #${id} resolved` }).waitFor({ state: 'visible' });
   await sleep(250); // let React re-render the sections
 
-  // --- 5. Ticket moved to the Resolved section with the note --------------
-  const inProgressEmpty = await page
-    .locator('section', { hasText: 'My work · In Progress (0)' })
-    .isVisible();
-  if (!inProgressEmpty) fail('In Progress section emptied', 'ticket still listed as In Progress');
+  // --- 5. This ticket left "My work · In Progress" ------------------------
+  // Other tickets may legitimately be in progress (the fixture provisioner
+  // leaves one assigned to this agent), so assert on *this* ticket, not on the
+  // section being empty.
+  const inProgressSection = page.locator('section', { hasText: 'My work · In Progress' });
+  if ((await inProgressSection.locator('tr, .work-item', { hasText: title }).count()) > 0) {
+    fail('Ticket left the In Progress section', 'the ticket is still listed as In Progress');
+  }
 
   const resolvedTable = page.locator('section', { hasText: 'Resolved by me' });
   const resolvedRow = resolvedTable.locator('table.tickets tr', { hasText: title });
@@ -149,7 +155,7 @@ async function main() {
   ok('Ticket moved to "Resolved by me" section, note visible (agent view)');
   await page.screenshot({ path: path.join(SHOTS, '3-bob-resolved-view.png'), fullPage: false });
   // --- 6. Requester sees Resolved + the note -------------------------------
-  await loginAs(page, /^Employee/);
+  await loginAs(page, 'rana.khoury@eurisko.com', 'password123');
   const aliceRow = page.locator('table.tickets tr', { hasText: title });
   await aliceRow.waitFor({ state: 'visible' });
   const aliceText = await aliceRow.innerText();

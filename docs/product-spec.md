@@ -12,7 +12,7 @@ Employees currently ask for IT, HR, or Maintenance help through WhatsApp and sca
 
 ## 3. Functional Requirements
 **What must the product do?**
-* **Authentication & Authorization:** Users can register and log in. Role-Based Access Control (RBAC) ensures employees, agents, and admins only see the views and tickets they are allowed to access.
+* **Authentication & Authorization:** Only the **Admin** account is seeded; the Admin creates every other account (employees and IT/HR/Maintenance agents) from inside the app ([ADR-004](decisions/ADR-004.md)) — there is **no public registration**. Role-Based Access Control (RBAC) ensures employees, agents, and admins only see the views and tickets they are allowed to access.
 * **Ticket Submission:** Employees can create a ticket with a Title, Category (Fixed list: IT, HR, Maintenance), Priority (Low, Medium, High), and Description.
 * **Ticket Dashboard (Requester):** Employees can see a list of their own tickets and their current status.
 * **Agent Queue:** Agents can view open tickets for their department.
@@ -31,7 +31,7 @@ Employees currently ask for IT, HR, or Maintenance help through WhatsApp and sca
 * The MVP focuses on the core workflow: open a ticket, track it, and close it.
 
 ## 6. Assumptions, Constraints, & Unknowns
-* **Assumption:** Users will register with an email address and password.
+* **Assumption:** Accounts are provisioned by an Admin; people sign in with an email address and password. There is no self-registration.
 * **Constraint (Manual Assignment):** Tickets are not automatically assigned to individual agents. Agents choose and claim tickets from their department's open queue.
 
 ## 7. Non-Goals
@@ -44,7 +44,7 @@ Employees currently ask for IT, HR, or Maintenance help through WhatsApp and sca
 ## 8. Acceptance Criteria (Scenarios)
 **How will we know it works?**
 * **Scenario 1: Opening & Prioritizing a Ticket**
-  * *Action:* An employee logs in, selects the "IT" category, sets Priority to "High", and writes "My screen is broken."
+  * *Action:* An employee (whose account an Admin created) logs in, selects the "IT" category, sets Priority to "High", and writes "My screen is broken."
   * *Result:* The ticket appears in their dashboard as `Open`.
 * **Scenario 2: Resolving a Ticket with a Note**
   * *Action:* An IT agent logs in, sees the "broken screen" ticket in the IT queue, claims it, fixes it, adds a note saying "Replaced HDMI cable", and changes status to `Resolved`.

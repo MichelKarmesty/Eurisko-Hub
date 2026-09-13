@@ -3,8 +3,8 @@
  *  - assign an unclaimed ticket to a matching agent (gives it an owner), and
  *  - soft-cancel a request (kept with status Cancelled — never deleted).
  *
- * Prereqs: backend on :3000 (or API_URL); demo accounts come from the global
- * setup and the login card's Quick sign-in panel.
+ * Prereqs: backend on :3000 (or API_URL); the Vitest global setup provisions
+ * the test fixtures through the Admin API. No public registration (ADR-004).
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { configure, render, screen, waitFor, within } from '@testing-library/react';
@@ -42,16 +42,21 @@ describe('Admin assign & cancel (ADR-003) in the UI', () => {
     const cancelTitle = `Cancel me ${stamp}`;
     render(<App />);
 
-    const loginAs = async (label: RegExp, role: string) => {
+    // Sign in as the provisioned test fixtures (no public registration, ADR-004).
+    const login = async (email: string, password: string, role: string) => {
       const logout = screen.queryByRole('button', { name: 'Switch account' });
       if (logout) await user.click(logout);
       await screen.findByRole('heading', { name: 'Eurisko Hub' });
-      await user.click(await screen.findByRole('button', { name: label }));
+      const card = screen.getByRole('heading', { name: 'Eurisko Hub' }).closest('.auth-card')!;
+      const form = card.querySelector('form')! as HTMLElement;
+      await user.type(within(form).getByLabelText('Email'), email);
+      await user.type(within(form).getByLabelText('Password'), password);
+      await user.click(within(form).getByRole('button', { name: 'Log in' }));
       await screen.findByText(role, { selector: '.role-chip' });
     };
 
     // Rana opens two IT tickets.
-    await loginAs(/^Employee/, 'Requester');
+    await login('rana.khoury@eurisko.com', 'password123', 'Requester');
     await screen.findByLabelText('Title');
     for (const title of [assignTitle, cancelTitle]) {
       await user.clear(screen.getByLabelText('Title'));
@@ -62,7 +67,7 @@ describe('Admin assign & cancel (ADR-003) in the UI', () => {
     }
 
     // Admin: assign the first, cancel the second.
-    await loginAs(/^Admin/, 'Admin');
+    await login('admin@eurisko.com', 'Admin123!', 'Admin');
     const rowFor = (title: string) => screen.getByText(title).closest('tr')!;
     await screen.findByText(assignTitle);
 

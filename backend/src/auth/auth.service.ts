@@ -1,13 +1,8 @@
-import {
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
-import { RegisterDto, LoginDto } from './dto';
+import { LoginDto } from './dto';
 
 @Injectable()
 export class AuthService {
@@ -16,28 +11,12 @@ export class AuthService {
     private readonly jwt: JwtService,
   ) {}
 
-  /** POST /auth/register — employees self-register (role defaults to Employee). */
-  async register(dto: RegisterDto) {
-    const existing = await this.users.findByEmail(dto.email);
-    if (existing) throw new ConflictException('A user with this email already exists.');
-
-    const role = dto.role ?? 'Employee';
-    if (role !== 'Employee') {
-      // RBAC: agent/admin accounts are provisioned by an Admin via POST /users.
-      throw new ForbiddenException(
-        'Self-registration only creates Employee accounts. Ask an Admin to provision agent accounts.',
-      );
-    }
-
-    const user = await this.users.create({
-      name: dto.name,
-      email: dto.email,
-      password: dto.password,
-      role,
-    });
-    return this.buildSession(user);
-  }
-
+  /**
+   * POST /auth/login — the only public auth entry point. Accounts are created
+   * by an Admin via `POST /users` (ADR-004); there is no self-registration.
+   * A wrong email and a wrong password return the same generic error so the
+   * endpoint cannot be used to discover which emails exist.
+   */
   async login(dto: LoginDto) {
     const user = await this.users.findByEmail(dto.email);
     if (!user) throw new UnauthorizedException('Invalid credentials.');

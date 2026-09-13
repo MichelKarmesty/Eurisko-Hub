@@ -1,23 +1,29 @@
 /**
  * Vitest global setup for the DOM-level UI E2E.
  *
- * Runs once, in Node, before any test file. It makes the suite runnable against
- * a freshly started backend (only the seeded admin account exists):
+ * Runs once, in Node, before any test file. The application seeds only the
+ * Admin and has no public registration (ADR-004), so this setup provisions the
+ * **test fixtures** the UI tests drive, through the real Admin API. Nothing
+ * here is an application feature.
  *
- *   1. waits for the API to answer;
- *   2. logs in as the seeded admin;
- *   3. provisions the demo personas the UI flow uses (idempotent).
- *
- * If the API is not reachable it fails fast with a clear, actionable message
- * instead of a confusing timeout deep inside a test.
- *
+ * If the API is not reachable it fails fast with a clear, actionable message.
  * Configure the target with API_URL (default http://localhost:3000).
  */
 const API = process.env.API_URL ?? 'http://localhost:3000';
 const ADMIN = {
-  email: process.env.ADMIN_EMAIL ?? 'rami.fares@eurisko.com',
+  email: process.env.ADMIN_EMAIL ?? 'admin@eurisko.com',
   password: process.env.ADMIN_PASSWORD ?? 'Admin123!',
 };
+const PASSWORD = 'password123';
+
+/** Test-only accounts, created by the Admin just like a real deployment would. */
+const FIXTURES: Array<{ name: string; email: string; role: string }> = [
+  { name: 'Rana Khoury', email: 'rana.khoury@eurisko.com', role: 'Employee' },
+  { name: 'Karim Haddad', email: 'karim.haddad@eurisko.com', role: 'IT_Agent' },
+  { name: 'Nadim Saad', email: 'nadim.saad@eurisko.com', role: 'IT_Agent' },
+  { name: 'Layla Nassar', email: 'layla.nassar@eurisko.com', role: 'HR_Agent' },
+  { name: 'Elias Aoun', email: 'elias.aoun@eurisko.com', role: 'Maintenance_Agent' },
+];
 
 async function call(method: string, path: string, body?: unknown, token?: string) {
   const headers: Record<string, string> = {};
@@ -65,50 +71,33 @@ export default async function setup() {
   const admin = await call('POST', '/auth/login', ADMIN);
   if (admin.status !== 200) {
     throw new Error(
-      `Could not log in as the seeded admin (${ADMIN.email}) at ${API}: HTTP ${admin.status} ` +
+      `Could not log in as the seeded Admin (${ADMIN.email}) at ${API}: HTTP ${admin.status} ` +
         JSON.stringify(admin.data),
     );
   }
   const token = admin.data.accessToken as string;
 
-  // The account list comes from the backend (single source of truth:
-  // backend/src/common/demo-accounts.ts) via the dev-only GET /demo/accounts.
-  const demo = await call('GET', '/demo/accounts');
-  const accounts = (demo.data?.accounts ?? []) as Array<{
-    name: string;
-    email: string;
-    role: string;
-    password: string | null;
-  }>;
-
-  if (accounts.length === 0) {
-    // eslint-disable-next-line no-console
-    console.warn('[e2e] Demo seeding looks disabled; no demo accounts to provision.');
-    return;
-  }
-
-  for (const account of accounts) {
-    if (!account.password) continue; // admin password overridden — keep it private
+  for (const fixture of FIXTURES) {
     const login = await call('POST', '/auth/login', {
-      email: account.email,
-      password: account.password,
+      email: fixture.email,
+      password: PASSWORD,
     });
     if (login.status === 200) continue;
 
     const created = await call(
       'POST',
       '/users',
-      { name: account.name, email: account.email, password: account.password, role: account.role },
+      { ...fixture, password: PASSWORD },
       token,
     );
     if (created.status !== 201) {
       throw new Error(
-        `Could not provision ${account.role} ${account.email}: HTTP ${created.status} ` +
+        `Could not provision ${fixture.role} ${fixture.email}: HTTP ${created.status} ` +
           JSON.stringify(created.data),
       );
     }
   }
 
   // eslint-disable-next-line no-console
-  console.log(`\n[e2e] Backend ready at ${API}; ${accounts.length} demo accounts available.`);
+  console.log(`\n[e2e] Backend ready at ${API}; ${FIXTURES.length} test fixtures available.`);
 }

@@ -3,13 +3,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './common/jwt-auth.guard';
 import { RolesGuard } from './common/roles.guard';
-import {
-  DEMO_ADMIN,
-  DEMO_PERSONAS,
-  adminEmail,
-  adminPassword,
-  demoSeedingEnabled,
-} from './common/demo-accounts';
 import { User } from './users/user.entity';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
@@ -17,6 +10,10 @@ import { TicketsModule } from './tickets/tickets.module';
 import { Ticket } from './tickets/ticket.entity';
 import { TicketEvent } from './tickets/ticket-event.entity';
 import { UsersService } from './users/users.service';
+
+/** The one bootstrap account; override with ADMIN_EMAIL / ADMIN_PASSWORD. */
+const DEFAULT_ADMIN_EMAIL = 'admin@eurisko.com';
+const DEFAULT_ADMIN_PASSWORD = 'Admin123!';
 
 /**
  * Modular monolith (architecture.md §2): Auth Module + Ticket Module + one
@@ -48,58 +45,37 @@ export class AppModule implements OnApplicationBootstrap {
   constructor(private readonly users: UsersService) {}
 
   /**
-   * Bootstrap an empty database: create the first Admin account, then (in
-   * development) the demo personas shown on the login screen. Both run only
-   * when the database has no users at all, so restarts never duplicate data.
+   * Bootstrap an empty database with exactly ONE account: the Admin.
+   *
+   * There is no demo seeding and no public registration (ADR-004). Every other
+   * account — agents and employees — is created from inside the app by an
+   * Admin (the **Users** tab, `POST /users`). Seeding runs only when the
+   * database has no users at all, so restarts never duplicate data.
    */
   async onApplicationBootstrap() {
-    const email = adminEmail();
+    const email = (process.env.ADMIN_EMAIL ?? DEFAULT_ADMIN_EMAIL).toLowerCase();
+    const password = process.env.ADMIN_PASSWORD ?? DEFAULT_ADMIN_PASSWORD;
+
     const existing = await this.users.findByEmail(email);
     if (existing) return;
 
     const count = await this.users.count();
     if (count > 0) {
       this.logger.warn(
-        `DB is not empty and no ${email} exists — skipping admin seed.`,
+        `Database is not empty and no ${email} exists — skipping the admin seed.`,
       );
       return;
     }
 
     await this.users.create({
-      name: DEMO_ADMIN.name,
+      name: 'Eurisko Admin',
       email,
-      password: adminPassword(),
+      password,
       role: 'Admin',
     });
-    this.logger.log(`Seeded admin account: ${email}`);
-    await this.seedDemoAccounts();
-  }
-
-  /**
-   * Dev convenience: a fresh database also gets the demo requester/agents so
-   * the slice can be exercised straight from the login screen — no terminal
-   * provisioning step needed. Never runs in production; disable in dev with
-   * `SEED_DEMO_DATA=false`. See docs/security.md.
-   */
-  private async seedDemoAccounts() {
-    if (!demoSeedingEnabled()) {
-      this.logger.warn(
-        'Demo account seeding is disabled (SEED_DEMO_DATA=false or NODE_ENV=production).',
-      );
-      return;
-    }
-    for (const persona of DEMO_PERSONAS) {
-      await this.users.create({
-        name: persona.name,
-        email: persona.email,
-        password: persona.password,
-        role: persona.role,
-      });
-    }
-    this.logger.warn(
-      `Seeded ${DEMO_PERSONAS.length} DEMO accounts with well-known passwords ` +
-        `(${DEMO_PERSONAS.map((p) => p.email).join(', ')}). ` +
-        'Development only — never enable this in production.',
+    this.logger.log(`Seeded the Admin account: ${email}`);
+    this.logger.log(
+      'No demo accounts and no public registration: sign in as Admin and create users from the Users tab.',
     );
   }
 }

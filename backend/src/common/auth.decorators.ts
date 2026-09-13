@@ -2,7 +2,7 @@ import { SetMetadata, createParamDecorator, ExecutionContext } from '@nestjs/com
 import { Role } from './domain';
 
 export const IS_PUBLIC_KEY = 'isPublic';
-/** Marks a route as accessible without a JWT (e.g. register / login). */
+/** Marks a route as accessible without a JWT (e.g. login). */
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 
 export const ROLES_KEY = 'roles';

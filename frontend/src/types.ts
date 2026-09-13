@@ -92,18 +92,3 @@ export const nextStatus = (s: TicketStatus): TicketStatus | null => {
   const i = (STATUS_ORDER as readonly TicketStatus[]).indexOf(s);
   return i >= 0 && i < STATUS_ORDER.length - 1 ? STATUS_ORDER[i + 1] : null;
 };
-
-/**
- * A demo account returned by the dev-only `GET /demo/accounts`. The list is
- * owned by the backend (`backend/src/common/demo-accounts.ts`), so the login
- * card shows exactly what was actually seeded.
- */
-export interface DemoAccount {
-  label: string;
-  name: string;
-  email: string;
-  /** `null` when the Admin password was overridden and must stay private. */
-  password: string | null;
-  role: Role;
-  hint: string;
-}

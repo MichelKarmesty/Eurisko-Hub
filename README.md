@@ -53,9 +53,11 @@ npm run build
 DB_FILE="$PWD/.data/hub.sqlite" npm start
 ```
 
-First boot seeds an Admin account: `rami.fares@eurisko.com` / `Admin123!`
-(override with `ADMIN_EMAIL` / `ADMIN_PASSWORD`). Set `DB_FILE` so tickets
-survive restarts; without it the database is in-memory.
+First boot seeds **one** account — the Admin: `admin@eurisko.com` / `Admin123!`
+(override with `ADMIN_EMAIL` / `ADMIN_PASSWORD`). There is **no public
+registration** and no demo data (ADR-004): sign in as the Admin and create
+everyone else from the **Users** tab. Set `DB_FILE` so tickets survive restarts;
+without it the database is in-memory.
 
 **2. Web client** — http://localhost:5173
 
@@ -66,76 +68,41 @@ npm run dev
 
 The Vite dev server proxies `/api` to the backend on port 3000.
 
-**3. Demo accounts are seeded automatically.** On a fresh database the backend
-creates the Admin account and, in development, the demo personas below — so you
-can log in immediately, with no extra step. The login card reads them from the
-dev-only `GET /demo/accounts`, so the list exists in exactly one place
-(`backend/src/common/demo-accounts.ts`). Set `SEED_DEMO_DATA=false` if you want
-only the Admin account; see [`docs/security.md`](docs/security.md). To
-additionally run the live HTTP definition-of-done checks, with the backend still
-running:
+**3. Create the accounts you want to test with.** Open http://localhost:5173 and
+sign in as the Admin (`admin@eurisko.com` / `Admin123!`), then open the
+**👥 Users** tab and use **Create account** to add people — for example an
+**Employee** (Requester), an **IT Agent**, an **HR Agent** and a
+**Maintenance Agent**. Only an Admin can create accounts, and only an Admin sees
+the Users tab; the login screen is sign-in only.
+
+To also run the live HTTP definition-of-done checks (these provision their own
+throwaway test accounts through the Admin API), with the backend running:
 
 ```bash
 node scripts/verify-slice.mjs full
 ```
 
-| Account | Email | Password | Role |
-|---|---|---|---|
-| Rami Fares | `rami.fares@eurisko.com` | `Admin123!` | Admin (seeded on first boot) |
-| Rana Khoury | `rana.khoury@eurisko.com` | `password123` | Employee (Requester) |
-| Karim Haddad | `karim.haddad@eurisko.com` | `password123` | IT Agent |
-| Nadim Saad | `nadim.saad@eurisko.com` | `password123` | IT Agent |
-| Layla Nassar | `layla.nassar@eurisko.com` | `password123` | HR Agent |
-| Elias Aoun | `elias.aoun@eurisko.com` | `password123` | Maintenance Agent |
-
-You can also register a new Employee from the login screen; agent and admin
-accounts are provisioned by an Admin through the Users tab.
-
-### How a reviewer opens any account
-
-Open **http://localhost:5173**. The login card shows a **Quick sign-in** panel
-with one button per role — click it and you are logged straight in (no password
-typing, no account list to hunt for):
-
-| To test as… | Click this button |
-|---|---|
-| **Employee (Requester)** | **Employee** — Rana Khoury (`rana.khoury@eurisko.com`) |
-| **IT Agent** | **IT Agent** — Karim Haddad (`karim.haddad@eurisko.com`), or Nadim Saad (`nadim.saad@eurisko.com`) |
-| **HR Agent** | **HR Agent** — Layla Nassar (`layla.nassar@eurisko.com`) |
-| **Maintenance Agent** | **Maintenance Agent** — Elias Aoun (`elias.aoun@eurisko.com`) |
-| **Admin** | **Admin** — Rami Fares (`rami.fares@eurisko.com`) → then open the **👥 Users** tab |
-
-To create a brand-new Employee, use the **Register (Employee)** tab. To create
-agent/admin accounts, sign in as Admin and use the **Users** tab. To move between
-accounts, click **Switch account** (top-right) and pick another Quick sign-in
-button. You can still type an email + password in the manual form for any
-account not in the list. Only an Admin ever sees the Users list — Employees and
-Agents never do (that is the authorization rule).
-
-> If a Quick sign-in button says the credentials are invalid, the API is
-> running an older build or its database was created with
-> `SEED_DEMO_DATA=false`: run `npm run build` in `backend/` and restart against a
-> fresh `DB_FILE`.
-
 ## Exercise the slice (5 minutes)
 
-1. Open http://localhost:5173 and click **Employee** in the Quick sign-in panel.
-2. Under **New request**, enter a title, choose **IT** / **High**, add a
-   description, and click **Open ticket**. Rana's **My tickets** shows it as
-   `Open`.
-3. Click **Switch account** → click **IT Agent** (Karim). The ticket is in the
-   **Department queue**.
-4. Click **Claim** — it moves to **My work · In Progress**.
-5. Click **Mark Resolved** *without* typing a note. The backend refuses the
+1. Open http://localhost:5173 and sign in as the Admin (`admin@eurisko.com` /
+   `Admin123!`). On the **👥 Users** tab, create two accounts you will use:
+   an **Employee** (e.g. `rana@eurisko.com`) and an **IT Agent**
+   (e.g. `karim@eurisko.com`). Remember the passwords you set.
+2. Click **Switch account** and sign in as the **Employee**. Under
+   **New request**, enter a title, choose **IT** / **High**, add a description,
+   and click **Open ticket** — it shows as `Open` in **My tickets**.
+3. Click **Switch account** → sign in as the **IT Agent**. The ticket is in the
+   **Department queue**; click **Claim** — it moves to **My work · In Progress**.
+4. Click **Mark Resolved** *without* typing a note. The backend refuses the
    request and the form shows the validation message inline (the deliberate
    invalid request; nothing is saved).
-6. Type a resolution note (e.g. *"Replaced the display cable."*) and click
+5. Type a resolution note (e.g. *"Replaced the display cable."*) and click
    **Mark Resolved** — the ticket moves to **Resolved by me**.
-7. Switch back to **Rana**. **My tickets** now shows `Resolved` with the note.
-   Expand **▾ History** on any row to see `CREATED → CLAIMED → RESOLVED`, who
-   did it, and when.
-8. Optional — Admin actions: **Switch account** → **Admin** → **Tickets** tab.
-   On an unclaimed ticket use **Assign** (give it an owner) or **Cancel request…**
+6. Switch back to the **Employee**. **My tickets** now shows `Resolved` with the
+   note. Expand **▾ History** to see `CREATED → CLAIMED → RESOLVED`, who did it,
+   and when.
+7. Optional — Admin actions: sign in as **Admin** → **Tickets** tab. On an
+   unclaimed ticket use **Assign** (give it an owner) or **Cancel request…**
    (retire a duplicate with a reason); on an in-progress ticket, resolving asks
    for an **override reason** because the Admin is not the assignee.
 
@@ -184,7 +151,7 @@ npm run test:api          # HTTP contract, authorization (allowed/denied), regre
   cd backend && npm run build
   DB_FILE="$PWD/.data/e2e.sqlite" npm start
 
-  # terminal B — run the E2E (waits for the API, provisions demo users)
+  # terminal B — run the E2E (waits for the API, provisions its test fixtures)
   cd e2e
   npm run test:ui
   ```
@@ -224,8 +191,7 @@ Base URL `http://localhost:3000`; authenticated calls send
 
 | Method & path | Who | Purpose |
 |---|---|---|
-| `POST /auth/register` · `POST /auth/login` | public | get a session token |
-| `GET /demo/accounts` | public, dev only | the seeded demo accounts (single source of truth); `[]` when seeding is off |
+| `POST /auth/login` | public | sign in (the only public auth call — no registration) |
 | `POST /tickets` | any authenticated user | open a request (title, description, category, priority) |
 | `GET /tickets` | role-scoped | requester: own tickets · agent: own department's `Open` queue (`?mine=true` for claimed) · admin: all |
 | `PATCH /tickets/:id/claim` | matching agent | claim an `Open` ticket → `In Progress` |
@@ -260,7 +226,7 @@ Read in this order:
 5. [`docs/decisions/ADR-002.md`](docs/decisions/ADR-002.md) — Admin override policy
 6. [`docs/decisions/ADR-003.md`](docs/decisions/ADR-003.md) — Admin assign & soft cancel
 7. [`docs/api.md`](docs/api.md)
-8. [`docs/security.md`](docs/security.md) — dev-only demo accounts & seeding
+8. [`docs/security.md`](docs/security.md) — the seeded Admin, no public registration, and the authorization model
 9. [`docs/week3-full-stack-delivery.md`](docs/week3-full-stack-delivery.md) — the Week 3 delivery record
 
 ## Troubleshooting
@@ -269,8 +235,8 @@ Read in this order:
   proxy targets 3000, so either free port 3000 or point the client at the new
   port with `VITE_API_BASE=http://localhost:3001`.
 - **Start over with an empty database:** stop the backend, `rm backend/.data/*.sqlite`,
-  and start it again — the Admin account (and, in development, the demo
-  accounts) is re-seeded automatically.
+  and start it again — the Admin account is re-seeded automatically. Every other
+  account is created by an Admin from the Users tab.
 - **`npm install` fails on a restricted machine:** point npm at a writable cache:
   `npm install --cache ./.npm-cache`.
 - **E2E says the backend is not reachable:** the global setup prints the exact

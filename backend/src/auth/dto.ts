@@ -1,29 +1,10 @@
-import { IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
-import { ROLES, Role } from '../common/domain';
+import { IsEmail, IsString } from 'class-validator';
 
-/** POST /auth/register — employees register themselves. */
-export class RegisterDto {
-  @IsString()
-  @MinLength(2)
-  name: string;
-
-  @IsEmail()
-  email: string;
-
-  @IsString()
-  @MinLength(8)
-  password: string;
-
-  /**
-   * Self-registration defaults to Employee. Agent/Admin accounts are created
-   * by an Admin via POST /users (RBAC per product-spec.md §3).
-   */
-  @IsOptional()
-  @IsIn(ROLES)
-  role?: Role;
-}
-
-/** POST /auth/login */
+/**
+ * POST /auth/login — the only public auth request contract. There is no
+ * registration DTO because there is no public registration (ADR-004): account
+ * creation is `POST /users`, which is Admin-only.
+ */
 export class LoginDto {
   @IsEmail()
   email: string;

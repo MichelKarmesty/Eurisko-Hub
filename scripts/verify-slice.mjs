@@ -21,43 +21,26 @@
  *
  * Env:
  *   BASE_URL      API base (default http://localhost:3000)
- *   ADMIN_EMAIL   seeded admin email (default rami.fares@eurisko.com)
+ *   ADMIN_EMAIL   seeded admin email (default admin@eurisko.com)
  *   ADMIN_PASSWORD                (default Admin123!)
  */
 import process from 'node:process';
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:3000';
 const MODE = process.argv[2] ?? 'full';
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'rami.fares@eurisko.com';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@eurisko.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'Admin123!';
 
 /**
- * Demo personas are read from the backend — the single source of truth is
- * `backend/src/common/demo-accounts.ts`, exposed by the dev-only
- * `GET /demo/accounts`. This script keeps no copy of its own.
+ * Test fixtures — NOT application demo data. The app seeds only the Admin and
+ * has no public registration (ADR-004), so this verifier provisions the
+ * accounts it needs through the real Admin API (`ensureUser` below).
  */
-let REQUESTER;
-let AGENT;
-let OTHER_AGENT;
-let HR_AGENT;
-let MAINT_AGENT;
-
-function toCredentials(account) {
-  return account ? { name: account.name, email: account.email, password: account.password } : null;
-}
-
-async function loadDemoPersonas() {
-  const res = await req('GET', '/demo/accounts');
-  const accounts = res.data?.accounts ?? [];
-  const byRole = (role) => accounts.filter((a) => a.role === role);
-  const itAgents = byRole('IT_Agent');
-  REQUESTER = toCredentials(byRole('Employee')[0]);
-  AGENT = toCredentials(itAgents[0]);
-  OTHER_AGENT = toCredentials(itAgents[1]);
-  HR_AGENT = toCredentials(byRole('HR_Agent')[0]);
-  MAINT_AGENT = toCredentials(byRole('Maintenance_Agent')[0]);
-  return [REQUESTER, AGENT, OTHER_AGENT, HR_AGENT, MAINT_AGENT].every(Boolean);
-}
+const REQUESTER = { name: 'Rana Khoury', email: 'rana.khoury@eurisko.com', password: 'password123' };
+const AGENT = { name: 'Karim Haddad', email: 'karim.haddad@eurisko.com', password: 'password123' };
+const OTHER_AGENT = { name: 'Nadim Saad', email: 'nadim.saad@eurisko.com', password: 'password123' };
+const HR_AGENT = { name: 'Layla Nassar', email: 'layla.nassar@eurisko.com', password: 'password123' };
+const MAINT_AGENT = { name: 'Elias Aoun', email: 'elias.aoun@eurisko.com', password: 'password123' };
 
 const NOTE = 'Replaced the HDMI cable; display is stable now.';
 const TITLE = 'First slice E2E - monitor keeps flickering';
@@ -138,17 +121,15 @@ async function run() {
   }
   const admin = adminLoginRes.data;
 
-  // 1b. The demo persona list comes from the backend itself (no local copy).
-  const personasOk = await loadDemoPersonas();
-  check('Demo accounts available via GET /demo/accounts', personasOk);
-  if (!personasOk) {
-    console.log('\nDemo seeding appears disabled — cannot continue. Start the backend with demo seeding enabled.');
-    process.exitCode = 1;
-    return;
-  }
+  // 1b. There is no public registration (ADR-004): an outsider must not be
+  //     able to create an account, so the route must not exist.
+  const registrationClosed = await req('POST', '/auth/register', {
+    body: { name: 'Outsider', email: `outsider-${Date.now()}@eurisko.com`, password: 'password123' },
+  });
+  check('No public registration: POST /auth/register is gone (404)', registrationClosed.status === 404, `HTTP ${registrationClosed.status}`);
 
   if (MODE === 'full') {
-    // 2. Provision personas through the Admin user-management API.
+    // 2. Provision the test fixtures through the real Admin user-management API.
     const requester = await ensureUser(admin.accessToken, REQUESTER, 'Employee');
     const agent = await ensureUser(admin.accessToken, AGENT, 'IT_Agent');
     const other = await ensureUser(admin.accessToken, OTHER_AGENT, 'IT_Agent');

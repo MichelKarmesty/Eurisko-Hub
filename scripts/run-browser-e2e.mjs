@@ -4,9 +4,9 @@
  *
  *   node scripts/run-browser-e2e.mjs
  *
- * No manual setup: it starts an isolated backend (fresh SQLite file, auto-seeded
- * demo accounts), starts the Vite dev server pointed at that backend, makes sure
- * a Chromium can actually launch (CHROME_PATH, a repo-local binary, or
+ * No manual setup: it starts an isolated backend (fresh SQLite file; the app
+ * seeds only the Admin), provisions the test fixtures through the Admin API,
+ * starts the Vite dev server pointed at that backend, makes sure a Chromium can actually launch (CHROME_PATH, a repo-local binary, or
  * `npx playwright install chromium`), drives the real UI with Playwright, then
  * tears everything down.
  *
@@ -144,6 +144,27 @@ async function main() {
     api.stderr.on('data', (d) => process.stderr.write(`[api] ${d}`));
     if (!(await waitForUrl(`${apiBase}/auth/me`, (s) => s === 401 || s === 200, 30_000))) {
       throw new Error('isolated API did not become ready');
+    }
+
+    // Provision the test fixtures through the real Admin API (the app seeds
+    // only the Admin and has no public registration; ADR-004). verify-slice
+    // does the provisioning and, at the same time, validates the API contract.
+    console.log('[browser-e2e] Provisioning test fixtures via the Admin API…');
+    const seed = spawnSync(
+      process.execPath,
+      [path.join(ROOT, 'scripts', 'verify-slice.mjs'), 'full'],
+      {
+        cwd: ROOT,
+        env: { ...process.env, BASE_URL: apiBase },
+        stdio: ['ignore', 'ignore', 'pipe'],
+        encoding: 'utf8',
+        timeout: 60_000,
+        killSignal: 'SIGKILL',
+      },
+    );
+    if (seed.status !== 0) {
+      const detail = (seed.stderr || seed.stdout || '').trim().split('\n').slice(-1)[0] ?? '';
+      throw new Error(`test-fixture provisioning failed: ${detail}`);
     }
 
     console.log(`[browser-e2e] Web  -> ${appUrl}`);

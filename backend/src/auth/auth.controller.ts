@@ -1,18 +1,16 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { RegisterDto, LoginDto } from './dto';
+import { LoginDto } from './dto';
 import { AuthUser, CurrentUser, Public } from '../common/auth.decorators';
 
+/**
+ * Authentication. There is deliberately **no public registration**: this is an
+ * internal tool and every account is provisioned by an Admin through
+ * `POST /users` (ADR-004). `POST /auth/login` is the only public auth entry.
+ */
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
-
-  /** POST /auth/register — public; creates an Employee account. */
-  @Public()
-  @Post('register')
-  register(@Body() dto: RegisterDto) {
-    return this.auth.register(dto);
-  }
 
   /** POST /auth/login — public; returns { accessToken, user }. */
   @Public()

@@ -12,8 +12,8 @@
  *   NO AUTH  missing bearer token                                -> 401
  *
  * The `regression protection` block locks in behaviour that already worked
- * before this slice (self-registration rules, department scoping, the admin
- * global view, and the fact that password hashes never leave the API).
+ * before this slice (Admin-only account provisioning, department scoping, the
+ * admin global view, and the fact that password hashes never leave the API).
  */
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -61,7 +61,7 @@ describe('API contract — the resolve-ticket slice over HTTP', () => {
 
     const login = await request(http)
       .post('/auth/login')
-      .send({ email: 'rami.fares@eurisko.com', password: 'Admin123!' });
+      .send({ email: 'admin@eurisko.com', password: 'Admin123!' });
     expect(login.status).toBe(200);
     adminToken = login.body.accessToken;
   });
@@ -217,28 +217,31 @@ describe('API contract — the resolve-ticket slice over HTTP', () => {
       expect(stats.body.total).toBeGreaterThan(0);
     });
 
-    it('self-registration still creates Employees only', async () => {
+    it('has no public registration (ADR-004) — accounts are Admin-provisioned', async () => {
       userSeq += 1;
       const email = `self-${run}-${userSeq}@eurisko.com`;
-      const employee = await request(http)
+      // The route does not exist, so an outsider cannot create an account.
+      const res = await request(http)
         .post('/auth/register')
-        .send({ name: 'Self', email, password: PASSWORD });
-      expect(employee.status).toBe(201);
-      expect(employee.body.user.role).toBe('Employee');
-      expect(employee.body.user.passwordHash).toBeUndefined();
-
-      const asAgent = await request(http)
-        .post('/auth/register')
-        .send({ name: 'Fake Agent', email: `fake-${run}-${userSeq}@eurisko.com`, password: PASSWORD, role: 'IT_Agent' });
-      expect(asAgent.status).toBe(403);
+        .send({ name: 'Outsider', email, password: PASSWORD });
+      expect(res.status).toBe(404);
     });
 
-    it('rejects a duplicate email and bad credentials', async () => {
+    it('only an Admin can create accounts, and duplicates are rejected', async () => {
       userSeq += 1;
       const email = `dup-${run}-${userSeq}@eurisko.com`;
-      const body = { name: 'Dup', email, password: PASSWORD };
-      expect((await request(http).post('/auth/register').send(body)).status).toBe(201);
-      expect((await request(http).post('/auth/register').send(body)).status).toBe(409);
+      const body = { name: 'Dup', email, password: PASSWORD, role: 'Employee' };
+
+      // An unauthenticated / non-Admin caller cannot create accounts.
+      expect((await request(http).post('/users').send(body)).status).toBe(401);
+
+      const created = await request(http).post('/users').set(auth(adminToken)).send(body);
+      expect(created.status).toBe(201);
+      expect(created.body.passwordHash).toBeUndefined();
+
+      const again = await request(http).post('/users').set(auth(adminToken)).send(body);
+      expect(again.status).toBe(409);
+
       expect(
         (await request(http).post('/auth/login').send({ email, password: 'wrong-password' })).status,
       ).toBe(401);
