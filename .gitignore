@@ -20,5 +20,5 @@ artifacts/
 .DS_Store
 
 # Private study handbook (personal notes, generated) — never publish
-docs/Eurisko-Hub-Handbook.docx
+*.docx
 scripts/make-handover-docx.mjs
