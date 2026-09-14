@@ -20,8 +20,13 @@ See [ADR-004](decisions/ADR-004.md).
 * **There is no demo seeding and no demo-account endpoint**
   (`GET /demo/accounts` is gone). Nothing with a well-known password ships in
   the application.
-* The seed runs only when the database has **zero users**, so it never modifies
-  an existing deployment or duplicates data.
+* The seed can never lock a database out. It creates the Admin when the
+  configured `ADMIN_EMAIL` does not exist and the database has **no Admin at
+  all** — that is an empty database (the normal bootstrap) or a database that
+  already has users (recovering an instance whose Admin email changed, e.g. a
+  pre-ADR-004 database). It never duplicates an account and never resets the
+  password of an existing Admin; if an Admin already exists under another email
+  the running deployment is left alone.
 
 **Before any real deployment:** set a strong `ADMIN_PASSWORD` and a real
 `JWT_SECRET` (the default is a development value), and preferably change the

@@ -27,6 +27,14 @@ export class UsersService {
     return this.users.findOne({ where: { id } });
   }
 
+  /**
+   * Every user holding `role`. The Admin seed uses this to detect a database
+   * that has no Admin at all (and would otherwise be locked out).
+   */
+  findByRole(role: Role): Promise<User[]> {
+    return this.users.find({ where: { role }, order: { id: 'ASC' } });
+  }
+
   async create(input: CreateUserInput): Promise<User> {
     const passwordHash = await bcrypt.hash(input.password, 10);
     const user = this.users.create({

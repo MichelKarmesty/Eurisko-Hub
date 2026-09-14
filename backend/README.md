@@ -60,12 +60,15 @@ test/
   domain-rules.spec.ts                  business-rule unit test
   tickets.database.integration.spec.ts  backend <-> database integration test
   tickets.api.spec.ts                   HTTP contract/authorization/regression test
+  admin-seed.spec.ts                    Admin-seed recovery (a DB is never locked out)
 ```
 
 ## Security
 The backend seeds exactly one account (the Admin) and exposes no public
-registration. See [`../docs/security.md`](../docs/security.md) — set a strong
-`ADMIN_PASSWORD` and `JWT_SECRET` before any real deployment.
+registration. Seeding is self-healing: if a database has no Admin at all, the
+next boot creates one (an existing Admin is never duplicated or reset). See
+[`../docs/security.md`](../docs/security.md) — set a strong `ADMIN_PASSWORD` and
+`JWT_SECRET` before any real deployment.
 
 ## Quick start
 ```bash

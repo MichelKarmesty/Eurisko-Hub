@@ -23,12 +23,17 @@ const DEFAULT_ADMIN_PASSWORD = 'Admin123!';
  */
 @Module({
   imports: [
-    TypeOrmModule.forRoot({
-      type: 'sqljs',
-      location: process.env.DB_FILE ?? undefined, // undefined => in-memory DB
-      autoSave: Boolean(process.env.DB_FILE),
-      synchronize: true,
-      entities: [User, Ticket, TicketEvent],
+    TypeOrmModule.forRootAsync({
+      // Resolved when the application boots rather than when this file is
+      // imported, so `DB_FILE` is read per app instance: tests can point it at a
+      // prepared database and operators at a persistent file.
+      useFactory: () => ({
+        type: 'sqljs',
+        location: process.env.DB_FILE ?? undefined, // undefined => in-memory DB
+        autoSave: Boolean(process.env.DB_FILE),
+        synchronize: true,
+        entities: [User, Ticket, TicketEvent],
+      }),
     }),
     UsersModule,
     AuthModule,
@@ -45,35 +50,56 @@ export class AppModule implements OnApplicationBootstrap {
   constructor(private readonly users: UsersService) {}
 
   /**
-   * Bootstrap an empty database with exactly ONE account: the Admin.
+   * Guarantee the database has an Admin, so it can never be locked out.
    *
-   * There is no demo seeding and no public registration (ADR-004). Every other
-   * account — agents and employees — is created from inside the app by an
-   * Admin (the **Users** tab, `POST /users`). Seeding runs only when the
-   * database has no users at all, so restarts never duplicate data.
+   * There is no demo seeding and no public registration (ADR-004); every other
+   * account is created from inside the app by an Admin (the **Users** tab,
+   * `POST /users`). The rules, in order:
+   *
+   *  1. the configured `ADMIN_EMAIL` already exists -> do nothing (a changed
+   *     password is never reset);
+   *  2. an Admin exists under another email -> do nothing (respect the running
+   *     deployment);
+   *  3. no Admin exists at all -> create one. On a new database this is the
+   *     documented bootstrap; on a database that already has users it
+   *     *recovers* an instance whose Admin email changed, which the previous
+   *     "seed only an empty database" rule left permanently unreachable (every
+   *     Admin login returned 401 "Invalid credentials").
    */
   async onApplicationBootstrap() {
     const email = (process.env.ADMIN_EMAIL ?? DEFAULT_ADMIN_EMAIL).toLowerCase();
     const password = process.env.ADMIN_PASSWORD ?? DEFAULT_ADMIN_PASSWORD;
 
-    const existing = await this.users.findByEmail(email);
-    if (existing) return;
+    if (await this.users.findByEmail(email)) return;
 
-    const count = await this.users.count();
-    if (count > 0) {
-      this.logger.warn(
-        `Database is not empty and no ${email} exists — skipping the admin seed.`,
+    const admins = await this.users.findByRole('Admin');
+    if (admins.length > 0) {
+      this.logger.log(
+        `An Admin already exists (${admins
+          .map((admin) => admin.email)
+          .join(', ')}); not seeding ${email}.`,
       );
       return;
     }
 
+    const existingUsers = await this.users.findAll();
     await this.users.create({
       name: 'Eurisko Admin',
       email,
       password,
       role: 'Admin',
     });
-    this.logger.log(`Seeded the Admin account: ${email}`);
+
+    if (existingUsers.length > 0) {
+      this.logger.warn(
+        `No Admin account existed in a database with ${existingUsers.length} ` +
+          `account(s) (${existingUsers
+            .map((user) => `${user.email} [${user.role}]`)
+            .join(', ')}) — seeded the Admin account: ${email}`,
+      );
+    } else {
+      this.logger.log(`Seeded the Admin account: ${email}`);
+    }
     this.logger.log(
       'No demo accounts and no public registration: sign in as Admin and create users from the Users tab.',
     );

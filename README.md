@@ -59,6 +59,10 @@ registration** and no demo data (ADR-004): sign in as the Admin and create
 everyone else from the **Users** tab. Set `DB_FILE` so tickets survive restarts;
 without it the database is in-memory.
 
+If a database ever has **no Admin at all**, the backend seeds one on the next
+boot — so an instance created before the Admin email changed is recovered rather
+than locked out. An existing Admin is never duplicated or reset.
+
 **2. Web client** — http://localhost:5173
 
 ```bash
