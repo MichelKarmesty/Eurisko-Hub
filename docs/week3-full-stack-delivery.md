@@ -281,11 +281,14 @@ its own API + Vite) and self-installing (`npx playwright install chromium`), and
 skips gracefully when no browser can launch. Both layers run inside
 `node scripts/run-tests.mjs`.
 
-**Regression protection** is therefore explicit in two places (the `regression
-protection` describe-block in the HTTP suite, and the regression block in the
-integration suite), plus [`scripts/verify-slice.mjs`](../scripts/verify-slice.mjs),
-which re-checks the live definition of done over HTTP — including the
-restart-proof persistence check (`node scripts/verify-slice.mjs persist`).
+**Regression protection** is therefore explicit in three places: the `regression
+protection` describe-block in the HTTP suite, the regression block in the
+integration suite, and
+[`backend/test/admin-seed.spec.ts`](../backend/test/admin-seed.spec.ts), which
+pins the Admin-seed recovery rule (a database with no Admin can never be locked
+out). Plus [`scripts/verify-slice.mjs`](../scripts/verify-slice.mjs), which
+re-checks the live definition of done over HTTP — including the restart-proof
+persistence check (`node scripts/verify-slice.mjs persist`).
 
 ### One command
 
@@ -310,7 +313,8 @@ $ cd backend && npm test
  ✓ test/domain-rules.spec.ts                  ( 7 tests)  business rule
  ✓ test/tickets.database.integration.spec.ts  (21 tests)  backend <-> database
  ✓ test/tickets.api.spec.ts                   (11 tests)  HTTP contract + regression
- Test Files  3 passed (3)   Tests  39 passed (39)
+ ✓ test/admin-seed.spec.ts                    ( 3 tests)  Admin-seed recovery
+ Test Files  4 passed (4)   Tests  42 passed (42)
 
 $ node scripts/verify-slice.mjs full
  28/28 checks passed   (live HTTP definition of done, fresh database)
@@ -353,10 +357,10 @@ $ node scripts/run-browser-e2e.mjs
 | Automated test for a business rule | ✅ | `backend/test/domain-rules.spec.ts` |
 | Integration test backend ↔ database | ✅ | `backend/test/tickets.database.integration.spec.ts` |
 | Meaningful E2E test | ✅ | `e2e/dom/` (3 tests) + real-browser `scripts/run-browser-e2e.mjs` |
-| Regression protection | ✅ | `tickets.api.spec.ts` + integration spec + `verify-slice.mjs` |
+| Regression protection | ✅ | `tickets.api.spec.ts` + integration spec + `admin-seed.spec.ts` + `verify-slice.mjs` |
 | Admin override governed (no silent bypass) | ✅ | ADR-002; `overrideReason` required + `ADMIN_OVERRIDE` audit event, covered by integration/HTTP tests |
 | Admin assign & soft cancel (no hard delete) | ✅ | ADR-003; `ASSIGNED`/`CANCELLED` events, department-checked assignment, covered by integration/HTTP/live/UI tests |
-| No public registration; Admin-provisioned accounts | ✅ | ADR-004; `POST /auth/register` removed (404), only the Admin is seeded, `POST /users` is Admin-only |
+| No public registration; Admin-provisioned accounts | ✅ | ADR-004; `POST /auth/register` removed (404), only the Admin is seeded (self-healing if a database has none), `POST /users` is Admin-only |
 | `docs/week3-full-stack-delivery.md` | ✅ | this file |
 | README a new engineer can follow | ✅ | top-level [`README.md`](../README.md) |
 

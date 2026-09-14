@@ -133,7 +133,7 @@ skipped, not failed).
 
 ```bash
 cd backend
-npm test                  # all three suites
+npm test                  # all suites
 npm run test:unit         # business rule: the ticket lifecycle
 npm run test:integration  # backend <-> real SQL database
 npm run test:api          # HTTP contract, authorization (allowed/denied), regression
@@ -144,6 +144,7 @@ npm run test:api          # HTTP contract, authorization (allowed/denied), regre
 | Automated test for a business rule | `npm run test:unit` | `backend/test/domain-rules.spec.ts` |
 | Integration test backend ↔ database | `npm run test:integration` | `backend/test/tickets.database.integration.spec.ts` |
 | HTTP contract + authorization + regression | `npm run test:api` | `backend/test/tickets.api.spec.ts` |
+| Admin seed can never lock a database out | `npm test` | `backend/test/admin-seed.spec.ts` |
 
 **UI E2E — two layers:**
 
@@ -161,8 +162,8 @@ npm run test:api          # HTTP contract, authorization (allowed/denied), regre
   ```
 
   Point it elsewhere with `API_URL=http://127.0.0.1:3100 npm run test:ui`.
-  The four tests cover the resolve slice, one-click role sign-in, the Admin
-  override, and Admin assign/cancel.
+  The three tests cover the resolve slice, the Admin override (ADR-002), and
+  Admin assign/cancel (ADR-003).
 
 * **Real-browser E2E (Playwright — self-contained, self-installing):**
 
