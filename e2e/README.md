@@ -17,7 +17,7 @@ fixtures through the Admin API (the app itself seeds only the Admin; ADR-004).
 
 ```bash
 cd ../backend && npm install && npm run build
-DB_FILE="$PWD/.data/e2e.sqlite" npm start        # :3000
+mkdir -p .data && DB_FILE="$PWD/.data/e2e.sqlite" npm start        # :3000
 
 cd ../e2e && npm install
 npx vitest run                                   # or: npm run test:ui

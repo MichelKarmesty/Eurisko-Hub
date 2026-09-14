@@ -49,6 +49,7 @@ cd Eurisko-Hub
 
 ```bash
 cd backend
+mkdir -p .data                       # DB_FILE's folder (gitignored, absent in a fresh clone)
 npm run build
 DB_FILE="$PWD/.data/hub.sqlite" npm start
 ```
@@ -154,7 +155,7 @@ npm run test:api          # HTTP contract, authorization (allowed/denied), regre
   ```bash
   # terminal A — start the API
   cd backend && npm run build
-  DB_FILE="$PWD/.data/e2e.sqlite" npm start
+  mkdir -p .data && DB_FILE="$PWD/.data/e2e.sqlite" npm start
 
   # terminal B — run the E2E (waits for the API, provisions its test fixtures)
   cd e2e
