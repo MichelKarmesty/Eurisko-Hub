@@ -5,6 +5,8 @@ import {
   apiListUsers,
   apiCreateUser,
   apiPatchUserRole,
+  apiDeleteUser,
+  apiMe,
   apiAssignTicket,
   apiCancelTicket,
 } from '../api';
@@ -371,11 +373,15 @@ function UsersTab() {
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
   const [patchingId, setPatchingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setUsers(await apiListUsers());
+      const [list, me] = await Promise.all([apiListUsers(), apiMe()]);
+      setUsers(list);
+      setCurrentUserId(me.id);
     } catch (err) {
       setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Could not load users.' });
     } finally {
@@ -410,6 +416,39 @@ function UsersTab() {
       setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Could not update role.' });
     } finally {
       setPatchingId(null);
+    }
+  };
+
+  /**
+   * Admin deletes any account — Employee, IT/HR/Maintenance agent, or another
+   * Admin. The backend refuses deleting your own account and the last active
+   * Admin; an account with history is deactivated rather than destroyed so the
+   * tickets/history stay intact. Either way it leaves this list immediately.
+   */
+  const handleDelete = async (user: User) => {
+    if (
+      !window.confirm(
+        `Delete ${user.name} (${user.email})?\n\n` +
+          'The account will no longer be able to sign in. If it has tickets or history, they are kept for audit.',
+      )
+    ) {
+      return;
+    }
+    setDeletingId(user.id);
+    try {
+      const result = await apiDeleteUser(user.id);
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      setNotice({
+        kind: 'success',
+        text:
+          result.mode === 'deleted'
+            ? `Account ${user.email} deleted.`
+            : `Account ${user.email} deleted — it had tickets/history, so the records were kept and the login was revoked.`,
+      });
+    } catch (err) {
+      setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Could not delete the account.' });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -489,6 +528,7 @@ function UsersTab() {
                 <th>Email</th>
                 <th>Role</th>
                 <th>Change role</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -512,6 +552,22 @@ function UsersTab() {
                       ))}
                     </select>
                   </td>
+                  <td>
+                    {/* Deleting your own account is refused by the backend
+                        (400) — hide the control for your own row instead. */}
+                    {u.id === currentUserId ? (
+                      <span className="muted small">you</span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-danger"
+                        disabled={deletingId === u.id}
+                        onClick={() => void handleDelete(u)}
+                      >
+                        {deletingId === u.id ? 'Deleting…' : 'Delete'}
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -534,7 +590,8 @@ type Tab = 'tickets' | 'users';
 
 /**
  * Admin dashboard: tabbed view with Tickets (global view + lifecycle actions)
- * and Users (create accounts, change roles) — product-spec §3, api.md §Admin.
+ * and Users (create accounts, change roles, delete accounts) — product-spec §3,
+ * api.md §Admin.
  */
 export function AdminView() {
   const [tab, setTab] = useState<Tab>('tickets');

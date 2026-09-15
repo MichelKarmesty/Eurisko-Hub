@@ -24,6 +24,11 @@ export class AuthService {
     const ok = await bcrypt.compare(dto.password, user.passwordHash);
     if (!ok) throw new UnauthorizedException('Invalid credentials.');
 
+    // A deleted account that had to be deactivated (it has tickets/history)
+    // must not be able to sign in again. Same generic message as a bad
+    // password so the endpoint stays non-enumerating.
+    if (!user.isActive) throw new UnauthorizedException('Invalid credentials.');
+
     return this.buildSession(user);
   }
 

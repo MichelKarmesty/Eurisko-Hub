@@ -121,7 +121,9 @@ node scripts/verify-slice.mjs full
 7. Optional — Admin actions: sign in as **Admin** → **Tickets** tab. On an
    unclaimed ticket use **Assign** (give it an owner) or **Cancel request…**
    (retire a duplicate with a reason); on an in-progress ticket, resolving asks
-   for an **override reason** because the Admin is not the assignee.
+   for an **override reason** because the Admin is not the assignee. On the
+   **Users** tab, **Delete** removes any account (Employee, agent, or another
+   Admin): the row leaves the list and that person can no longer sign in.
 
 Requests the API refuses (e.g. an employee trying to change a status) surface as
 a visible notice instead of failing silently.
@@ -217,6 +219,7 @@ Base URL `http://localhost:3000`; authenticated calls send
 | `PATCH /tickets/:id/status` | **assigned agent or Admin override** | advance `Open → In Progress → Resolved`; a note is required to resolve. An Admin acting on a ticket not assigned to them must also send `overrideReason` (`400` otherwise), recorded as `ADMIN_OVERRIDE` (ADR-002) |
 | `PATCH /tickets/:id/cancel` | Admin | soft-cancel a request with a reason — kept and audited, never deleted (ADR-003) |
 | `GET /tickets/:id/history` | ticket readers | durable `CREATED → CLAIMED/ASSIGNED → RESOLVED` trail, plus `ADMIN_OVERRIDE` / `CANCELLED` where applicable |
+| `GET /users` · `POST /users` · `PATCH /users/:id/role` · `DELETE /users/:id` | Admin | manage accounts: list, create, change role, **delete any account** (the login is revoked at once; an account with tickets/history is kept for audit, one with none is really deleted) |
 | `GET /admin/stats` | Admin | company-wide counters |
 
 ## Roles and access
@@ -230,6 +233,12 @@ Base URL `http://localhost:3000`; authenticated calls send
   or change any ticket's status — but a change to a ticket they are not assigned
   to is an explicit **override** that requires a reason and is written to the
   ticket history (ADR-002), so an unclaimed ticket is never silently closed.
+  On the **Users** tab the Admin can also **delete any account** — an Employee,
+  an IT/HR/Maintenance agent, or another Admin. The deleted person disappears
+  from the list and can no longer sign in; an account with tickets/history is
+  kept for audit (deactivated) while an account with none is really deleted.
+  An Admin can never delete their own account, and the last active Admin can
+  never be deleted (so the hub can't be locked out).
 
 Role checks happen on the server only — the client never enforces permissions.
 

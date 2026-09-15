@@ -181,3 +181,15 @@ export function apiCreateUser(input: {
 export function apiPatchUserRole(id: number, role: Role): Promise<User> {
   return request<User>('PATCH', `/users/${id}/role`, { role });
 }
+
+/**
+ * Admin deletes any account (Employee, IT/HR/Maintenance agent, another Admin).
+ * The backend really deletes an account with no history, and deactivates one
+ * that appears in tickets/history so the audit trail survives; either way the
+ * account disappears from the list and can no longer sign in.
+ */
+export function apiDeleteUser(
+  id: number,
+): Promise<{ id: number; email: string; mode: 'deleted' | 'deactivated' }> {
+  return request('DELETE', `/users/${id}`);
+}

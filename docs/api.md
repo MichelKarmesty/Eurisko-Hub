@@ -58,6 +58,27 @@ A wrong email and a wrong password both return the same generic
 `409`; a non-Admin caller → `403`.
 `PATCH /users/3/role` body: `{ "role": "HR_Agent" }`
 
+### DELETE /users/:id — Admin deletes an account
+Deletes **any** account — an Employee, an IT/HR/Maintenance agent, or another
+Admin. `GET /users` only ever lists active accounts, so a removed account
+disappears from the Users list immediately and can no longer sign in
+(`POST /auth/login` → `401`).
+
+```json
+// 200 response
+{ "id": 4, "email": "layla.nassar@eurisko.com", "mode": "deleted" }
+```
+
+* `mode: "deleted"` — the account had **no tickets and no history**, so the row
+  is really deleted.
+* `mode: "deactivated"` — the account appears in tickets/history, so the row is
+  kept for audit and only deactivated (login revoked, hidden from the list).
+  This is the same "never destroy the audit trail" rule as ADR-003's soft
+  `Cancelled`.
+* `400` — deleting **your own** account, or deleting the **last active Admin**
+  (`"The last active Admin cannot be deleted — the hub would be locked out."`).
+* `404` — unknown account; non-Admin caller → `403`.
+
 ## Tickets
 
 ### POST /tickets — any authenticated user (as Requester)

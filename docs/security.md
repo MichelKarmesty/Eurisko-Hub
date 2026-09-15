@@ -13,6 +13,8 @@ On an **empty** database the backend seeds exactly **one** account:
 
 Everything else is created **from inside the app** by that Admin, on the
 **Users** tab (`POST /users`, Admin-only), with an explicit role and password.
+The same tab lets the Admin **delete** an account (`DELETE /users/:id`) — see
+the authorization model below for exactly what deletion does.
 See [ADR-004](decisions/ADR-004.md).
 
 * **There is no public registration.** `POST /auth/register` does not exist
@@ -46,6 +48,14 @@ guards are `JwtAuthGuard` (a valid bearer token is required unless a route is
   reason, never a hard delete), or change a status — but a change to a ticket
   they are not assigned to is an **override** that requires a recorded reason
   (ADR-002).
+* **Admins can also delete an account** — an Employee, an IT/HR/Maintenance
+  agent, or another Admin (`DELETE /users/:id`). A deleted account disappears
+  from the Users list and can no longer sign in. An account with **no tickets
+  and no history** is really deleted; an account that appears in tickets or
+  history is **deactivated** instead, so the audit trail stays intact. Two
+  guard-rails protect the hub itself: an Admin cannot delete **their own**
+  account, and the **last active Admin** can never be deleted (400), so a
+  database can never be locked out (ADR-004).
 * Tickets are **never hard-deleted**: `Cancelled` is a terminal, fully audited
   status (ADR-003).
 

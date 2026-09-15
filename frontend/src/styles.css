@@ -150,6 +150,15 @@ body {
 .btn-ghost:hover:not(:disabled) {
   background: #eff6ff;
 }
+/* Destructive action (Admin deleting an account) */
+.btn-danger {
+  background: #fff;
+  border-color: #fca5a5;
+  color: var(--err);
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--err-bg);
+}
 
 /* Badges ------------------------------------------------------------------ */
 .badge {

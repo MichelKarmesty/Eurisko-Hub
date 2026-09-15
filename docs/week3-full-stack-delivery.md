@@ -185,6 +185,9 @@ an Admin can also **assign** unclaimed tickets and **cancel** them softly
 | **ALLOWED (override)** | Rami, an `Admin`, on a ticket assigned to an agent | same + `overrideReason:"…"` | `200`, `Resolved`, `ADMIN_OVERRIDE` event, `resolvedById` = Rami |
 | **ALLOWED (assign)** | Rami, an `Admin`, on an unclaimed IT ticket | `PATCH /tickets/7/assign` `{assigneeId: <IT agent>}` | `200`, `In Progress`, `assignedToId` set, `ASSIGNED` event |
 | **ALLOWED (cancel)** | Rami, an `Admin` | `PATCH /tickets/7/cancel` `{reason:"…"}` | `200`, terminal `Cancelled`, row and history kept |
+| **ALLOWED (delete account)** | Rami, an `Admin` | `DELETE /users/9` | `200`; the account leaves `GET /users` and can no longer sign in — really deleted when it has no tickets/history, otherwise deactivated so the audit stays |
+| **DENIED** | Rami, an `Admin`, deleting **his own** account | `DELETE /users/<self>` | `400 Bad Request` |
+| **DENIED** | an `Admin`, deleting the **last active Admin** | `DELETE /users/<last admin>` | `400 Bad Request` (a database can never be locked out) |
 | **DENIED** | Rami, an `Admin`, without `overrideReason` | status change | `400 Bad Request` |
 | **DENIED** | Rami, an `Admin`, assigning an HR agent to an IT ticket | assign | `400 Bad Request` |
 | **DENIED** | Rana, the `Employee` who opened ticket 7 | status change / assign / cancel | `403 Forbidden` |

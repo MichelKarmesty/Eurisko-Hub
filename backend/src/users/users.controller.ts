@@ -2,7 +2,10 @@ import {
   Body,
   ConflictException,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   NotFoundException,
   Param,
   ParseIntPipe,
@@ -12,7 +15,7 @@ import {
 } from '@nestjs/common';
 import { IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 import { UsersService } from './users.service';
-import { Roles } from '../common/auth.decorators';
+import { AuthUser, CurrentUser, Roles } from '../common/auth.decorators';
 import { ROLES, Role } from '../common/domain';
 
 class CreateUserDto {
@@ -50,7 +53,8 @@ export class UsersController {
 
   @Get()
   async list(@Query() query: ListUsersQuery) {
-    const all = await this.users.findAll();
+    // Removed/deactivated accounts are hidden from the Admin's Users list.
+    const all = await this.users.findActive();
     return query.role ? all.filter((u) => u.role === query.role) : all;
   }
 
@@ -74,5 +78,26 @@ export class UsersController {
     if (!user) throw new NotFoundException(`User ${id} not found.`);
     const { passwordHash: _ph, ...safe } = user;
     return safe;
+  }
+
+  /**
+   * `DELETE /users/:id` — Admin deletes any account (Employee, IT/HR/
+   * Maintenance agent, or another Admin).
+   *
+   * An account with no tickets/history is really deleted; one that appears in
+   * tickets/history is deactivated instead so the audit trail survives. Either
+   * way the account disappears from the Users list and can no longer sign in.
+   * Deleting yourself (400) and deleting the last active Admin (400) are
+   * refused.
+   */
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() actor: AuthUser,
+  ) {
+    const result = await this.users.deleteAccount(id, actor.id);
+    if (!result) throw new NotFoundException(`User ${id} not found.`);
+    return result;
   }
 }
