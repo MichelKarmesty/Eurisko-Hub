@@ -158,9 +158,13 @@ Global metrics (computed on read per data-model §3):
 ```bash
 cd backend
 npm install
-npm run build && npm start        # http://localhost:3000
+mkdir -p .data                                             # DB_FILE's folder (absent in a fresh clone)
+npm run build && DB_FILE="$PWD/.data/hub.sqlite" npm start  # http://localhost:3000
 npm run start:dev                 # watch mode (ts-node)
 ```
+
+Wait for `Eurisko Hub API listening on http://localhost:3000`; the web client
+(`cd ../frontend && npm run dev`) runs in a second terminal.
 
 First boot seeds exactly **one** account — the Admin
 (`admin@eurisko.com` / `Admin123!`, override via `ADMIN_EMAIL` / `ADMIN_PASSWORD`).

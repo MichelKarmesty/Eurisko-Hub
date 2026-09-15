@@ -72,7 +72,13 @@ next boot creates one (an existing Admin is never duplicated or reset). See
 
 ## Quick start
 ```bash
-npm run build && npm start
+mkdir -p .data                                     # DB_FILE's folder (absent in a fresh clone)
+npm run build && DB_FILE="$PWD/.data/hub.sqlite" npm start
+# wait for: Eurisko Hub API listening on http://localhost:3000
+# the web client runs in another terminal: cd ../frontend && npm run dev
 # sign in as admin@eurisko.com / Admin123!, then create users from the Users tab
 # (or follow "Scenario walk-through" in ../docs/api.md)
 ```
+
+Without `DB_FILE` the API still runs, but on an **in-memory** database: every
+account and ticket is lost when the process stops.

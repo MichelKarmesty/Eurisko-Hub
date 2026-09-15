@@ -18,9 +18,15 @@ required to resolve) is enforced by the NestJS backend in `../backend/`.
 
    ```bash
    cd ../backend
+   mkdir -p .data                                # DB_FILE's folder (absent in a fresh clone)
    npm install && npm run build
    DB_FILE="$PWD/.data/hub.sqlite" npm start     # http://localhost:3000
    ```
+
+   Wait until it prints `Eurisko Hub API listening on http://localhost:3000`
+   before starting the client below — `npm run build` compiles the backend but
+   does **not** start it, and a client that cannot reach the API fails sign-in
+   with `Request failed with status 500`.
 
 2. In another terminal, start this client (Vite proxies `/api` → :3000):
 

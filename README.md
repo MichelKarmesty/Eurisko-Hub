@@ -45,6 +45,12 @@ cd Eurisko-Hub
 
 ## Run the app (quick start)
 
+The API and the web client are **two separate processes**. Run each one in its
+own terminal and leave both running. `npm run build` only compiles the backend
+into `dist/` — it does **not** start it; `npm start` does. If the client cannot
+reach the API, sign-in fails with `Request failed with status 500` (see
+[Troubleshooting](#troubleshooting)).
+
 **1. Backend API** — http://localhost:3000
 
 ```bash
@@ -53,6 +59,12 @@ mkdir -p .data                       # DB_FILE's folder (gitignored, absent in a
 npm run build
 DB_FILE="$PWD/.data/hub.sqlite" npm start
 ```
+
+Wait until it prints `Eurisko Hub API listening on http://localhost:3000` before
+starting the client — if that line never appears, sign-in in the browser will
+fail with a `500`. On Windows PowerShell the same commands are
+`New-Item -ItemType Directory -Force .data | Out-Null`, then
+`$env:DB_FILE="$PWD\.data\hub.sqlite"; npm start`.
 
 First boot seeds **one** account — the Admin: `admin@eurisko.com` / `Admin123!`
 (override with `ADMIN_EMAIL` / `ADMIN_PASSWORD`). There is **no public
@@ -64,7 +76,7 @@ If a database ever has **no Admin at all**, the backend seeds one on the next
 boot — so an instance created before the Admin email changed is recovered rather
 than locked out. An existing Admin is never duplicated or reset.
 
-**2. Web client** — http://localhost:5173
+**2. Web client** (second terminal) — http://localhost:5173
 
 ```bash
 cd frontend
@@ -237,6 +249,14 @@ Read in this order:
 
 ## Troubleshooting
 
+- **Sign-in shows `Request failed with status 500`:** the browser reached the Vite
+  dev server but not the API, so the `/api` proxy returned a bodiless `500`. The
+  usual cause is that the backend is not running — `npm run build` compiles it but
+  does **not** start it. Confirm its terminal prints
+  `Eurisko Hub API listening on http://localhost:3000`. If it instead repeats
+  `Unable to connect to the database. Retrying…`, the `DB_FILE` folder is missing
+  or not writable: `mkdir -p .data` (or point `DB_FILE` at a writable path) and
+  restart. A wrong password is `401`, never `500`.
 - **Port 3000 is busy:** start the API with `PORT=3001 npm start`. The Vite dev
   proxy targets 3000, so either free port 3000 or point the client at the new
   port with `VITE_API_BASE=http://localhost:3001`.
