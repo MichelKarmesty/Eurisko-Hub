@@ -114,8 +114,30 @@ async function ensureBrowser() {
   return null;
 }
 
-function killAll(children) {
-  for (const child of children) if (child) child.kill('SIGTERM');
+/**
+ * Kill a child and, on POSIX, its entire process group. `npm run dev` spawns
+ * Vite as a grandchild; killing only the npm process would leave Vite running
+ * and holding its port (which makes `scripts/run-tests.mjs` look like it hung).
+ */
+function killTree(child, signal = 'SIGTERM') {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return;
+  if (!isWindows && typeof child.pid === 'number') {
+    try {
+      process.kill(-child.pid, signal); // negative pid => the whole process group
+      return;
+    } catch {
+      // fall through to a direct kill
+    }
+  }
+  try {
+    child.kill(signal);
+  } catch {
+    // already gone
+  }
+}
+
+function killAll(children, signal = 'SIGTERM') {
+  for (const child of children) killTree(child, signal);
 }
 
 async function main() {
@@ -138,6 +160,7 @@ async function main() {
       cwd: BACKEND,
       env: { ...process.env, DB_FILE, PORT: String(apiPort) },
       stdio: ['ignore', 'pipe', 'pipe'],
+      detached: !isWindows, // own process group, so killTree can reap it
     });
     children.push(api);
     api.stdout.on('data', (d) => process.stdout.write(`[api] ${d}`));
@@ -173,6 +196,7 @@ async function main() {
       env: { ...process.env, API_PROXY_TARGET: apiBase },
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: isWindows,
+      detached: !isWindows, // npm -> vite grandchild lives in this group
     });
     children.push(web);
     web.stdout.on('data', (d) => process.stdout.write(`[web] ${d}`));
@@ -210,13 +234,7 @@ async function main() {
   } finally {
     killAll(children);
     await sleep(600);
-    for (const child of children) {
-      try {
-        child.kill('SIGKILL');
-      } catch {
-        // already gone
-      }
-    }
+    killAll(children, 'SIGKILL');
     rmSync(DB_FILE, { force: true });
   }
 

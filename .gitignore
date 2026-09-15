@@ -11,6 +11,9 @@ e2e/node_modules/
 e2e/.browsers/
 artifacts/
 
+# Local system libraries fetched while probing a browser (Playwright deps)
+.probe-libs/
+
 # npm workspace-local cache
 .npm-cache/
 
