@@ -473,8 +473,9 @@ function UsersTab() {
         <h2>Create account</h2>
         <form className="stack" onSubmit={(e) => void handleCreate(e)}>
           <div className="form-row">
-            <label>Name</label>
+            <label htmlFor="new-user-name">Name</label>
             <input
+              id="new-user-name"
               className="input"
               required
               minLength={2}
@@ -484,8 +485,9 @@ function UsersTab() {
             />
           </div>
           <div className="form-row">
-            <label>Email</label>
+            <label htmlFor="new-user-email">Email</label>
             <input
+              id="new-user-email"
               className="input"
               type="email"
               required
@@ -495,8 +497,9 @@ function UsersTab() {
             />
           </div>
           <div className="form-row">
-            <label>Password</label>
+            <label htmlFor="new-user-password">Password</label>
             <input
+              id="new-user-password"
               className="input"
               type="password"
               required
@@ -507,8 +510,9 @@ function UsersTab() {
             />
           </div>
           <div className="form-row">
-            <label>Role</label>
+            <label htmlFor="new-user-role">Role</label>
             <select
+              id="new-user-role"
               className="input"
               value={form.role}
               onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as Role }))}
