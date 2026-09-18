@@ -13,6 +13,54 @@ this repository and to a command you can run.
 
 ---
 
+## 0. Try it in five minutes (for the reviewer)
+
+A fresh database contains **exactly one account — the Admin**. There is no
+public registration and no demo data ([ADR-004](decisions/ADR-004.md)), so the
+reviewer signs in as the Admin first and creates the accounts the slice needs.
+The app cannot be exercised end to end before that step.
+
+1. **Start the API** (terminal 1) and wait for the listening line:
+
+   ```bash
+   cd backend
+   mkdir -p .data                       # DB_FILE's folder (absent in a fresh clone)
+   npm run build
+   DB_FILE="$PWD/.data/hub.sqlite" npm start
+   # -> Eurisko Hub API listening on http://localhost:3000
+   ```
+
+2. **Start the web client** (terminal 2) → <http://localhost:5173>:
+
+   ```bash
+   cd frontend && npm run dev
+   ```
+
+3. **Sign in as the seeded Admin:** `admin@eurisko.com` / `Admin123!`
+   (`ADMIN_EMAIL` / `ADMIN_PASSWORD` override both). This is the only account
+   that exists on a fresh database.
+
+4. **Create the people the scenario needs** on the **👥 Users** tab — the tab
+   only exists for an Admin:
+
+   * an **Employee** (Requester), e.g. `rana.khoury@eurisko.com`;
+   * an **IT Agent**, e.g. `karim.haddad@eurisko.com`.
+
+   (Add an HR and a Maintenance agent too if you want to check department
+   isolation, §3.) Agree the passwords you type here — you will sign in with
+   them next.
+
+5. **Use "Switch account"** (top right) to move between those accounts, then
+   follow §1 below: the Employee opens a request, the IT Agent claims and
+   resolves it, the Employee sees it Resolved with the note.
+
+The Admin's **Users** tab shows a "fresh hub" prompt while no non-Admin account
+exists, so this first step is visible in the app itself, not only in this
+document. A completely automated run of the same journey is one command:
+`node scripts/run-tests.mjs` (§5).
+
+---
+
 ## 1. The slice
 
 > **A requester opens a Service Request, the responsible department agent claims
