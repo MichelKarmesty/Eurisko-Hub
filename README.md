@@ -178,8 +178,9 @@ npm run test:api          # HTTP contract, authorization (allowed/denied), regre
   ```
 
   Point it elsewhere with `API_URL=http://127.0.0.1:3100 npm run test:ui`.
-  The three tests cover the resolve slice, the Admin override (ADR-002), and
-  Admin assign/cancel (ADR-003).
+  The four tests cover the resolve slice, the Admin override (ADR-002), Admin
+  assign/cancel (ADR-003), and the first run itself (the Admin creates an
+  account in the Users tab and signs in as it).
 
 * **Real-browser E2E (Playwright — self-contained, self-installing):**
 

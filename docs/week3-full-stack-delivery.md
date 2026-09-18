@@ -286,7 +286,7 @@ The Week 3 requirement is *"it is not lots of code and it is not lots of tests
 | 1 | Automated test for a business rule | [`backend/test/domain-rules.spec.ts`](../backend/test/domain-rules.spec.ts) | `cd backend && npm run test:unit` |
 | 2 | Integration test between backend and database | [`backend/test/tickets.database.integration.spec.ts`](../backend/test/tickets.database.integration.spec.ts) | `cd backend && npm run test:integration` |
 | 3 | HTTP contract + authorization + regression | [`backend/test/tickets.api.spec.ts`](../backend/test/tickets.api.spec.ts) | `cd backend && npm run test:api` |
-| 4 | Meaningful E2E tests (real UI → real API → DB) | [`e2e/dom/`](../e2e/dom/) (3 tests) + [`e2e/scripts/resolve-slice.e2e.mjs`](../e2e/scripts/resolve-slice.e2e.mjs) (real browser) | `cd e2e && npm run test:ui` · `node scripts/run-browser-e2e.mjs` |
+| 4 | Meaningful E2E tests (real UI → real API → DB) | [`e2e/dom/`](../e2e/dom/) (4 tests) + [`e2e/scripts/resolve-slice.e2e.mjs`](../e2e/scripts/resolve-slice.e2e.mjs) (real browser) | `cd e2e && npm run test:ui` · `node scripts/run-browser-e2e.mjs` |
 | | everything, isolated and automated | [`scripts/run-tests.mjs`](../scripts/run-tests.mjs) | `node scripts/run-tests.mjs` |
 
 **1 — Business rule (pure, fast).** Proves the lifecycle rule
@@ -316,14 +316,17 @@ never appear in responses.
 with every request proxied to a **live NestJS backend** over HTTP, so the whole
 loop `React action → PATCH /tickets/:id/status → SQLite → React result` is
 exercised and the requester's list visibly ends up `Resolved` with the note.
-There are three DOM tests:
+There are four DOM tests:
 
 * [`e2e/dom/resolve-slice.ui.test.tsx`](../e2e/dom/resolve-slice.ui.test.tsx) — the slice itself;
 * [`e2e/dom/admin-override.ui.test.tsx`](../e2e/dom/admin-override.ui.test.tsx) — ADR-002: resolving a ticket assigned to an agent demands an override reason **and** the resolution note, and the row names the real resolver;
-* [`e2e/dom/admin-actions.ui.test.tsx`](../e2e/dom/admin-actions.ui.test.tsx) — ADR-003: the Admin **assigns** an unclaimed ticket and **soft-cancels** a duplicate.
+* [`e2e/dom/admin-actions.ui.test.tsx`](../e2e/dom/admin-actions.ui.test.tsx) — ADR-003: the Admin **assigns** an unclaimed ticket and **soft-cancels** a duplicate;
+* [`e2e/dom/admin-creates-account.ui.test.tsx`](../e2e/dom/admin-creates-account.ui.test.tsx) — ADR-004 and §0: the reviewer's first run. The Admin creates an Employee on the **Users** tab, **Switch account** signs in as that newly created account, and it opens a ticket.
 
-(The Vitest global setup creates the accounts these tests use through the Admin
-API — test fixtures only; the app itself seeds only the Admin.)
+(The Vitest global setup creates the accounts the other tests use through the
+Admin API — test fixtures only; the app itself seeds only the Admin. The
+first-run test creates its own account through the UI, so the flow a reviewer
+follows by hand is covered too.)
 
 A **real-browser** E2E ([`scripts/run-browser-e2e.mjs`](../scripts/run-browser-e2e.mjs)
 driving [`e2e/scripts/resolve-slice.e2e.mjs`](../e2e/scripts/resolve-slice.e2e.mjs))
@@ -380,7 +383,8 @@ $ cd e2e && npm run test:ui
  ✓ dom/resolve-slice.ui.test.tsx  (1 test)   React -> API -> SQLite
  ✓ dom/admin-override.ui.test.tsx (1 test)   admin override requires a reason
  ✓ dom/admin-actions.ui.test.tsx  (1 test)   admin assign + soft cancel
- Test Files  3 passed (3)   Tests  3 passed (3)
+ ✓ dom/admin-creates-account.ui.test.tsx (1 test)  first run: create account -> sign in -> open ticket
+ Test Files  4 passed (4)   Tests  4 passed (4)
 
 $ node scripts/run-browser-e2e.mjs
  PASS  Requester (Rana) opens ticket #1 from the UI
@@ -413,7 +417,7 @@ $ node scripts/run-browser-e2e.mjs
 | Expected failure handled on purpose | ✅ | §4; `ResolveControl` + E2E empty-note step |
 | Automated test for a business rule | ✅ | `backend/test/domain-rules.spec.ts` |
 | Integration test backend ↔ database | ✅ | `backend/test/tickets.database.integration.spec.ts` |
-| Meaningful E2E test | ✅ | `e2e/dom/` (3 tests) + real-browser `scripts/run-browser-e2e.mjs` |
+| Meaningful E2E test | ✅ | `e2e/dom/` (4 tests) + real-browser `scripts/run-browser-e2e.mjs` |
 | Regression protection | ✅ | `tickets.api.spec.ts` + integration spec + `admin-seed.spec.ts` + `verify-slice.mjs` |
 | Admin override governed (no silent bypass) | ✅ | ADR-002; `overrideReason` required + `ADMIN_OVERRIDE` audit event, covered by integration/HTTP tests |
 | Admin assign & soft cancel (no hard delete) | ✅ | ADR-003; `ASSIGNED`/`CANCELLED` events, department-checked assignment, covered by integration/HTTP/live/UI tests |

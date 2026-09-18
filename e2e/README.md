@@ -24,7 +24,7 @@ npx vitest run                                   # or: npm run test:ui
 ```
 
 Point at a different API with `API_URL=http://127.0.0.1:3100 npm run test:ui`.
-The suite contains three tests:
+The suite contains four tests:
 
 * `dom/resolve-slice.ui.test.tsx` — Rana opens a ticket → Karim claims it →
   empty resolution note is rejected (backend 400 rendered in the form) → Karim
@@ -36,6 +36,9 @@ The suite contains three tests:
   names the real resolver.
 * `dom/admin-actions.ui.test.tsx` — ADR-003: the Admin **assigns** an unclaimed
   ticket to a matching agent and **soft-cancels** a duplicate.
+* `dom/admin-creates-account.ui.test.tsx` — ADR-004, the tester's first run: the
+  Admin creates an Employee in the **Users** tab, then **Switch account** signs
+  in as that new account and it opens a ticket.
 
 ## Browser E2E (primary, self-contained)
 
