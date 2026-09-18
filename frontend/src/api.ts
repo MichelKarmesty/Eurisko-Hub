@@ -7,7 +7,6 @@
  * or to VITE_API_BASE when set.
  */
 import type {
-  AdminStats,
   Category,
   Priority,
   Role,
@@ -155,12 +154,6 @@ export function apiAssignTicket(id: number, assigneeId: number, note?: string): 
  */
 export function apiCancelTicket(id: number, reason: string): Promise<Ticket> {
   return request<Ticket>('PATCH', `/tickets/${id}/cancel`, { reason });
-}
-
-// --- Admin ----------------------------------------------------------------
-
-export function apiStats(): Promise<AdminStats> {
-  return request<AdminStats>('GET', '/admin/stats');
 }
 
 // --- User management (Admin only) -----------------------------------------

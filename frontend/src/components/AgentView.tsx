@@ -145,7 +145,7 @@ function QueueTab({ user }: { user: { id: number; name: string } }) {
 // Submit ticket tab (api.md: POST /tickets — any authenticated user)
 // ---------------------------------------------------------------------------
 
-function SubmitTab() {
+function SubmitTab({ user }: { user: { id: number; name: string } }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<Category>('IT');
@@ -157,17 +157,20 @@ function SubmitTab() {
 
   const loadMyTickets = useCallback(async () => {
     try {
-      // fetch tickets submitted BY this agent (requester_id = me)
-      // backend returns requester-scoped list when called without filters on agent role
-      // we use a workaround: pass mine=true which returns tickets the agent submitted
-      const all = await apiListTickets();
-      setMyTickets(all);
+      // Show the requests THIS agent opened. An agent's GET /tickets returns
+      // their own department's OPEN queue — the API has no "opened by me"
+      // scope — so keep only the rows this agent requested. A request opened
+      // for another department is not in that list; it is worked in that
+      // department's queue, and it appears here immediately after it is
+      // submitted.
+      const visible = await apiListTickets();
+      setMyTickets(visible.filter((t) => t.requesterId === user.id));
     } catch {
       // non-critical — just leave empty
     } finally {
       setLoadingTickets(false);
     }
-  }, []);
+  }, [user.id]);
 
   useEffect(() => { void loadMyTickets(); }, [loadMyTickets]);
 
@@ -241,6 +244,10 @@ function SubmitTab() {
 
       <section className="card">
         <h2>My submitted requests</h2>
+        <p className="muted small">
+          Requests you opened. An agent can only list tickets in their own department, so a
+          request you opened for another department is handled in that department's queue.
+        </p>
         {loadingTickets ? (
           <Spinner />
         ) : (
@@ -278,7 +285,7 @@ export function AgentView({ user }: { user: { id: number; name: string } }) {
         </button>
       </nav>
 
-      {tab === 'queue' ? <QueueTab user={user} /> : <SubmitTab />}
+      {tab === 'queue' ? <QueueTab user={user} /> : <SubmitTab user={user} />}
     </div>
   );
 }

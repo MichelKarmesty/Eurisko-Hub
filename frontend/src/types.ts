@@ -83,12 +83,3 @@ export interface AdminStats {
   openUnclaimed: number;
   highPriorityOpen: number;
 }
-
-/** The linear lifecycle (Cancelled is a terminal Admin action, not a step). */
-export const STATUS_ORDER = ['Open', 'In Progress', 'Resolved'] as const;
-
-/** One step forward on the documented lifecycle. */
-export const nextStatus = (s: TicketStatus): TicketStatus | null => {
-  const i = (STATUS_ORDER as readonly TicketStatus[]).indexOf(s);
-  return i >= 0 && i < STATUS_ORDER.length - 1 ? STATUS_ORDER[i + 1] : null;
-};
