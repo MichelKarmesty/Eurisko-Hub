@@ -17,13 +17,24 @@ it was resolved.
 > reason, or cancel softly — never delete. Full delivery record:
 > [`docs/week3-full-stack-delivery.md`](docs/week3-full-stack-delivery.md).
 
+> **Week 4 status — v0.4 AI-assisted Request Intake.** An employee can describe
+> the problem in their own words and press **AI Suggest**: the AI proposes a
+> Category, a Priority and a cleaned-up Title, which appear in the New Request
+> form as an editable starting point. The AI is **advisory only** — it never
+> creates a ticket and never touches the database, every suggested value is
+> validated against the domain enums before it is returned, the employee can
+> change or ignore all of it, and `POST /tickets` stays exactly as it was. If no
+> AI provider is configured or reachable, the form simply carries on by hand.
+> Full delivery record:
+> [`docs/week4-production-ai.md`](docs/week4-production-ai.md).
+
 ## Repository layout
 
 | Folder | What it is |
 |---|---|
-| [`backend/`](backend/) | NestJS + TypeORM API (auth, RBAC, tickets with claim/status flow, durable history) |
-| [`frontend/`](frontend/) | React + Vite web client (requester dashboard, agent queue, admin view) |
-| [`docs/`](docs/) | Product spec, architecture, data model, ADR, API reference, Week 3 delivery record |
+| [`backend/`](backend/) | NestJS + TypeORM API (auth, RBAC, tickets with claim/status flow, durable history, advisory AI intake under `src/ai/`) |
+| [`frontend/`](frontend/) | React + Vite web client (requester dashboard with AI Suggest, agent queue, admin view) |
+| [`docs/`](docs/) | Product spec, architecture, data model, ADR, API reference, Week 3 & Week 4 delivery records |
 | [`scripts/`](scripts/) | [`verify-slice.mjs`](scripts/verify-slice.mjs) live HTTP checks · [`run-tests.mjs`](scripts/run-tests.mjs) one-command test suite |
 | [`e2e/`](e2e/) | End-to-end tests: DOM-level (default) and real-browser (optional) |
 
@@ -128,6 +139,39 @@ node scripts/verify-slice.mjs full
 Requests the API refuses (e.g. an employee trying to change a status) surface as
 a visible notice instead of failing silently.
 
+## AI-assisted intake (v0.4)
+
+On the **New request** form an employee can describe the problem in their own
+words and press **AI Suggest**. The AI returns a *suggestion* for Category,
+Priority and Title; the fields are pre-filled and tagged **AI suggested**, the
+tag clears as soon as the employee edits a field, and **Open ticket** still calls
+the ordinary `POST /tickets`. The AI never creates a ticket and never writes to
+the database. Full detail: [`docs/week4-production-ai.md`](docs/week4-production-ai.md).
+
+**It works with no AI configured.** The defaults point at a local Ollama; if
+nothing is listening, the form shows *"AI suggestions unavailable — fill in the
+fields manually."* and behaves exactly as before. Nothing about running the app
+or the test suite requires a provider.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `AI_ENABLED` | `true` | `false` disables the feature (the endpoint answers with a clear disabled message) |
+| `AI_PROVIDER_URL` | `http://localhost:11434/v1` | Any OpenAI-compatible base URL |
+| `AI_MODEL` | `llama3.2` | Model name |
+| `AI_TIMEOUT_MS` | `5000` | Hard cap on the provider call |
+| `AI_API_KEY` | *(unset)* | Optional bearer token for hosted providers |
+
+Local model (free, no API key):
+
+```bash
+ollama pull llama3.2     # or: ollama pull mistral
+ollama serve             # http://localhost:11434 — already the default URL
+```
+
+Then just use the app. To point somewhere else, start the backend with the
+variables set, e.g. `AI_MODEL=mistral npm start`, or
+`AI_PROVIDER_URL=https://api.example.com/v1 AI_API_KEY=sk-… npm start`.
+
 ## Run the automated tests
 
 ### Everything, with one command
@@ -152,6 +196,7 @@ npm test                  # all suites
 npm run test:unit         # business rule: the ticket lifecycle
 npm run test:integration  # backend <-> real SQL database
 npm run test:api          # HTTP contract, authorization (allowed/denied), regression
+npm run test:ai-eval      # v0.4: the 8 AI intake eval cases
 ```
 
 | Requirement | Command | File |
@@ -161,6 +206,7 @@ npm run test:api          # HTTP contract, authorization (allowed/denied), regre
 | HTTP contract + authorization + regression | `npm run test:api` | `backend/test/tickets.api.spec.ts` |
 | Admin seed can never lock a database out | `npm test` | `backend/test/admin-seed.spec.ts` |
 | Admin account deletion: contract, authorization, audit | `npm test` | `backend/test/admin-user-deletion.spec.ts` |
+| v0.4: AI intake evals (5 real-or-skip + 3 mocked) | `npm run test:ai-eval` | `backend/test/ai-intake-eval.spec.ts` |
 
 **UI E2E — two layers:**
 
@@ -258,6 +304,7 @@ Read in this order:
 8. [`docs/api.md`](docs/api.md)
 9. [`docs/security.md`](docs/security.md) — the seeded Admin, no public registration, and the authorization model
 10. [`docs/week3-full-stack-delivery.md`](docs/week3-full-stack-delivery.md) — the Week 3 delivery record
+11. [`docs/week4-production-ai.md`](docs/week4-production-ai.md) — the Week 4 AI-assisted intake record
 
 ## Troubleshooting
 

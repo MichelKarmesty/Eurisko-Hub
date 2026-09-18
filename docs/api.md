@@ -155,6 +155,41 @@ Retires a request that should not be worked (duplicate, obsolete, withdrawn).
 * Cancelling a `Resolved` or already `Cancelled` ticket → `403 Forbidden`.
 * Non-Admin caller → `403 Forbidden`.
 
+## AI-assisted intake (v0.4)
+
+Full design rationale: [week4-production-ai.md](week4-production-ai.md).
+
+### POST /tickets/ai-suggest — any authenticated user, advisory only
+Classifies a free-form problem description into the structured ticket fields.
+It is a **read-only advisory call**: it never creates a ticket, never writes to
+the database, and its answer is never stored. The employee accepts, edits or
+ignores it, and `POST /tickets` (unchanged) remains the only way to open a
+ticket.
+
+```json
+{ "text": "My laptop screen is flickering and I can't work" }
+```
+
+→ `200` with a suggestion whose values are always inside the domain enums:
+
+```json
+{ "suggestion": { "category": "IT", "priority": "High",
+                  "title": "Laptop screen flickering", "confidence": 0.92 } }
+```
+
+→ `200` when the AI is unavailable, too slow, disabled or answers unusably —
+a graceful fallback, never a `500`, so ticket creation is never blocked:
+
+```json
+{ "suggestion": null, "error": "AI provider unavailable" }
+```
+
+* `400` — `text` missing or shorter than 3 characters (DTO validation).
+* `401` — no or invalid bearer token (any signed-in user may call it).
+* Configuration: `AI_ENABLED`, `AI_PROVIDER_URL` (default
+  `http://localhost:11434/v1`), `AI_MODEL` (default `llama3.2`),
+  `AI_TIMEOUT_MS` (default `5000`), optional `AI_API_KEY`.
+
 ## Admin dashboard
 
 ### GET /admin/stats — Admin only

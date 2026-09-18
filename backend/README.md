@@ -11,6 +11,10 @@ NestJS + TypeORM implementation of the Internal Operations Service Hub
   history recorded durably in a `ticket_events` table
 - **No public registration** (ADR-004): the backend seeds only the Admin; the
   Admin creates every other account via the Admin-only Users API
+- **AI-assisted intake** (v0.4, docs/week4-production-ai.md): an advisory
+  `POST /tickets/ai-suggest` that suggests category/priority/title. It has no
+  database access, validates every AI value against the domain enums, and fails
+  gracefully when no provider is running
 
 ## Commands
 ```bash
@@ -31,6 +35,7 @@ npm test                 # all suites
 npm run test:unit        # business rule: the ticket lifecycle
 npm run test:integration # backend <-> real SQL database
 npm run test:api         # HTTP contract + authorization + regression
+npm run test:ai-eval     # v0.4 AI intake evals (real-or-skip + mocked cases)
 npm run test:watch       # watch mode
 ```
 
@@ -42,6 +47,11 @@ npm run test:watch       # watch mode
 | `JWT_EXPIRES_IN` | `8h` | Token lifetime |
 | `DB_FILE` | *(in-memory)* | SQLite file path for persistence |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `admin@eurisko.com` / `Admin123!` | The one seeded Admin account |
+| `AI_ENABLED` | `true` | `false` switches the AI intake feature off |
+| `AI_PROVIDER_URL` | `http://localhost:11434/v1` | OpenAI-compatible base URL (local Ollama by default) |
+| `AI_MODEL` | `llama3.2` | Model name sent to the provider |
+| `AI_TIMEOUT_MS` | `5000` | Hard cap on the provider call |
+| `AI_API_KEY` | *(unset)* | Optional bearer token for hosted providers |
 
 ## Layout
 ```
@@ -55,6 +65,8 @@ src/
   users/                Admin-only account provisioning (the only way to create users)
   tickets/              tickets + history (entities/service/controller);
                         claim, admin assign, admin cancel, status/override
+  ai/                   v0.4 advisory AI intake: POST /tickets/ai-suggest,
+                        prompt + defensive parsing + domain validation
 test/
   setup.ts              deterministic env for tests (in-memory DB, seed admin)
   domain-rules.spec.ts                  business-rule unit test

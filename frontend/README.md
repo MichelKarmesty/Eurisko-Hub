@@ -54,9 +54,17 @@ required to resolve) is enforced by the NestJS backend in `../backend/`.
 
 | Role | Screen | Action |
 |---|---|---|
-| Requester (`Employee`) | `RequesterView` | opens a ticket, watches its status (cannot change it — RBAC) |
+| Requester (`Employee`) | `RequesterView` | describes the problem and presses **AI Suggest** (v0.4), opens a ticket, watches its status (cannot change it — RBAC) |
 | Support Agent | `AgentView` | claims from the department queue (→ `In Progress`), then **resolves** with a note |
 | Admin | `AdminView` | every ticket + stats + user management; **assigns** unclaimed tickets, **cancels** requests softly, or resolves as a recorded **override** |
+
+**AI Suggest (v0.4).** The free-text box + button call
+`POST /tickets/ai-suggest` and pre-fill Title, Category and Priority, each tagged
+**AI suggested**; the tag and highlight clear as soon as the field is edited.
+Nothing is auto-submitted and `Open ticket` still calls the unchanged
+`POST /tickets`. When the AI is unavailable the form shows a non-blocking notice
+and works by hand. Full detail:
+[`../docs/week4-production-ai.md`](../docs/week4-production-ai.md).
 
 The "React action" lives in
 [`src/components/ResolveControl.tsx`](src/components/ResolveControl.tsx): it
@@ -78,7 +86,7 @@ src/
   App.tsx            session handling + role-based view routing
   components/
     AuthScreen.tsx        sign-in only (no registration, no demo accounts)
-    RequesterView.tsx     open a ticket + my tickets (React result)
+    RequesterView.tsx     open a ticket (with the v0.4 AI Suggest flow) + my tickets (React result)
     AgentView.tsx         queue -> claim -> resolve (the slice flow)
     AdminView.tsx         global list + stats + users + assign/cancel controls
     ResolveControl.tsx    the slice's React action (PATCH status; override reason)
