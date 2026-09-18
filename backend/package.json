@@ -13,6 +13,7 @@
     "test:unit": "vitest run test/domain-rules.spec.ts",
     "test:integration": "vitest run test/tickets.database.integration.spec.ts",
     "test:api": "vitest run test/tickets.api.spec.ts",
+    "test:ai-eval": "vitest run test/ai-intake-eval.spec.ts",
     "test:watch": "vitest"
   },
   "dependencies": {

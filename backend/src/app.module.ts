@@ -7,6 +7,7 @@ import { User } from './users/user.entity';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { TicketsModule } from './tickets/tickets.module';
+import { AiIntakeModule } from './ai/ai-intake.module';
 import { Ticket } from './tickets/ticket.entity';
 import { TicketEvent } from './tickets/ticket-event.entity';
 import { UsersService } from './users/users.service';
@@ -20,6 +21,9 @@ const DEFAULT_ADMIN_PASSWORD = 'Admin123!';
  * relational database. Local runs use a SQLite database (TypeORM sqljs
  * driver) so nothing extra needs installing; swap the TypeORM config for
  * PostgreSQL in production.
+ *
+ * v0.4 adds the AI intake module (docs/week4-production-ai.md): it is advisory
+ * and has no database access at all, so TicketsService stays the only writer.
  */
 @Module({
   imports: [
@@ -38,6 +42,7 @@ const DEFAULT_ADMIN_PASSWORD = 'Admin123!';
     UsersModule,
     AuthModule,
     TicketsModule,
+    AiIntakeModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
