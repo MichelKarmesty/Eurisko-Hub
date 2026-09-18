@@ -7,6 +7,7 @@
  * or to VITE_API_BASE when set.
  */
 import type {
+  AiIntakeResult,
   Category,
   Priority,
   Role,
@@ -111,6 +112,16 @@ export function apiCreateTicket(input: {
   priority: Priority;
 }): Promise<Ticket> {
   return request<Ticket>('POST', '/tickets', input);
+}
+
+/**
+ * v0.4 (docs/week4-production-ai.md): ask the AI to suggest Category, Priority
+ * and Title from a free-form description. Advisory and side-effect free — it
+ * never creates a ticket. A provider that is disabled, down or too slow comes
+ * back as `{ suggestion: null, error }`, so the caller can carry on by hand.
+ */
+export function apiAiSuggest(text: string): Promise<AiIntakeResult> {
+  return request<AiIntakeResult>('POST', '/tickets/ai-suggest', { text });
 }
 
 /** ADR-001: an agent claims an OPEN ticket from their department queue. */

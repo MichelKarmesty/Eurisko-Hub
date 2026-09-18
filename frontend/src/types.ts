@@ -83,3 +83,20 @@ export interface AdminStats {
   openUnclaimed: number;
   highPriorityOpen: number;
 }
+
+/**
+ * v0.4 — AI-assisted intake (docs/week4-production-ai.md).
+ * Mirrors backend/src/ai/ai-intake.service.ts. The AI only *suggests*: the
+ * employee can change every field, and POST /tickets stays authoritative.
+ */
+export interface AiIntakeSuggestion {
+  category: Category;
+  priority: Priority;
+  title: string;
+  confidence: number;
+}
+
+export interface AiIntakeResult {
+  suggestion: AiIntakeSuggestion | null;
+  error?: string;
+}

@@ -523,3 +523,55 @@ tr.history-row > td {
 .history-note {
   font-style: italic;
 }
+
+/* ---------------------------------------------------------------------------
+   v0.4 — AI-assisted intake (docs/week4-production-ai.md).
+   The suggestion is a hint: highlighted fields carry an "AI suggested" tag and
+   the highlight disappears the moment the employee edits the field.
+   --------------------------------------------------------------------------- */
+.ai-intake {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.7rem 0.8rem;
+  margin-bottom: 0.9rem;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: #fbfcfe;
+}
+.ai-intake label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.ai-intake-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+/* A grid cell that can hold a tag above its label without changing the label's
+   text — the label keeps its exact accessible name, e.g. "Title". */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.field.full {
+  grid-column: 1 / -1;
+}
+.ai-tag {
+  align-self: flex-start;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+.ai-field {
+  border-color: var(--brand) !important;
+  box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.12);
+}
