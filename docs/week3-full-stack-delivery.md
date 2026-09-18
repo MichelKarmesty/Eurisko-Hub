@@ -284,12 +284,17 @@ its own API + Vite) and self-installing (`npx playwright install chromium`), and
 skips gracefully when no browser can launch. Both layers run inside
 `node scripts/run-tests.mjs`.
 
-**Regression protection** is therefore explicit in three places: the `regression
+**Regression protection** is therefore explicit in four places: the `regression
 protection` describe-block in the HTTP suite, the regression block in the
-integration suite, and
+integration suite,
 [`backend/test/admin-seed.spec.ts`](../backend/test/admin-seed.spec.ts), which
 pins the Admin-seed recovery rule (a database with no Admin can never be locked
-out). Plus [`scripts/verify-slice.mjs`](../scripts/verify-slice.mjs), which
+out), and
+[`backend/test/admin-user-deletion.spec.ts`](../backend/test/admin-user-deletion.spec.ts),
+which pins the account-deletion contract (a real delete only when the account has
+no tickets or history, a deactivation that keeps the audit otherwise, and the
+self-delete / last-active-Admin guards). Plus
+[`scripts/verify-slice.mjs`](../scripts/verify-slice.mjs), which
 re-checks the live definition of done over HTTP — including the restart-proof
 persistence check (`node scripts/verify-slice.mjs persist`).
 
@@ -317,7 +322,8 @@ $ cd backend && npm test
  ✓ test/tickets.database.integration.spec.ts  (21 tests)  backend <-> database
  ✓ test/tickets.api.spec.ts                   (11 tests)  HTTP contract + regression
  ✓ test/admin-seed.spec.ts                    ( 3 tests)  Admin-seed recovery
- Test Files  4 passed (4)   Tests  42 passed (42)
+ ✓ test/admin-user-deletion.spec.ts           ( 6 tests)  account deletion + audit
+ Test Files  5 passed (5)   Tests  48 passed (48)
 
 $ node scripts/verify-slice.mjs full
  28/28 checks passed   (live HTTP definition of done, fresh database)

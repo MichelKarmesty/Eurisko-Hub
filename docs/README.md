@@ -14,8 +14,8 @@ This folder contains the decisions and working notes behind the Internal Operati
 9. [security.md](security.md) - the seeded Admin, the no-public-registration rule, and the authorization model.
 10. [week3-full-stack-delivery.md](week3-full-stack-delivery.md) - the Week 3 delivery record: the integrated slice, its API contract, the authorization rule and its allowed/denied cases, and the automated tests that protect the behaviour.
 
-## Purpose of this phase
-We are planning before we build. These documents give the team a shared understanding of the product, architecture, and data before code or infrastructure work begins.
+## Purpose of these documents
+They are the living record of the delivered product, not a pre-build plan: the product specification, the architecture, the data model, and the decisions behind them, kept in step with the code in `../backend/` and `../frontend/`. Each document states what was decided, why, and where it is implemented.
 
 ## Documentation standards
 - Keep the product scope explicit and MVP-focused.

@@ -160,6 +160,7 @@ npm run test:api          # HTTP contract, authorization (allowed/denied), regre
 | Integration test backend ↔ database | `npm run test:integration` | `backend/test/tickets.database.integration.spec.ts` |
 | HTTP contract + authorization + regression | `npm run test:api` | `backend/test/tickets.api.spec.ts` |
 | Admin seed can never lock a database out | `npm test` | `backend/test/admin-seed.spec.ts` |
+| Admin account deletion: contract, authorization, audit | `npm test` | `backend/test/admin-user-deletion.spec.ts` |
 
 **UI E2E — two layers:**
 
@@ -252,9 +253,10 @@ Read in this order:
 4. [`docs/decisions/ADR-001.md`](docs/decisions/ADR-001.md) — manual queue claiming
 5. [`docs/decisions/ADR-002.md`](docs/decisions/ADR-002.md) — Admin override policy
 6. [`docs/decisions/ADR-003.md`](docs/decisions/ADR-003.md) — Admin assign & soft cancel
-7. [`docs/api.md`](docs/api.md)
-8. [`docs/security.md`](docs/security.md) — the seeded Admin, no public registration, and the authorization model
-9. [`docs/week3-full-stack-delivery.md`](docs/week3-full-stack-delivery.md) — the Week 3 delivery record
+7. [`docs/decisions/ADR-004.md`](docs/decisions/ADR-004.md) — Admin-provisioned accounts, no public registration
+8. [`docs/api.md`](docs/api.md)
+9. [`docs/security.md`](docs/security.md) — the seeded Admin, no public registration, and the authorization model
+10. [`docs/week3-full-stack-delivery.md`](docs/week3-full-stack-delivery.md) — the Week 3 delivery record
 
 ## Troubleshooting
 
