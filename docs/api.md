@@ -181,21 +181,43 @@ ticket.
 
 ```json
 { "suggestion": { "category": "IT", "priority": "High",
-                  "title": "Laptop screen flickering", "confidence": 0.92 } }
+                  "title": "Laptop screen flickering", "confidence": 0.92 },
+  "source": "ai" }
 ```
 
-→ `200` when the AI is unavailable, too slow, disabled or answers unusably —
-a graceful fallback, never a `500`, so ticket creation is never blocked:
+→ `200` when **no model answers** (disabled, unreachable, too slow, or an
+unparseable reply). By default the built-in offline classifier answers, and the
+response says so — `source: "offline"` plus a `notice`:
+
+```json
+{ "suggestion": { "category": "IT", "priority": "Medium",
+                  "title": "Laptop will not charge", "confidence": 0.4 },
+  "source": "offline",
+  "notice": "AI provider unavailable — this suggestion comes from the offline keyword classifier…" }
+```
+
+→ `200` with the strict provider-only shape when `AI_OFFLINE_FALLBACK=false`:
 
 ```json
 { "suggestion": null, "error": "AI provider unavailable" }
 ```
 
+The offline path never pretends to be the model: it is flagged in the payload
+(`source`, `notice`) and in the UI (the fields are tagged "Suggested (offline)")
+and its confidence is capped at 0.6. Nothing here is ever a `500`, so ticket
+creation is never blocked.
+
 * `400` — `text` missing or shorter than 3 characters (DTO validation).
 * `401` — no or invalid bearer token (any signed-in user may call it).
 * Configuration: `AI_ENABLED`, `AI_PROVIDER_URL` (default
   `http://localhost:11434/v1`), `AI_MODEL` (default `llama3.2`),
-  `AI_TIMEOUT_MS` (default `5000`), optional `AI_API_KEY`.
+  `AI_TIMEOUT_MS` (default `5000`), `AI_OFFLINE_FALLBACK` (default `true`),
+  optional `AI_API_KEY`.
+
+### GET-free check script
+`node scripts/verify-ai-intake.mjs` drives five realistic descriptions through
+this endpoint against a running API and reports the category, priority, title,
+confidence and source of each — with or without a model installed.
 
 ## Admin dashboard
 

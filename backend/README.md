@@ -51,6 +51,7 @@ npm run test:watch       # watch mode
 | `AI_PROVIDER_URL` | `http://localhost:11434/v1` | OpenAI-compatible base URL (local Ollama by default) |
 | `AI_MODEL` | `llama3.2` | Model name sent to the provider |
 | `AI_TIMEOUT_MS` | `5000` | Hard cap on the provider call |
+| `AI_OFFLINE_FALLBACK` | `true` | Answer from the built-in keyword classifier (always labelled `source: "offline"`) when no model is available; `false` = strict `{ suggestion: null, error }` |
 | `AI_API_KEY` | *(unset)* | Optional bearer token for hosted providers |
 
 ## Layout

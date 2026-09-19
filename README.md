@@ -148,10 +148,13 @@ tag clears as soon as the employee edits a field, and **Open ticket** still call
 the ordinary `POST /tickets`. The AI never creates a ticket and never writes to
 the database. Full detail: [`docs/week4-production-ai.md`](docs/week4-production-ai.md).
 
-**It works with no AI configured.** The defaults point at a local Ollama; if
-nothing is listening, the form shows *"AI suggestions unavailable — fill in the
-fields manually."* and behaves exactly as before. Nothing about running the app
-or the test suite requires a provider.
+**It works with no AI configured.** The defaults point at a local Ollama. If no
+model is answering, the built-in **offline classifier** still fills the form in
+— clearly labelled: the API returns `source: "offline"` with a notice, and the
+UI tags those fields **"Suggested (offline)"** instead of "AI suggested", so a
+rules-based answer is never passed off as the model's. Set
+`AI_OFFLINE_FALLBACK=false` for the strict `{ suggestion: null, error }`
+behaviour. Nothing about running the app or the test suite requires a model.
 
 | Variable | Default | Purpose |
 |---|---|---|
@@ -159,6 +162,7 @@ or the test suite requires a provider.
 | `AI_PROVIDER_URL` | `http://localhost:11434/v1` | Any OpenAI-compatible base URL |
 | `AI_MODEL` | `llama3.2` | Model name |
 | `AI_TIMEOUT_MS` | `5000` | Hard cap on the provider call |
+| `AI_OFFLINE_FALLBACK` | `true` | Suggest from the offline keyword classifier when no model answers (always labelled); `false` = strict provider-only |
 | `AI_API_KEY` | *(unset)* | Optional bearer token for hosted providers |
 
 Local model (free, no API key):
@@ -171,6 +175,13 @@ ollama serve             # http://localhost:11434 — already the default URL
 Then just use the app. To point somewhere else, start the backend with the
 variables set, e.g. `AI_MODEL=mistral npm start`, or
 `AI_PROVIDER_URL=https://api.example.com/v1 AI_API_KEY=sk-… npm start`.
+
+**See it working in one command** (with the API running; passes with or without
+a model and says which one answered):
+
+```bash
+node scripts/verify-ai-intake.mjs
+```
 
 ## Run the automated tests
 

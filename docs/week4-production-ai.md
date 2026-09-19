@@ -52,10 +52,11 @@ What the employee can do at every point:
 |---|---|
 | Types a free-form description | Nothing is sent until they ask |
 | Presses **AI Suggest** | `POST /tickets/ai-suggest`; a read-only advisory call, no database writes |
-| Suggestion arrives | Category, Priority and Title are pre-filled, each tagged **AI suggested** and highlighted |
+| Suggestion arrives | Category, Priority and Title are pre-filled, each tagged **AI suggested** and highlighted (or **"Suggested (offline)"** when no model answered — §3.4) |
 | Edits any field | That field's highlight and tag disappear — the value is now theirs |
 | Presses **Open ticket** | The ordinary `POST /tickets` runs with whatever the form now holds |
-| AI is down or disabled | A non-blocking notice: *"AI suggestions unavailable — fill in the fields manually."* The form works exactly as before |
+| No model installed | The offline classifier still fills the form in, clearly labelled; a notice explains how to get real AI answers |
+| AI disabled (`AI_ENABLED=false`) | A non-blocking notice: *"AI suggestions unavailable — fill in the fields manually."* The form works exactly as before |
 
 ---
 
@@ -95,7 +96,18 @@ may open a ticket may ask for a suggestion).
 { "suggestion": { "category": "IT", "priority": "High",
                   "title": "Laptop screen flickering", "confidence": 0.92 } }
 
-// 200 — the AI is disabled, unreachable, too slow or answered unusably
+// 200 — a model answered (values are always inside the domain enums)
+{ "suggestion": { "category": "IT", "priority": "High",
+                  "title": "Laptop screen flickering", "confidence": 0.92 },
+  "source": "ai" }
+
+// 200 — no model answered, so the labelled offline classifier did (the default)
+{ "suggestion": { "category": "IT", "priority": "Medium",
+                  "title": "Laptop will not charge", "confidence": 0.4 },
+  "source": "offline",
+  "notice": "AI provider unavailable — this suggestion comes from the offline keyword classifier, not from a model. …" }
+
+// 200 — strict provider-only contract (AI_OFFLINE_FALLBACK=false)
 { "suggestion": null, "error": "AI provider unavailable" }
 { "suggestion": null, "error": "AI suggestions are disabled (AI_ENABLED=false)." }
 
@@ -115,6 +127,7 @@ affected". It is a read-only advisory call.
 | `AI_PROVIDER_URL` | `http://localhost:11434/v1` | Any OpenAI-compatible base URL (Ollama's default is exactly this) |
 | `AI_MODEL` | `llama3.2` | Model name sent to the provider |
 | `AI_TIMEOUT_MS` | `5000` | Hard cap on the provider call (AbortController) |
+| `AI_OFFLINE_FALLBACK` | `true` | When no model answers, return a suggestion from the built-in keyword classifier — always labelled `source: "offline"`. Set to `false` for the strict `{ suggestion: null, error }` contract |
 | `AI_API_KEY` | *(unset)* | Optional; when set it is sent as `Authorization: Bearer …` for hosted providers |
 
 ---
@@ -179,18 +192,41 @@ of the provider is allowed to block the ticket workflow:
 
 | Failure | What the product does |
 |---|---|
-| No provider listening | `{ suggestion: null, error: "AI provider unavailable" }`; the form shows a non-blocking notice |
-| Provider returns `500`/`503` | Same graceful result |
-| Provider is too slow | `AbortController` cancels at `AI_TIMEOUT_MS`; same graceful result |
-| Provider returns prose instead of JSON | The raw text is parsed defensively; if no JSON object can be extracted, the employee still gets a **validated defaults-based suggestion** (a filled-in form is more useful than an error) |
-| Partial or wrong-typed JSON | The validation layer fills the gaps |
-| `AI_ENABLED=false` | `{ suggestion: null, error: "AI suggestions are disabled…" }` |
+| No provider listening / provider returns `500`/`503` / too slow (`AbortController` at `AI_TIMEOUT_MS`) | With `AI_OFFLINE_FALLBACK=true` (the default) the employee still gets a usable suggestion from the offline keyword classifier, returned as `source: "offline"` with a `notice`. With `AI_OFFLINE_FALLBACK=false` the answer is the strict `{ suggestion: null, error: "AI provider unavailable" }` |
+| Provider returns prose instead of JSON | The offline classifier answers, with a notice saying the provider's answer could not be parsed |
+| Partial or wrong-typed JSON | The validation layer fills the gaps; the answer is `source: "ai"` |
+| `AI_ENABLED=false` | `{ suggestion: null, error: "AI suggestions are disabled…" }` — no offline suggestion, because the feature was switched off on purpose |
 
 The endpoint always answers `200` with a body the client understands, never a
 `500`; `service.suggest()` catches everything. The only `4xx` responses are the
 ordinary ones: `400` for a too-short `text` and `401` without a token.
 
-### 3.4 Smaller decisions
+### 3.4 The offline fallback, and why it is labelled
+
+A fresh clone, a reviewer's laptop or a locked-down runner has no model
+installed. Showing "unavailable" everywhere would make the capability
+un-demonstrable, so the service falls back to a small, pure keyword classifier
+(`classifyOffline`):
+
+* **What it matches** — IT ← laptop, screen, printer, wifi, password, account, …
+  HR ← contract, payroll, badge, leave, emergency contact, … Maintenance ← AC,
+  leak, light, door, chair, cleaning, … A multi-word phrase ("emergency
+  contact") outweighs a generic single word ("update"), ties go to `IT` (the same
+  documented default), and urgency wording ("can't work", "urgent", "outage")
+  raises the priority while "no rush"/"minor" lowers it.
+* **How sure it claims to be** — its confidence is capped at **0.6** and drops to
+  **0.25** when nothing matches, so it never imitates model-like certainty. It
+  can only emit members of `CATEGORIES` / `PRIORITIES`, exactly like the model
+  path.
+* **How it is disclosed** — every answer carries `source: "offline"` and a
+  `notice`, the API documents it, and the UI tags the fields **"Suggested
+  (offline)"** instead of "AI suggested". Rules are never dressed up as the
+  model's work; the delivery record you are reading says the same thing.
+* **How to switch it off** — `AI_OFFLINE_FALLBACK=false` restores the strict
+  provider-only contract (`{ suggestion: null, error }`), which is what the
+  mocked eval case 8 asserts as the "strict" branch.
+
+### 3.5 Smaller decisions
 
 * **No new dependency.** The provider call uses Node's built-in `fetch` (Node
   20+), so the dependency tree is unchanged.
@@ -208,9 +244,12 @@ ordinary ones: `400` for a too-short `text` and `401` without a token.
 ### It already works with no AI at all
 
 The default configuration points at `http://localhost:11434/v1`. If nothing is
-listening there, pressing **AI Suggest** shows *"AI suggestions unavailable —
-fill in the fields manually."* and the form behaves exactly as it did in v0.3.
-Nothing needs configuring to run the app or the test suite.
+listening there, pressing **AI Suggest** still fills the form in — from the
+offline keyword classifier, tagged **"Suggested (offline)"** with a notice
+explaining that no model is configured (§3.4). Everything else behaves exactly
+as it did in v0.3, and nothing needs configuring to run the app or the test
+suite. Prefer the strict provider-only behaviour? Start with
+`AI_OFFLINE_FALLBACK=false`.
 
 ### Local model with Ollama (optional, free, no API key)
 
@@ -250,6 +289,9 @@ AI_PROVIDER_URL=https://api.example.com/v1 AI_MODEL=gpt-4o-mini AI_API_KEY=sk-�
 # a longer wait for a slow local model
 AI_TIMEOUT_MS=20000 npm start
 
+# strict provider-only answers (no offline suggestion when nothing answers)
+AI_OFFLINE_FALLBACK=false npm start
+
 # switch the feature off completely
 AI_ENABLED=false npm start
 ```
@@ -263,8 +305,22 @@ curl -s http://localhost:3000/tickets/ai-suggest \
   -d '{"text":"My laptop screen is flickering and I cannot work"}'
 ```
 
-Without a provider the answer is
-`{"suggestion":null,"error":"AI provider unavailable"}` — the graceful path.
+Without a model the answer carries a **labelled offline suggestion**
+(`"source":"offline"` plus a notice) rather than an error, so the capability is
+demonstrable anywhere. With `AI_OFFLINE_FALLBACK=false` the same call returns
+`{"suggestion":null,"error":"AI provider unavailable"}`.
+
+### One command to show it working
+
+```bash
+node scripts/verify-ai-intake.mjs          # BASE_URL=… to point elsewhere
+```
+
+It logs in as the seeded Admin and drives five realistic descriptions through
+`POST /tickets/ai-suggest`, printing the category, priority, title, confidence
+and **source** for each, then proves the call created no ticket and that
+`POST /tickets` still works by hand. It passes with or without a model and says
+which mode it saw — 10 checks in total. `node scripts/run-tests.mjs` runs it too.
 
 ### Running the evals
 
@@ -272,7 +328,7 @@ Without a provider the answer is
 cd backend
 npm run test:ai-eval     # the 8 AI eval cases
 npm test                 # every backend suite (the evals included)
-cd .. && node scripts/run-tests.mjs   # everything: backend, live HTTP, DOM E2E, browser E2E
+cd .. && node scripts/run-tests.mjs   # everything: backend, live HTTP, AI intake, DOM E2E, browser E2E
 ```
 
 ---
@@ -289,9 +345,9 @@ guarantee:
 | 3 | Clear Maintenance | "The AC in conference room B is not working" | `category: 'Maintenance'` | real provider, skips if absent |
 | 4 | Thin input | "help", "something is wrong" | still a valid category **and** priority (low confidence is fine) | real provider, skips if absent |
 | 5 | Mixed signals | "The office door lock is broken and I also need HR to update my badge" | exactly one valid category — never an invented one | real provider, skips if absent |
-| 6 | Validation layer | 12 hostile values: `null`, `42`, `[]`, `{}`, `{category:'Finance',priority:'Urgent'}`, wrong types, missing fields | every returned category/priority is in the domain enums; defaults are `IT`/`Medium`; a title is always derivable | mocked, always runs |
-| 7 | Invalid AI output | stubbed model reply `{"category":"Finance","priority":"Urgent",…}` | corrected to `IT`/`Medium`; the usable parts (the title) are kept | mocked, always runs |
-| 8 | Provider failure | stubbed `ECONNREFUSED`, stubbed `HTTP 503`, `AI_ENABLED=false` | `{ suggestion: null, error }`; **never throws**, never a `500` | mocked, always runs |
+| 6 | Validation layer + offline classifier | 12 hostile values (`null`, `42`, `[]`, `{}`, `{category:'Finance',priority:'Urgent'}`, wrong types, missing fields) **and** six realistic phrases through `classifyOffline` | every returned category/priority is in the domain enums; defaults are `IT`/`Medium`; a title is always derivable; the offline classifier gets IT/HR/Maintenance right, caps its confidence at 0.6 (0.25 when nothing matches) and honours urgency wording | mocked, always runs |
+| 7 | Invalid AI output | stubbed model reply `{"category":"Finance","priority":"Urgent",…}` | corrected to `IT`/`Medium`; the usable parts (the title) are kept; `source: "ai"` | mocked, always runs |
+| 8 | Provider failure | stubbed `ECONNREFUSED`, stubbed `HTTP 503`, a prose answer, `AI_ENABLED=false` | never throws and never a `500`: with `AI_OFFLINE_FALLBACK=false` → `{ suggestion: null, error }`; with it on → a **labelled** `source: "offline"` suggestion; `AI_ENABLED=false` → the disabled error and no suggestion | mocked, always runs |
 
 **Results on this machine** (no AI provider running — the default state):
 
@@ -340,7 +396,8 @@ $ node scripts/run-tests.mjs
 | The employee always has the final say | Every suggested field is editable; the tag disappears the moment they type (`RequesterView.tsx`) |
 | The AI cannot create a ticket | `AiIntakeController` exposes only the suggest route; `AiIntakeModule` has no database access; `TicketsService.create()` is the only insert path |
 | The AI cannot put a bad value in the database | `coerceSuggestion()` is the only constructor of a suggestion and can only emit `CATEGORIES` / `PRIORITIES` members |
-| The AI cannot break the form | Every provider failure is caught and reported; the UI shows a notice and the employee proceeds manually |
+| The AI cannot break the form | Every provider failure is caught and reported; the UI shows a notice and the employee proceeds manually — or gets a labelled offline suggestion |
+| A rules-based answer is never passed off as the model's | The offline fallback returns `source: "offline"` + a `notice`, and the UI tags those fields **"Suggested (offline)"** (§3.4) |
 | The AI cannot change an existing rule | `CreateTicketDto`, the lifecycle, RBAC and the audit trail are untouched, and all v0.3 tests pass unchanged |
 | The AI's answer is attributable | It is never stored; the ticket records only what the employee submitted, and the `CREATED` event names the employee as the actor |
 
@@ -360,21 +417,23 @@ $ node scripts/run-tests.mjs
 | Advisory: employee can accept, edit or ignore | ✅ | `RequesterView.tsx` |
 | `POST /tickets` unchanged; no auto-create | ✅ | `tickets.controller.ts`, `dto.ts` untouched |
 | OpenAI-compatible provider, `AI_PROVIDER_URL` / `AI_MODEL` | ✅ | §2 configuration, `callProvider()` |
-| Graceful fallback when the provider is down | ✅ | `suggest()` catch; eval case 8 |
+| Graceful fallback when the provider is down | ✅ | `suggest()` catch; eval case 8 (both the strict and the offline branch) |
+| Works with no model installed (labelled offline fallback) | ✅ | `classifyOffline()` + `AI_OFFLINE_FALLBACK` (default on); `scripts/verify-ai-intake.mjs` |
 | `POST /tickets/ai-suggest`, authenticated, read-only | ✅ | `ai-intake.controller.ts`; §2 contract |
 | Frontend: free text, AI Suggest, prefill, marking, fallback notice | ✅ | `RequesterView.tsx` + `styles.css` |
-| `AI_ENABLED`, `AI_TIMEOUT_MS` (+ `AI_API_KEY`) | ✅ | §2 configuration |
+| `AI_ENABLED`, `AI_TIMEOUT_MS`, `AI_OFFLINE_FALLBACK` (+ `AI_API_KEY`) | ✅ | §2 configuration |
 
 ### PROVE
 
 | Requirement | Status | Evidence |
 |---|---|---|
-| All existing deterministic tests still green | ✅ | `npm test` → 51 passed, 5 skipped (56); `run-tests.mjs` → ALL TESTS PASSED |
-| `node scripts/run-tests.mjs` still passes end to end | ✅ | 28/28 live, 4/4 DOM, full run exit 0 |
+| All existing deterministic tests still green | ✅ | `npm test` → 60 passed, 5 skipped (65); `run-tests.mjs` → ALL TESTS PASSED |
+| `node scripts/run-tests.mjs` still passes end to end | ✅ | 28/28 live HTTP, 10/10 AI intake, 4/4 DOM, full run exit 0 |
 | 5–8 eval cases, covering the listed scenarios | ✅ | 8 cases in `ai-intake-eval.spec.ts` |
 | Cases 1–5 real when a provider exists, skipped otherwise | ✅ | `providerAvailable` probe in `beforeAll`; `skip()` in the test body |
 | Cases 6–8 mocked and deterministic | ✅ | stubbed `globalThis.fetch`, no network |
 | `test:ai-eval` npm script | ✅ | `backend/package.json` |
+| The capability is demonstrable with or without a model | ✅ | `scripts/verify-ai-intake.mjs` — 10 checks, reports which source answered |
 
 ### DELIVER
 
@@ -406,3 +465,7 @@ Explicitly **not** built, and why:
 * **No AI on the agent side.** The capability is intake only.
 * **No new dependency, no telemetry, no prompt/response storage.** The request
   text is sent to the configured provider and the answer is not persisted.
+* **The offline classifier is a fallback, not the AI.** It exists so the
+  capability can be demonstrated without downloading a model; it is labelled in
+  the API and the UI, capped at 0.6 confidence, and `AI_OFFLINE_FALLBACK=false`
+  removes it entirely. The real capability remains the model path.
