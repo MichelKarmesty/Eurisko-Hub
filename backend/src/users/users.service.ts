@@ -60,9 +60,43 @@ export class UsersService {
     return this.users.save(user);
   }
 
-  async updateRole(id: number, role: Role): Promise<User | null> {
+  /**
+   * Admin action: change an account's role (`PATCH /users/:id/role`).
+   *
+   * A demotion can empty the Admin seat just as effectively as a delete, so the
+   * same "a database can never be locked out" rule applies (ADR-004,
+   * docs/security.md) — and it is enforced here, at the API boundary, not in the
+   * Users tab:
+   *
+   *  - an Admin can never change their **own** Admin role (400): that is how a
+   *    session would remove its own ability to manage accounts mid-request;
+   *  - the **last remaining active Admin** can never be demoted (400).
+   *
+   * Promoting somebody to Admin, and any change that leaves at least one active
+   * Admin in place, is allowed.
+   */
+  async updateRole(
+    id: number,
+    role: Role,
+    actingUserId: number,
+  ): Promise<User | null> {
     const user = await this.findById(id);
     if (!user) return null;
+
+    const demotesAnActiveAdmin =
+      user.role === 'Admin' && user.isActive && role !== 'Admin';
+
+    if (demotesAnActiveAdmin) {
+      if (user.id === actingUserId) {
+        throw new BadRequestException('You cannot change your own Admin role.');
+      }
+      if ((await this.countActiveAdmins()) <= 1) {
+        throw new BadRequestException(
+          'The last active Admin cannot be demoted — the hub would be locked out.',
+        );
+      }
+    }
+
     user.role = role;
     return this.users.save(user);
   }

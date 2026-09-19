@@ -69,12 +69,20 @@ export class UsersController {
     return safe;
   }
 
+  /**
+   * `PATCH /users/:id/role` — Admin changes an account's role.
+   *
+   * The same "a database can never be locked out" rule as deletion applies to
+   * demotions (ADR-004): an Admin cannot change their own Admin role (400) and
+   * the last active Admin cannot be demoted (400). See UsersService.updateRole.
+   */
   @Patch(':id/role')
   async updateRole(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateUserRoleDto,
+    @CurrentUser() actor: AuthUser,
   ) {
-    const user = await this.users.updateRole(id, dto.role);
+    const user = await this.users.updateRole(id, dto.role, actor.id);
     if (!user) throw new NotFoundException(`User ${id} not found.`);
     const { passwordHash: _ph, ...safe } = user;
     return safe;
