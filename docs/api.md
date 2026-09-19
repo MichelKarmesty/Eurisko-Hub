@@ -56,7 +56,14 @@ A wrong email and a wrong password both return the same generic
 ```
 → `201` with the created user (never its password hash). A duplicate email →
 `409`; a non-Admin caller → `403`.
-`PATCH /users/3/role` body: `{ "role": "HR_Agent" }`
+`PATCH /users/3/role` body: `{ "role": "HR_Agent" }` → `200` with the updated
+user.
+* `400` — an invalid role; changing **your own** Admin role
+  (`"You cannot change your own Admin role."`); or demoting the **last active
+  Admin** (`"The last active Admin cannot be demoted — the hub would be locked
+  out."`). A demotion must never be able to empty the Admin seat, exactly like a
+  deletion (ADR-004).
+* `404` — unknown account; non-Admin caller → `403`.
 
 ### DELETE /users/:id — Admin deletes an account
 Deletes **any** account — an Employee, an IT/HR/Maintenance agent, or another

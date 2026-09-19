@@ -267,7 +267,7 @@ Base URL `http://localhost:3000`; authenticated calls send
 | `PATCH /tickets/:id/status` | **assigned agent or Admin override** | advance `Open → In Progress → Resolved`; a note is required to resolve. An Admin acting on a ticket not assigned to them must also send `overrideReason` (`400` otherwise), recorded as `ADMIN_OVERRIDE` (ADR-002) |
 | `PATCH /tickets/:id/cancel` | Admin | soft-cancel a request with a reason — kept and audited, never deleted (ADR-003) |
 | `GET /tickets/:id/history` | ticket readers | durable `CREATED → CLAIMED/ASSIGNED → RESOLVED` trail, plus `ADMIN_OVERRIDE` / `CANCELLED` where applicable |
-| `GET /users` · `POST /users` · `PATCH /users/:id/role` · `DELETE /users/:id` | Admin | manage accounts: list, create, change role, **delete any account** (the login is revoked at once; an account with tickets/history is kept for audit, one with none is really deleted) |
+| `GET /users` · `POST /users` · `PATCH /users/:id/role` · `DELETE /users/:id` | Admin | manage accounts: list, create, change role, **delete any account** (the login is revoked at once; an account with tickets/history is kept for audit, one with none is really deleted). A role change can never empty the Admin seat: you cannot change your own Admin role, and the last active Admin cannot be demoted |
 | `GET /admin/stats` | Admin | company-wide counters |
 
 ## Roles and access
@@ -286,7 +286,7 @@ Base URL `http://localhost:3000`; authenticated calls send
   from the list and can no longer sign in; an account with tickets/history is
   kept for audit (deactivated) while an account with none is really deleted.
   An Admin can never delete their own account, and the last active Admin can
-  never be deleted (so the hub can't be locked out).
+  never be deleted or demoted (so the hub can't be locked out).
 
 Role checks happen on the server only — the client never enforces permissions.
 

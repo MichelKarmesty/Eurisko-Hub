@@ -56,6 +56,11 @@ guards are `JwtAuthGuard` (a valid bearer token is required unless a route is
   guard-rails protect the hub itself: an Admin cannot delete **their own**
   account, and the **last active Admin** can never be deleted (400), so a
   database can never be locked out (ADR-004).
+* **The same guard-rails cover role changes** (`PATCH /users/:id/role`), because
+  a demotion can empty the Admin seat just as effectively as a delete: an Admin
+  cannot change **their own Admin role** (400), and the **last active Admin**
+  cannot be demoted (400). Promoting somebody to Admin, and any change that
+  leaves an active Admin in place, is allowed.
 * Tickets are **never hard-deleted**: `Cancelled` is a terminal, fully audited
   status (ADR-003).
 
