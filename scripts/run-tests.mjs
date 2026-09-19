@@ -133,6 +133,16 @@ async function main() {
       BASE_URL: base,
     });
 
+    // 5b. v0.4 AI intake checks against the same live API. They pass with or
+    //     without a model: with none, the labelled offline fallback answers.
+    run(
+      'AI intake checks (verify-ai-intake)',
+      process.execPath,
+      [path.join(ROOT, 'scripts', 'verify-ai-intake.mjs')],
+      ROOT,
+      { BASE_URL: base },
+    );
+
     // 6. DOM-level UI E2E: real React components -> live API -> SQLite.
     if (process.env.SKIP_E2E !== '1') {
       run('UI E2E (React -> API -> SQLite)', isWindows ? 'npx.cmd' : 'npx', ['vitest', 'run'], E2E, {
