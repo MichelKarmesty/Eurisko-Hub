@@ -22,6 +22,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { CATEGORIES, PRIORITIES } from '../src/common/domain';
 import {
   AiIntakeService,
+  classifyOffline,
   coerceSuggestion,
   titleFromText,
   type AiIntakeResult,
@@ -186,6 +187,32 @@ describe('AI intake eval — validation and failure handling (mocked, always run
     // And a title is always derivable from the employee's own words.
     expect(titleFromText('')).toBe('New request');
     expect(titleFromText('the printer is jammed')).toBe('The printer is jammed');
+
+    // The offline classifier (the no-model fallback) is held to the same rule.
+    const offlineCases: Array<[string, 'IT' | 'HR' | 'Maintenance']> = [
+      ['my laptop screen is flickering', 'IT'],
+      ['the printer on floor 2 is jammed', 'IT'],
+      ['I need to update my emergency contact', 'HR'],
+      ['when does my contract get renewed', 'HR'],
+      ['the AC in conference room B is not working', 'Maintenance'],
+      ['the door lock is broken', 'Maintenance'],
+    ];
+    for (const [text, expected] of offlineCases) {
+      const offline = classifyOffline(text);
+      expect(CATEGORIES, `classifyOffline("${text}")`).toContain(offline.category);
+      expect(PRIORITIES, `classifyOffline("${text}")`).toContain(offline.priority);
+      expect(offline.category, `classifyOffline("${text}")`).toBe(expected);
+      // It never claims model-like certainty: rules are capped low on purpose.
+      expect(offline.confidence).toBeLessThanOrEqual(0.6);
+    }
+    // No signal at all still yields something valid — and a modest confidence.
+    const vague = classifyOffline('help');
+    expect(CATEGORIES).toContain(vague.category);
+    expect(PRIORITIES).toContain(vague.priority);
+    expect(vague.confidence).toBeLessThan(0.4);
+    // Urgency wording is honoured in both directions.
+    expect(classifyOffline("my laptop is broken and I can't work").priority).toBe('High');
+    expect(classifyOffline('the office chair squeaks, no rush').priority).toBe('Low');
   });
 
   it('7. invalid AI output (Finance / Urgent) is corrected, never passed through', async () => {
@@ -201,12 +228,14 @@ describe('AI intake eval — validation and failure handling (mocked, always run
     expect(suggestion.title).toBe('Printer jam');
   });
 
-  it('8. an unreachable provider returns a graceful fallback instead of throwing', async () => {
+  it('8. provider failure is always graceful — strict error, or a labelled offline suggestion', async () => {
+    // Strict contract (AI_OFFLINE_FALLBACK=false): null + a clear error.
+    process.env.AI_OFFLINE_FALLBACK = 'false';
     stubProviderDown();
 
-    const result = await service.suggest('My laptop will not charge');
-    expect(result.suggestion).toBeNull();
-    expect(result.error).toBe('AI provider unavailable');
+    const strict = await service.suggest('My laptop will not charge');
+    expect(strict.suggestion).toBeNull();
+    expect(strict.error).toBe('AI provider unavailable');
 
     // A provider that answers with an HTTP error is handled the same way.
     stubProvider('', false, 503);
@@ -214,7 +243,26 @@ describe('AI intake eval — validation and failure handling (mocked, always run
     expect(errored.suggestion).toBeNull();
     expect(errored.error).toBe('AI provider unavailable');
 
-    // And so is a configured-off feature (AI_ENABLED=false).
+    // With the fallback on (the default) the employee still gets a usable,
+    // clearly-labelled suggestion instead of nothing.
+    delete process.env.AI_OFFLINE_FALLBACK;
+    stubProviderDown();
+
+    const offline = await service.suggest('My laptop will not charge');
+    expectUsable(offline, 'offline fallback');
+    expect(offline.source).toBe('offline');
+    expect(offline.notice).toMatch(/offline/i);
+    expect(offline.suggestion?.category).toBe('IT');
+    expect(offline.suggestion?.confidence).toBeLessThanOrEqual(0.6);
+
+    // A provider that answers with prose rather than JSON is also labelled.
+    stubProvider('I think this is probably an IT issue, sorry!');
+    const prose = await service.suggest('My laptop will not charge');
+    expectUsable(prose, 'non-JSON answer');
+    expect(prose.source).toBe('offline');
+    expect(prose.notice).toMatch(/unexpected format/i);
+
+    // AI switched off entirely: no suggestion at all, whatever the fallback says.
     process.env.AI_ENABLED = 'false';
     const disabled = await service.suggest('My laptop will not charge');
     expect(disabled.suggestion).toBeNull();
