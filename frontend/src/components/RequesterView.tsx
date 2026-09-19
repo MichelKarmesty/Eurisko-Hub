@@ -31,6 +31,7 @@ export function RequesterView() {
   const [intakeText, setIntakeText] = useState('');
   const [suggesting, setSuggesting] = useState(false);
   const [aiSuggested, setAiSuggested] = useState<Record<AiFlag, boolean>>(NO_AI);
+  const [aiSource, setAiSource] = useState<'ai' | 'offline'>('ai');
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -72,10 +73,24 @@ export function RequesterView() {
       setCategory(suggestion.category);
       setPriority(suggestion.priority);
       setAiSuggested({ title: true, category: true, priority: true });
-      setNotice({
-        kind: 'success',
-        text: `AI suggested ${suggestion.category} · ${suggestion.priority} — review it before opening the ticket.`,
-      });
+
+      // A suggestion produced without a model is labelled as such — the UI never
+      // dresses up the offline classifier as the AI's answer.
+      const offline = result.source === 'offline';
+      setAiSource(offline ? 'offline' : 'ai');
+      setNotice(
+        offline
+          ? {
+              kind: 'info',
+              text:
+                result.notice ??
+                'Suggested offline — no AI model is configured. You can change anything before opening the ticket.',
+            }
+          : {
+              kind: 'success',
+              text: `AI suggested ${suggestion.category} · ${suggestion.priority} — review it before opening the ticket.`,
+            },
+      );
     } catch {
       setAiSuggested(NO_AI);
       setNotice({ kind: 'info', text: 'AI suggestions unavailable — fill in the fields manually.' });
@@ -95,6 +110,7 @@ export function RequesterView() {
       setDescription('');
       setIntakeText('');
       setAiSuggested(NO_AI);
+      setAiSource('ai');
       setNotice({ kind: 'success', text: `Ticket #${created.id} opened — status "${created.status}".` });
     } catch (err) {
       setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Failed to open the ticket.' });
@@ -141,7 +157,9 @@ export function RequesterView() {
 
         <form className="grid-form" onSubmit={submit}>
           <div className="field">
-            {aiSuggested.title && <span className="ai-tag">AI suggested</span>}
+            {aiSuggested.title && (
+              <span className="ai-tag">{aiSource === 'offline' ? 'Suggested (offline)' : 'AI suggested'}</span>
+            )}
             <label>
               Title
               <input
@@ -157,7 +175,9 @@ export function RequesterView() {
             </label>
           </div>
           <div className="field">
-            {aiSuggested.category && <span className="ai-tag">AI suggested</span>}
+            {aiSuggested.category && (
+              <span className="ai-tag">{aiSource === 'offline' ? 'Suggested (offline)' : 'AI suggested'}</span>
+            )}
             <label>
               Category
               <select
@@ -175,7 +195,9 @@ export function RequesterView() {
             </label>
           </div>
           <div className="field">
-            {aiSuggested.priority && <span className="ai-tag">AI suggested</span>}
+            {aiSuggested.priority && (
+              <span className="ai-tag">{aiSource === 'offline' ? 'Suggested (offline)' : 'AI suggested'}</span>
+            )}
             <label>
               Priority
               <select

@@ -99,4 +99,8 @@ export interface AiIntakeSuggestion {
 export interface AiIntakeResult {
   suggestion: AiIntakeSuggestion | null;
   error?: string;
+  /** `'ai'` when the configured model answered, `'offline'` for the keyword fallback. */
+  source?: 'ai' | 'offline';
+  /** Explanation shown to the employee when the offline fallback was used. */
+  notice?: string;
 }

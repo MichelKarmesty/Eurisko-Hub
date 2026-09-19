@@ -19,8 +19,15 @@ import { CATEGORIES, Category, PRIORITIES, Priority } from '../common/domain';
  *     only ever emit a category from `CATEGORIES` and a priority from
  *     `PRIORITIES` (common/domain.ts). Garbage in can never reach the caller.
  *  3. **Never block the workflow.** No provider configured, provider down,
- *     timeout, non-JSON answer — every failure is caught and reported as
- *     `{ suggestion: null, error: ... }`, so the form keeps working by hand.
+ *     timeout, non-JSON answer — every failure is caught and reported, so the
+ *     form keeps working by hand.
+ *  4. **Offline is labelled offline.** When no model answers, an optional
+ *     keyword classifier (`AI_OFFLINE_FALLBACK`, on by default) still produces a
+ *     valid suggestion so the capability can be demonstrated anywhere — but the
+ *     answer carries `source: 'offline'` and a `notice`, and the UI marks it
+ *     "Suggested (offline)". Rules are never passed off as the model's work.
+ *     Set `AI_OFFLINE_FALLBACK=false` for the strict `{ suggestion: null,
+ *     error }` contract.
  *
  * Configuration (all optional, read per call so operators and tests can change
  * them without a rebuild):
@@ -42,6 +49,10 @@ export interface AiIntakeSuggestion {
 export interface AiIntakeResult {
   suggestion: AiIntakeSuggestion | null;
   error?: string;
+  /** Where a suggestion came from: the configured model, or the offline rules. */
+  source?: 'ai' | 'offline';
+  /** Human-readable explanation, set whenever the offline fallback was used. */
+  notice?: string;
 }
 
 /** Shape of the OpenAI-compatible chat completion we consume. */
@@ -142,6 +153,102 @@ export function extractJsonObject(content: string): unknown {
   }
 }
 
+// ============================================================================
+// OFFLINE FALLBACK (docs/week4-production-ai.md §"Offline fallback")
+// ============================================================================
+
+/**
+ * A deliberately simple keyword classifier used ONLY when the configured model
+ * cannot answer, so the capability can be demonstrated on a machine with no
+ * model installed (a reviewer's laptop, a locked-down runner).
+ *
+ * It is **not** an LLM and never pretends to be one: everything it produces is
+ * returned with `source: 'offline'` plus a `notice`, and the UI labels it
+ * "Suggested (offline)". Its confidence is capped low for the same reason.
+ * Set `AI_OFFLINE_FALLBACK=false` for the strict provider-only contract
+ * (`{ suggestion: null, error: 'AI provider unavailable' }`).
+ */
+const OFFLINE_KEYWORDS: Record<Category, readonly string[]> = {
+  Maintenance: [
+    'ac', 'air condition', 'air conditioning', 'heating', 'radiator', 'leak', 'leaking',
+    'plumbing', 'tap', 'sink', 'toilet', 'water', 'electricity', 'electrical', 'light',
+    'lights', 'lamp', 'bulb', 'socket', 'power outlet', 'door', 'lock', 'window', 'chair',
+    'desk', 'furniture', 'elevator', 'lift', 'cleaning', 'clean', 'carpet', 'paint',
+    'wall', 'ceiling', 'roof', 'generator', 'ventilation', 'smell', 'broken glass',
+  ],
+  HR: [
+    'hr', 'human resources', 'contract', 'payroll', 'salary', 'payslip', 'leave',
+    'vacation', 'holiday', 'sick day', 'badge', 'id card', 'onboarding', 'offboarding',
+    'benefit', 'benefits', 'insurance', 'nssf', 'recruit', 'recruitment', 'resume', 'cv',
+    'appraisal', 'training', 'emergency contact', 'personal details', 'bank details',
+    'resignation', 'certificate', 'attendance', 'timesheet',
+  ],
+  IT: [
+    'laptop', 'computer', 'pc', 'desktop', 'monitor', 'screen', 'keyboard', 'mouse',
+    'printer', 'scanner', 'wifi', 'wi-fi', 'internet', 'network', 'vpn', 'email',
+    'outlook', 'password', 'login', 'log in', 'software', 'application', 'app', 'server',
+    'database', 'phone', 'headset', 'dock', 'cable', 'usb', 'update', 'upgrade', 'install',
+    'access', 'account', 'folder', 'file', 'backup', 'malware', 'virus', 'slow', 'crash',
+    'frozen', 'restart', 'system',
+  ],
+};
+
+const OFFLINE_HIGH_URGENCY = [
+  'cannot work', "can't work", 'cant work', 'unable to work', 'urgent', 'asap',
+  'critical', 'outage', 'down', 'not working at all', 'stopped working', 'blocked',
+  'whole floor', 'everyone', 'production', 'immediately', 'emergency',
+];
+
+const OFFLINE_LOW_URGENCY = [
+  'no rush', 'when you have time', 'whenever', 'minor', 'cosmetic', 'not urgent',
+  'low priority', 'eventually', 'small thing', 'nice to have',
+];
+
+/**
+ * Score how strongly `words` match the normalised text.
+ * A multi-word phrase (e.g. "emergency contact") is worth more than a generic
+ * single word (e.g. "update"), so a specific phrase wins a tie.
+ */
+function countHits(haystack: string, words: readonly string[]): number {
+  let score = 0;
+  for (const word of words) {
+    if (haystack.includes(` ${word} `)) score += word.includes(' ') ? 2 : 1;
+  }
+  return score;
+}
+
+/**
+ * A rules-based suggestion. Pure and total, like `coerceSuggestion`, and it can
+ * only emit values from the domain enums — an unknown text simply falls back to
+ * `IT`/`Medium` with a low confidence.
+ */
+export function classifyOffline(text: string): AiIntakeSuggestion {
+  const haystack = ` ${text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s'-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()} `;
+
+  const scored = CATEGORIES.map((category) => ({
+    category,
+    score: countHits(haystack, OFFLINE_KEYWORDS[category]),
+  }));
+  // Strict `>` keeps CATEGORIES order as the tie-breaker (IT first), matching
+  // FALLBACK_CATEGORY.
+  const best = scored.reduce((a, b) => (b.score > a.score ? b : a));
+  const category: Category = best.score > 0 ? best.category : FALLBACK_CATEGORY;
+
+  const high = countHits(haystack, OFFLINE_HIGH_URGENCY);
+  const low = countHits(haystack, OFFLINE_LOW_URGENCY);
+  const priority: Priority =
+    high > 0 && high >= low ? 'High' : low > 0 && low > high ? 'Low' : FALLBACK_PRIORITY;
+
+  // Rules are less certain than a model, and the ceiling says so out loud.
+  const confidence = best.score > 0 ? Math.min(0.6, 0.4 + 0.1 * (best.score - 1)) : 0.25;
+
+  return { category, priority, title: titleFromText(text), confidence };
+}
+
 @Injectable()
 export class AiIntakeService {
   private readonly logger = new Logger('AiIntake');
@@ -159,20 +266,40 @@ export class AiIntakeService {
       const parsed = extractJsonObject(content);
 
       if (parsed === null) {
-        // The model answered, just not in JSON. A defaults-based suggestion is
-        // friendlier than an error: the employee still gets a filled-in form.
-        this.logger.warn('AI intake: the provider did not return JSON; using validated defaults.');
-        return { suggestion: coerceSuggestion(null, source) };
+        // The model answered, just not in JSON. The offline classifier gives a
+        // better guess than empty defaults, and it is labelled as such.
+        this.logger.warn('AI intake: the provider did not return JSON; using the offline classifier.');
+        return this.offlineResult(
+          source,
+          'The AI provider answered in an unexpected format — this suggestion comes from the offline keyword classifier, not from the model.',
+        );
       }
 
-      return { suggestion: coerceSuggestion(parsed, source) };
+      return { suggestion: coerceSuggestion(parsed, source), source: 'ai' };
     } catch (err) {
       // Provider unreachable, timed out, or answered with an HTTP error. The
       // ticket form must keep working, so this is reported, never thrown.
       const message = err instanceof Error ? err.message : String(err);
       this.logger.warn(`AI intake unavailable: ${message}`);
+
+      if (this.offlineFallbackEnabled()) {
+        return this.offlineResult(
+          source,
+          'AI provider unavailable — this suggestion comes from the offline keyword classifier, not from a model. Install a model (see docs/week4-production-ai.md) for real AI suggestions.',
+        );
+      }
+
       return { suggestion: null, error: 'AI provider unavailable' };
     }
+  }
+
+  /**
+   * A rules-based suggestion, always labelled: `source: 'offline'` plus a
+   * `notice` the client displays, so an offline answer is never mistaken for
+   * the model's work.
+   */
+  private offlineResult(source: string, notice: string): AiIntakeResult {
+    return { suggestion: classifyOffline(source), source: 'offline', notice };
   }
 
   /** One OpenAI-compatible chat completion call. Throws on any failure. */
@@ -215,6 +342,11 @@ export class AiIntakeService {
 
   private enabled(): boolean {
     return (process.env.AI_ENABLED ?? 'true').toLowerCase() !== 'false';
+  }
+
+  /** On by default so the capability works with no model installed. */
+  private offlineFallbackEnabled(): boolean {
+    return (process.env.AI_OFFLINE_FALLBACK ?? 'true').toLowerCase() !== 'false';
   }
 
   private providerUrl(): string {
