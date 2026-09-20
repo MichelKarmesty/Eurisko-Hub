@@ -74,6 +74,19 @@ into `dist/` — it does **not** start it; `npm start` does. If the client canno
 reach the API, sign-in fails with `Request failed with status 500` (see
 [Troubleshooting](#troubleshooting)).
 
+> **VS Code — one click.** Open the repo in VS Code and use the built-in tasks:
+>
+> 1. **Terminal → Run Task… → `deps: install all`** (once).
+> 2. Copy `backend/.env.example` → `backend/.env` and fill in `AI_API_KEY`
+>    (free key at <https://console.groq.com/keys>) and the `SMTP_*` block if you
+>    want real reset emails. `.env` is gitignored, so secrets stay local.
+> 3. **`Ctrl+Shift+B`** (or **Terminal → Run Task… → `dev: backend + frontend`**),
+>    then open <http://localhost:5173>.
+>
+> Or press **F5** and choose **“▶ Full app (backend + frontend)”**.
+> `backend/.env` is optional: without it the AI uses the labelled offline
+> classifier and reset links print to the backend console.
+
 **1. Backend API** — http://localhost:3000
 
 ```bash

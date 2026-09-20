@@ -2,6 +2,13 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "deps: install all",
+      "detail": "npm install in backend, frontend and e2e",
+      "dependsOrder": "parallel",
+      "dependsOn": ["backend: install", "frontend: install", "e2e: install"],
+      "problemMatcher": []
+    },
+    {
       "label": "backend: prepare data",
       "detail": "Create backend/.data so DB_FILE has a folder to live in",
       "type": "shell",
@@ -25,14 +32,29 @@
     },
     {
       "label": "backend: dev",
-      "detail": "NestJS on :3000 with auto-reload, persisting to backend/.data/hub.sqlite",
+      "detail": "NestJS on :3000 with auto-reload. AI uses $env:AI_API_KEY from your environment (set it before launching VS Code, or use the .env task).",
       "type": "shell",
       "command": "npm run start:dev",
       "options": {
         "cwd": "${workspaceFolder}/backend",
-        "env": { "DB_FILE": "${workspaceFolder}/backend/.data/hub.sqlite" }
+        "env": {
+          "DB_FILE": "${workspaceFolder}/backend/.data/hub.sqlite",
+          "AI_API_KEY": "${env:AI_API_KEY}",
+          "AI_FALLBACK_MODEL": "qwen/qwen3.8-27b"
+        }
       },
       "dependsOn": ["backend: prepare data"],
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated", "group": "dev" }
+    },
+    {
+      "label": "backend: dev (.env)",
+      "detail": "Same, but reads backend/.env (copy it from .env.example). Builds first, then runs the compiled server.",
+      "type": "shell",
+      "command": "node --env-file=.env dist/main.js",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "dependsOn": ["backend: prepare data", "backend: build"],
       "isBackground": true,
       "problemMatcher": [],
       "presentation": { "panel": "dedicated", "group": "dev" }
@@ -55,16 +77,32 @@
       "presentation": { "panel": "dedicated", "group": "dev" }
     },
     {
+      "label": "e2e: install",
+      "type": "shell",
+      "command": "npm install",
+      "options": { "cwd": "${workspaceFolder}/e2e" },
+      "problemMatcher": []
+    },
+    {
       "label": "dev: backend + frontend",
-      "detail": "Start both processes in parallel — the normal way to run the app",
+      "detail": "▶ START HERE — starts both processes in parallel, then open http://localhost:5173",
       "dependsOrder": "parallel",
-      "dependsOn": ["backend: dev", "frontend: dev"],
+      "dependsOn": ["backend: dev (.env)", "frontend: dev"],
+      "group": { "kind": "build", "isDefault": true },
       "problemMatcher": []
     },
     {
       "label": "test: backend",
       "type": "shell",
       "command": "npm test",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "problemMatcher": []
+    },
+    {
+      "label": "test: ai-eval",
+      "detail": "The 8 AI intake eval cases (cases 1-5 run for real when AI_API_KEY is set)",
+      "type": "shell",
+      "command": "npm run test:ai-eval",
       "options": { "cwd": "${workspaceFolder}/backend" },
       "problemMatcher": []
     },

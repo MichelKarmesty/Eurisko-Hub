@@ -2,13 +2,17 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug backend (compiled dist)",
-      "detail": "Builds first, then runs dist/main.js with the debugger attached",
+      "name": "Debug backend",
+      "detail": "Builds first, then runs dist/main.js with the debugger attached (AI uses $env:AI_API_KEY)",
       "type": "node",
       "request": "launch",
       "program": "${workspaceFolder}/backend/dist/main.js",
       "cwd": "${workspaceFolder}/backend",
-      "env": { "DB_FILE": "${workspaceFolder}/backend/.data/hub.sqlite" },
+      "env": {
+        "DB_FILE": "${workspaceFolder}/backend/.data/hub.sqlite",
+        "AI_API_KEY": "${env:AI_API_KEY}",
+        "AI_FALLBACK_MODEL": "qwen/qwen3.8-27b"
+      },
       "preLaunchTask": "backend: build",
       "console": "integratedTerminal",
       "sourceMaps": true,
@@ -16,11 +20,19 @@
     },
     {
       "name": "Debug frontend (Chrome)",
-      "detail": "Attach to the Vite app on :5173 — run 'frontend: dev' first",
+      "detail": "Starts the Vite dev server, then opens the app in Chrome",
       "type": "chrome",
       "request": "launch",
       "url": "http://localhost:5173",
-      "webRoot": "${workspaceFolder}/frontend/src"
+      "webRoot": "${workspaceFolder}/frontend/src",
+      "preLaunchTask": "frontend: dev"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "▶ Full app (backend + frontend)",
+      "detail": "Press F5 with this selected: backend with the debugger + Vite + Chrome",
+      "configurations": ["Debug backend", "Debug frontend (Chrome)"]
     }
   ]
 }
