@@ -271,7 +271,7 @@ creation is never blocked.
 * `401` — no or invalid bearer token (any signed-in user may call it).
 * Configuration: `AI_ENABLED`, `AI_PROVIDER_URL` (default
   `https://api.groq.com/openai/v1`), `AI_MODEL` (default
-  `openai/gpt-oss-20b`, free model names change over time), `AI_TIMEOUT_MS` (default `10000`),
+  `openai/gpt-oss-20b`, free model names change over time), `AI_TIMEOUT_MS` (default `15000`),
   `AI_OFFLINE_FALLBACK` (default `true`), and `AI_API_KEY` — **required for
   Groq** (free key from console.groq.com); a keyless local provider such as
   Ollama needs none.

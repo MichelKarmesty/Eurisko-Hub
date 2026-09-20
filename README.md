@@ -191,7 +191,7 @@ behaviour. Nothing about running the app or the test suite requires a key.
 | `AI_ENABLED` | `true` | `false` disables the feature (the endpoint answers with a clear disabled message) |
 | `AI_PROVIDER_URL` | `https://api.groq.com/openai/v1` | Any OpenAI-compatible base URL |
 | `AI_MODEL` | `openai/gpt-oss-20b` | Groq's fast free model (names change over time) |
-| `AI_TIMEOUT_MS` | `10000` | Hard cap on the provider call |
+| `AI_TIMEOUT_MS` | `15000` | Hard cap on the provider call |
 | `AI_OFFLINE_FALLBACK` | `true` | Suggest from the offline keyword classifier when no model answers (always labelled); `false` = strict provider-only |
 | `AI_API_KEY` | *(unset)* | **Required for Groq** — free key from console.groq.com |
 

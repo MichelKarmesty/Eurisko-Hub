@@ -225,6 +225,8 @@ describe('AI intake eval — validation and failure handling (mocked, always run
     expect(titleFromText('the printer is jammed')).toBe('The printer is jammed');
 
     // The offline classifier (the no-model fallback) is held to the same rule.
+    // It is multilingual on purpose: the employees write in English, Arabic
+    // (with the definite article glued on) and French (accents stripped).
     const offlineCases: Array<[string, 'IT' | 'HR' | 'Maintenance']> = [
       ['my laptop screen is flickering', 'IT'],
       ['the printer on floor 2 is jammed', 'IT'],
@@ -232,6 +234,16 @@ describe('AI intake eval — validation and failure handling (mocked, always run
       ['when does my contract get renewed', 'HR'],
       ['the AC in conference room B is not working', 'Maintenance'],
       ['the door lock is broken', 'Maintenance'],
+      // Arabic
+      ['اللابتوب ما عم يشتغل', 'IT'],
+      ['المكيف بالغرفة ما عم يبرّد', 'Maintenance'],
+      ['اللمبة محروقة بال corridor', 'Maintenance'],
+      ['بدي نسخة من عقدي', 'HR'],
+      ['بدي غيّر بيانات حسابي بالبنك', 'HR'],
+      // French
+      ["mon ordinateur ne s'allume plus", 'IT'],
+      ['la climatisation ne fonctionne pas', 'Maintenance'],
+      ['je veux une copie de mon contrat', 'HR'],
     ];
     for (const [text, expected] of offlineCases) {
       const offline = classifyOffline(text);
@@ -249,6 +261,10 @@ describe('AI intake eval — validation and failure handling (mocked, always run
     // Urgency wording is honoured in both directions.
     expect(classifyOffline("my laptop is broken and I can't work").priority).toBe('High');
     expect(classifyOffline('the office chair squeaks, no rush').priority).toBe('Low');
+    // …including in Arabic and French.
+    expect(classifyOffline('ما فيني اشتغل والنت واقف').priority).toBe('High');
+    expect(classifyOffline('كرسي مكسور، ما في استعجال').priority).toBe('Low');
+    expect(classifyOffline('ordinateur en panne, urgent').priority).toBe('High');
   });
 
   it('7. sends a Groq-shaped request, and invalid AI output is corrected, never passed through', async () => {
@@ -272,10 +288,14 @@ describe('AI intake eval — validation and failure handling (mocked, always run
       model?: string;
       temperature?: number;
       stream?: boolean;
+      response_format?: unknown;
     };
     expect(sent.model).toBe(MODEL);
     expect(sent.temperature).toBe(0);
     expect(sent.stream).toBe(false);
+    // The provider is asked for strict JSON, which is why the parser rarely
+    // has to repair anything (the validator still handles it if it must).
+    expect(sent.response_format).toEqual({ type: 'json_object' });
 
     process.env.AI_API_KEY = 'test-key-not-a-real-secret';
     stubProvider('{"category":"HR","priority":"Low","title":"Badge renewal","confidence":0.8}');

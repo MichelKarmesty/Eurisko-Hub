@@ -36,7 +36,7 @@ import { CATEGORIES, Category, PRIORITIES, Priority } from '../common/domain';
  *   AI_PROVIDER_URL default https://api.groq.com/openai/v1 (Groq, free tier)
  *   AI_MODEL        default openai/gpt-oss-20b (a fast free model on Groq;
  *                   model names change — list them at GET /openai/v1/models)
- *   AI_TIMEOUT_MS   default 10000   — cloud APIs are a little slower than local
+ *   AI_TIMEOUT_MS   default 15000   — cloud APIs are a little slower than local
  *   AI_API_KEY      required for Groq (free key from console.groq.com); sent as
  *                   `Authorization: Bearer …`. A keyless local provider such as
  *                   Ollama (http://localhost:11434/v1) needs no key at all.
@@ -71,7 +71,7 @@ interface ChatCompletionResponse {
  */
 const DEFAULT_PROVIDER_URL = 'https://api.groq.com/openai/v1';
 const DEFAULT_MODEL = 'openai/gpt-oss-20b';
-const DEFAULT_TIMEOUT_MS = 10000;
+const DEFAULT_TIMEOUT_MS = 15000;
 
 /**
  * Defaults used when the model returns a value we cannot trust.
@@ -82,20 +82,40 @@ const DEFAULT_TIMEOUT_MS = 10000;
 export const FALLBACK_CATEGORY: Category = 'IT';
 export const FALLBACK_PRIORITY: Priority = 'Medium';
 
-/** The prompt asks for exactly the fields we validate, in JSON, with no prose. */
+/**
+ * The prompt asks for exactly the fields we validate, in JSON, with no prose.
+ *
+ * The service desk is in Lebanon, so an employee may write in English, Arabic
+ * (including Lebanese dialect) or French — sometimes mixed. The prompt therefore
+ * asks for the *title* in the employee's own language, while `category` and
+ * `priority` stay in English because they are domain enum values, not prose.
+ */
 const SYSTEM_PROMPT = [
-  "You classify internal support requests for an IT / HR / Maintenance service desk.",
-  'Answer with ONLY a JSON object — no prose, no markdown, no code fences:',
+  'You classify internal support requests for an IT / HR / Maintenance service desk of a company in Lebanon.',
+  'The employee may write in English, Arabic (including Lebanese dialect), French, or a mix of them.',
+  'Answer with ONLY one JSON object — no prose, no markdown, no code fences:',
   '{"category":"IT"|"HR"|"Maintenance","priority":"Low"|"Medium"|"High","title":"short summary","confidence":0.0}',
   'Rules:',
-  '- category must be exactly one of: IT, HR, Maintenance.',
-  '- priority must be exactly one of: Low, Medium, High.',
-  '- title is a short, neutral summary of the problem (at most 10 words, no quotes).',
+  '- category is exactly one of: IT, HR, Maintenance.',
+  '  IT: computers, laptops, screens, phones, printers, wifi/network, email, accounts, passwords, access, software, servers.',
+  '  HR: contracts, payroll, salary, leave/vacation, badges, onboarding/offboarding, benefits, personal details, recruitment.',
+  '  Maintenance: air conditioning, heating, electricity, lighting, plumbing/leaks, doors, locks, furniture, elevators, cleaning, the building itself.',
+  "  If a device or system is not working -> IT. If it is about a person's record or paperwork -> HR. If it is about the physical place or furniture -> Maintenance.",
+  '- priority is exactly one of: Low, Medium, High.',
+  '  High when the person cannot work, many people are affected, or it is an outage/emergency.',
+  '  Low when there is no rush or it is cosmetic. Otherwise Medium.',
+  '- title is a NEW, short, neutral summary of the problem — rewrite it in 3 to 8 words;',
+  '  never copy the sentence word-for-word. Keep the SAME language the employee used (Arabic stays Arabic, French stays French).',
   '- confidence is your certainty in the category, a number between 0 and 1.',
   'Examples:',
   '{"category":"IT","priority":"High","title":"Laptop will not turn on","confidence":0.95}',
-  '{"category":"HR","priority":"Low","title":"Request for contract copy","confidence":0.9}',
+  '{"category":"HR","priority":"Low","title":"Contract copy request","confidence":0.9}',
   '{"category":"Maintenance","priority":"Medium","title":"Hallway lighting broken","confidence":0.85}',
+  '{"category":"IT","priority":"High","title":"اللابتوب ما عم يشتغل","confidence":0.95}',
+  '{"category":"HR","priority":"Low","title":"طلب نسخة من العقد","confidence":0.9}',
+  '{"category":"Maintenance","priority":"Medium","title":"المكيف ما عم يبرّد","confidence":0.85}',
+  '{"category":"IT","priority":"High","title":"Ordinateur ne s\'allume plus","confidence":0.9}',
+  '{"category":"Maintenance","priority":"Medium","title":"Climatisation en panne","confidence":0.9}',
 ].join('\n');
 
 const isCategory = (value: unknown): value is Category =>
@@ -184,6 +204,15 @@ const OFFLINE_KEYWORDS: Record<Category, readonly string[]> = {
     'lights', 'lamp', 'bulb', 'socket', 'power outlet', 'door', 'lock', 'window', 'chair',
     'desk', 'furniture', 'elevator', 'lift', 'cleaning', 'clean', 'carpet', 'paint',
     'wall', 'ceiling', 'roof', 'generator', 'ventilation', 'smell', 'broken glass',
+    // Arabic
+    'مكيف', 'تكييف', 'تبريد', 'تدفئة', 'برد', 'كهربا', 'كهرباء', 'لمبة', 'ضو', 'ضوء',
+    'إنارة', 'انارة', 'تسريب', 'ماء', 'مي', 'حنفية', 'مغسلة', 'حمام', 'باب', 'قفل',
+    'شباك', 'كرسي', 'طاولة', 'أثاث', 'اثاث', 'مصعد', 'تنظيف', 'دهان', 'جدار', 'سقف',
+    'مولدة', 'رطوبة', 'ريحة', 'صيانة',
+    // French (accents are stripped before matching)
+    'climatisation', 'clim', 'chauffage', 'fuite', 'eau', 'electricite', 'lumiere',
+    'lampe', 'porte', 'serrure', 'fenetre', 'chaise', 'bureau', 'ascenseur', 'nettoyage',
+    'peinture', 'mur', 'plafond',
   ],
   HR: [
     'hr', 'human resources', 'contract', 'payroll', 'salary', 'payslip', 'leave',
@@ -191,6 +220,13 @@ const OFFLINE_KEYWORDS: Record<Category, readonly string[]> = {
     'benefit', 'benefits', 'insurance', 'nssf', 'recruit', 'recruitment', 'resume', 'cv',
     'appraisal', 'training', 'emergency contact', 'personal details', 'bank details',
     'resignation', 'certificate', 'attendance', 'timesheet',
+    // Arabic
+    'موارد بشرية', 'شؤون الموظفين', 'عقد', 'راتب', 'معاش', 'إجازة', 'اجازة', 'عطلة',
+    'شهادة', 'تأمين', 'تامين', 'ضمان', 'بدلات', 'تعيين', 'توظيف', 'استقالة', 'حضور',
+    'بصمة', 'كشف حساب', 'بيانات شخصية', 'حساب بنكي', 'بنك', 'مصرف', 'بنكي', 'مكافأة', 'ترقية', 'شؤون',
+    // French (accents are stripped before matching)
+    'contrat', 'paie', 'salaire', 'conge', 'vacances', 'assurance', 'recrutement',
+    'formation', 'demission', 'presence', 'ressources humaines', 'bulletin de paie',
   ],
   IT: [
     'laptop', 'computer', 'pc', 'desktop', 'monitor', 'screen', 'keyboard', 'mouse',
@@ -199,6 +235,16 @@ const OFFLINE_KEYWORDS: Record<Category, readonly string[]> = {
     'database', 'phone', 'headset', 'dock', 'cable', 'usb', 'update', 'upgrade', 'install',
     'access', 'account', 'folder', 'file', 'backup', 'malware', 'virus', 'slow', 'crash',
     'frozen', 'restart', 'system',
+    // Arabic
+    'لابتوب', 'كمبيوتر', 'حاسوب', 'شاشة', 'كيبورد', 'ماوس', 'طابعة', 'سكانر', 'واي فاي',
+    'وايفاي', 'نت', 'إنترنت', 'انترنت', 'شبكة', 'إيميل', 'ايميل', 'بريد', 'باسورد',
+    'كلمة سر', 'كلمة المرور', 'تسجيل دخول', 'برنامج', 'تطبيق', 'سيرفر', 'خادم',
+    'قاعدة بيانات', 'تلفون', 'هاتف', 'موبايل', 'سماعة', 'كابل', 'ملف', 'مجلد',
+    'نسخة احتياطية', 'فيروس', 'بطيء', 'معلق', 'توقف', 'تحديث', 'صلاحية', 'نظام',
+    // French (accents are stripped before matching)
+    'ordinateur', 'ecran', 'clavier', 'souris', 'imprimante', 'reseau', 'mot de passe',
+    'logiciel', 'serveur', 'telephone', 'casque', 'cable', 'fichier', 'dossier',
+    'sauvegarde', 'lent', 'plante', 'redemarrer', 'acces', 'compte',
   ],
 };
 
@@ -206,22 +252,38 @@ const OFFLINE_HIGH_URGENCY = [
   'cannot work', "can't work", 'cant work', 'unable to work', 'urgent', 'asap',
   'critical', 'outage', 'down', 'not working at all', 'stopped working', 'blocked',
   'whole floor', 'everyone', 'production', 'immediately', 'emergency',
+  // Arabic
+  'ما فيني اشتغل', 'ما بقدر اشتغل', 'مستعجل', 'بسرعة', 'ضروري', 'طارئ', 'واقف',
+  'مخرب', 'الجميع', 'كل الطابق',
+  // French
+  'urgent', 'urgente', 'en panne', 'bloque', 'immediatement', 'tout le monde',
 ];
 
 const OFFLINE_LOW_URGENCY = [
   'no rush', 'when you have time', 'whenever', 'minor', 'cosmetic', 'not urgent',
   'low priority', 'eventually', 'small thing', 'nice to have',
+  // Arabic
+  'ما في استعجال', 'مش مستعجل', 'وقت ما تفضى', 'بسيط', 'ما في عجلة',
+  // French
+  'pas urgent', 'quand vous avez le temps', 'mineur', 'cosmetique',
 ];
 
 /**
  * Score how strongly `words` match the normalised text.
  * A multi-word phrase (e.g. "emergency contact") is worth more than a generic
  * single word (e.g. "update"), so a specific phrase wins a tie.
+ *
+ * Arabic keywords match as substrings because the definite article ("ال") is
+ * glued to the front of a word (اللابتوب, المكيف…); Latin keywords need a word
+ * boundary so "ac" does not match "place".
  */
 function countHits(haystack: string, words: readonly string[]): number {
   let score = 0;
   for (const word of words) {
-    if (haystack.includes(` ${word} `)) score += word.includes(' ') ? 2 : 1;
+    const hit = /[\u0600-\u06FF]/.test(word)
+      ? haystack.includes(word)
+      : haystack.includes(` ${word} `);
+    if (hit) score += word.includes(' ') ? 2 : 1;
   }
   return score;
 }
@@ -230,11 +292,16 @@ function countHits(haystack: string, words: readonly string[]): number {
  * A rules-based suggestion. Pure and total, like `coerceSuggestion`, and it can
  * only emit values from the domain enums — an unknown text simply falls back to
  * `IT`/`Medium` with a low confidence.
+ *
+ * Multilingual on purpose (English / Arabic / French, accents stripped): the
+ * fallback must stay useful in the languages the employees actually write in.
  */
 export function classifyOffline(text: string): AiIntakeSuggestion {
   const haystack = ` ${text
     .toLowerCase()
-    .replace(/[^a-z0-9\s'-]/g, ' ')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // strip Latin accents, keep Arabic letters
+    .replace(/[^\p{L}\p{N}\s'-]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim()} `;
 
@@ -316,8 +383,34 @@ export class AiIntakeService {
     return { suggestion: classifyOffline(source), source: 'offline', notice };
   }
 
-  /** One OpenAI-compatible chat completion call. Throws on any failure. */
+  /**
+   * One OpenAI-compatible chat completion call, with a single retry.
+   *
+   * Two failures are worth one retry because both are common and recoverable: a
+   * compatible provider that rejects `response_format` (HTTP 400 — valid OpenAI
+   * shape, but not every server implements it), and a transient network blip
+   * (`fetch failed`, reset, timeout). A 401/404/429 is **not** retried: the key
+   * or model is wrong, so retrying only delays the graceful fallback.
+   */
   private async callProvider(text: string, timeoutMs: number): Promise<string> {
+    try {
+      return await this.callOnce(text, timeoutMs, true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const jsonModeUnsupported = /HTTP 400/.test(message);
+      const transient =
+        /fetch failed|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENETUNREACH|EAI_AGAIN|aborted|network|socket/i.test(
+          message,
+        );
+      if (jsonModeUnsupported || transient) {
+        return this.callOnce(text, timeoutMs, false);
+      }
+      throw err;
+    }
+  }
+
+  /** A single request. `jsonMode` asks the provider for strict JSON output. */
+  private async callOnce(text: string, timeoutMs: number, jsonMode: boolean): Promise<string> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     const apiKey = process.env.AI_API_KEY;
@@ -333,6 +426,7 @@ export class AiIntakeService {
           model: this.model(),
           temperature: 0,
           stream: false,
+          ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
           messages: [
             { role: 'system', content: SYSTEM_PROMPT },
             { role: 'user', content: text },

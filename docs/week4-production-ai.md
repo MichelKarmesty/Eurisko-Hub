@@ -132,7 +132,7 @@ affected". It is a read-only advisory call.
 | `AI_ENABLED` | `true` | `false` switches the feature off entirely (the endpoint then answers with the disabled error, and the form still works) |
 | `AI_PROVIDER_URL` | `https://api.groq.com/openai/v1` | Any OpenAI-compatible base URL. Groq's free cloud API by default, so nothing has to be installed; a local Ollama is `http://localhost:11434/v1` |
 | `AI_MODEL` | `openai/gpt-oss-20b` | Model name sent to the provider. Groq's free model names change over time, so list what your key can use at `GET /openai/v1/models` (e.g. `openai/gpt-oss-120b`, `groq/compound-mini`, `qwen/qwen3.8-27b`) |
-| `AI_TIMEOUT_MS` | `10000` | Hard cap on the provider call (AbortController); cloud APIs get a little more room than a local model |
+| `AI_TIMEOUT_MS` | `15000` | Hard cap on the provider call (AbortController); cloud APIs get a little more room than a local model, and a transient blip is retried once |
 | `AI_OFFLINE_FALLBACK` | `true` | When no model answers, return a suggestion from the built-in keyword classifier — always labelled `source: "offline"`. Set to `false` for the strict `{ suggestion: null, error }` contract |
 | `AI_API_KEY` | *(unset)* | **Required for Groq** — a free key from <https://console.groq.com>; sent as `Authorization: Bearer …`. A keyless local provider such as Ollama needs none |
 
@@ -220,6 +220,13 @@ un-demonstrable, so the service falls back to a small, pure keyword classifier
   contact") outweighs a generic single word ("update"), ties go to `IT` (the same
   documented default), and urgency wording ("can't work", "urgent", "outage")
   raises the priority while "no rush"/"minor" lowers it.
+* **It is multilingual.** Employees write in English, Arabic (including Lebanese
+  dialect) and French, so the classifier understands all three: French accents are
+  stripped before matching, and Arabic keywords match inside the word because the
+  definite article is glued to the front (اللابتوب، المكيف، اللمبة). The model
+  prompt is multilingual for the same reason, and it is asked to keep the
+  suggested **title in the language the employee used** while `category`/`priority`
+  stay as English enum values.
 * **How sure it claims to be** — its confidence is capped at **0.6** and drops to
   **0.25** when nothing matches, so it never imitates model-like certainty. It
   can only emit members of `CATEGORIES` / `PRIORITIES`, exactly like the model
@@ -380,7 +387,7 @@ labelled offline fallback is not an acceptable pass, so a retired or misspelled
 | 3 | Clear Maintenance | "The AC in conference room B is not working" | `category: 'Maintenance'` | real provider, skips if absent |
 | 4 | Thin input | "help", "something is wrong" | still a valid category **and** priority (low confidence is fine) | real provider, skips if absent |
 | 5 | Mixed signals | "The office door lock is broken and I also need HR to update my badge" | exactly one valid category — never an invented one | real provider, skips if absent |
-| 6 | Validation layer + offline classifier | 12 hostile values (`null`, `42`, `[]`, `{}`, `{category:'Finance',priority:'Urgent'}`, wrong types, missing fields) **and** six realistic phrases through `classifyOffline` | every returned category/priority is in the domain enums; defaults are `IT`/`Medium`; a title is always derivable; the offline classifier gets IT/HR/Maintenance right, caps its confidence at 0.6 (0.25 when nothing matches) and honours urgency wording | mocked, always runs |
+| 6 | Validation layer + offline classifier | 12 hostile values (`null`, `42`, `[]`, `{}`, `{category:'Finance',priority:'Urgent'}`, wrong types, missing fields) **and** fourteen realistic phrases (English, Arabic, French) through `classifyOffline` | every returned category/priority is in the domain enums; defaults are `IT`/`Medium`; a title is always derivable; the offline classifier gets IT/HR/Maintenance right in all three languages, caps its confidence at 0.6 (0.25 when nothing matches) and honours urgency wording | mocked, always runs |
 | 7 | Invalid AI output | stubbed model reply `{"category":"Finance","priority":"Urgent",…}` | corrected to `IT`/`Medium`; the usable parts (the title) are kept; `source: "ai"` | mocked, always runs |
 | 8 | Provider failure | stubbed `ECONNREFUSED`, stubbed `HTTP 503`, a prose answer, `AI_ENABLED=false` | never throws and never a `500`: with `AI_OFFLINE_FALLBACK=false` → `{ suggestion: null, error }`; with it on → a **labelled** `source: "offline"` suggestion; `AI_ENABLED=false` → the disabled error and no suggestion | mocked, always runs |
 
