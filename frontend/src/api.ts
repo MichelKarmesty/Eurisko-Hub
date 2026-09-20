@@ -77,13 +77,51 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 // --- Authentication -------------------------------------------------------
 
-/** The only public auth call. There is no registration (ADR-004). */
+/**
+ * Sign in. There is no registration (ADR-004); any real email address works
+ * (Gmail, Hotmail/Outlook, Yahoo, a company domain…).
+ */
 export function apiLogin(email: string, password: string): Promise<Session> {
   return request<Session>('POST', '/auth/login', { email, password });
 }
 
 export function apiMe(): Promise<User> {
   return request<User>('GET', '/auth/me');
+}
+
+export interface ForgotPasswordResult {
+  /** Generic, non-enumerating confirmation (registered or not). */
+  message: string;
+  /**
+   * Present only outside production (the backend's PASSWORD_RESET_RETURN_TOKEN
+   * switch): the one-time token, so the flow is usable with no mail server.
+   * A real deployment delivers it by email instead.
+   */
+  resetToken?: string;
+  resetUrl?: string;
+  /** How the message actually left the backend: console, webhook or Resend. */
+  delivery?: 'console' | 'webhook' | 'resend';
+}
+
+/** "I forgot my password" — emails a one-time reset link (step 1). */
+export function apiForgotPassword(email: string): Promise<ForgotPasswordResult> {
+  return request<ForgotPasswordResult>('POST', '/auth/forgot-password', { email });
+}
+
+/** Complete a reset with the token from the link and the new password (step 2). */
+export function apiResetPassword(
+  token: string,
+  password: string,
+): Promise<{ message: string }> {
+  return request('POST', '/auth/reset-password', { token, password });
+}
+
+/** Change your own password while signed in (requires the current one). */
+export function apiChangePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ message: string }> {
+  return request('POST', '/auth/change-password', { currentPassword, newPassword });
 }
 
 // --- Tickets --------------------------------------------------------------

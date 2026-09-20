@@ -12,7 +12,14 @@ import { Ticket } from './tickets/ticket.entity';
 import { TicketEvent } from './tickets/ticket-event.entity';
 import { UsersService } from './users/users.service';
 
-/** The one bootstrap account; override with ADMIN_EMAIL / ADMIN_PASSWORD. */
+/**
+ * The one bootstrap account; override with ADMIN_EMAIL / ADMIN_PASSWORD.
+ *
+ * `admin@eurisko.com` is only the out-of-the-box **development default**: any
+ * valid email address is accepted everywhere in the app (ADR-005), and a real
+ * deployment should set ADMIN_EMAIL to a deliverable address so the Admin can
+ * receive password-reset email.
+ */
 const DEFAULT_ADMIN_EMAIL = 'admin@eurisko.com';
 const DEFAULT_ADMIN_PASSWORD = 'Admin123!';
 

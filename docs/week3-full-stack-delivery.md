@@ -38,7 +38,11 @@ The app cannot be exercised end to end before that step.
 
 3. **Sign in as the seeded Admin:** `admin@eurisko.com` / `Admin123!`
    (`ADMIN_EMAIL` / `ADMIN_PASSWORD` override both). This is the only account
-   that exists on a fresh database.
+   that exists on a fresh database. `@eurisko.com` is only the development
+   default: new accounts accept **any real email address** (Gmail,
+   Hotmail/Outlook, Yahoo, a company domain), and a forgotten password can be
+   reset from the sign-in screen's **Forgot password?** link (ADR-005). The
+   `@eurisko.com` addresses used as examples below are just fixtures.
 
 4. **Create the people the scenario needs** on the **👥 Users** tab — the tab
    only exists for an Admin:
@@ -188,7 +192,7 @@ Retires a request without deleting it: the row and its history are kept, the
 status becomes the terminal `Cancelled`, and a `CANCELLED` event records who and
 why. A missing/blank reason → `400`; a `Resolved`/`Cancelled` ticket → `403`.
 
-### `POST /auth/login` — public (and the only public auth route)
+### `POST /auth/login` — public (the only public route that creates a session)
 
 ```jsonc
 { "email": "admin@eurisko.com", "password": "Admin123!" }
@@ -199,6 +203,11 @@ why. A missing/blank reason → `400`; a `Resolved`/`Cancelled` ticket → `403`
 (`404`). The backend seeds only the Admin; every other account is created by the
 Admin through `POST /users` (Admin-only, explicit role). A wrong email and a
 wrong password both return the same generic `401`.
+
+> Since v0.5 the public `POST /auth/forgot-password` and
+> `POST /auth/reset-password` routes recover an **existing** account (ADR-005)
+> and `POST /auth/change-password` is authenticated; none of them can create an
+> account. Any real email domain is accepted. See [api.md](api.md).
 
 ### `GET /tickets` — role-scoped list
 

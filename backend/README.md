@@ -11,6 +11,12 @@ NestJS + TypeORM implementation of the Internal Operations Service Hub
   history recorded durably in a `ticket_events` table
 - **No public registration** (ADR-004): the backend seeds only the Admin; the
   Admin creates every other account via the Admin-only Users API
+- **Password recovery & change** (v0.5, ADR-005): one-time emailed reset links
+  (stored only as an expiring SHA-256 hash) plus an authenticated change that
+  requires the current password. Mail is console-first (`src/mail/`) — no
+  dependency — with `MAIL_WEBHOOK_URL` / `RESEND_API_KEY` for real delivery
+- **Any real email address is accepted** (Gmail, Hotmail/Outlook, Yahoo, a
+  company domain); `@eurisko.com` is only the development default for the Admin
 - **AI-assisted intake** (v0.4, docs/week4-production-ai.md): an advisory
   `POST /tickets/ai-suggest` that suggests category/priority/title. It has no
   database access, validates every AI value against the domain enums, and fails
@@ -36,6 +42,7 @@ npm run test:unit        # business rule: the ticket lifecycle
 npm run test:integration # backend <-> real SQL database
 npm run test:api         # HTTP contract + authorization + regression
 npm run test:ai-eval     # v0.4 AI intake evals (real-or-skip + mocked cases)
+npm test                 # also runs auth-password.spec.ts (v0.5 recovery/change)
 npm run test:watch       # watch mode
 ```
 
@@ -46,13 +53,18 @@ npm run test:watch       # watch mode
 | `JWT_SECRET` | dev value | JWT signing secret (set in prod!) |
 | `JWT_EXPIRES_IN` | `8h` | Token lifetime |
 | `DB_FILE` | *(in-memory)* | SQLite file path for persistence |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `admin@eurisko.com` / `Admin123!` | The one seeded Admin account |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `admin@eurisko.com` / `Admin123!` | The one seeded Admin account (any valid email domain works) |
+| `APP_BASE_URL` | `http://localhost:5173` | Front of the password-reset link (`…/?resetToken=…`) |
+| `PASSWORD_RESET_TTL_MINUTES` | `30` | How long a reset link stays valid |
+| `PASSWORD_RESET_RETURN_TOKEN` | `true` outside production | Return the one-time token in the response (development; **always off** when `NODE_ENV=production`) |
+| `MAIL_WEBHOOK_URL` / `MAIL_WEBHOOK_TOKEN` | *(unset)* | Optional: POST `{ to, subject, text }` to an HTTPS mail relay |
+| `RESEND_API_KEY` / `MAIL_FROM` | *(unset)* | Optional: real delivery through Resend's HTTP API |
 | `AI_ENABLED` | `true` | `false` switches the AI intake feature off |
-| `AI_PROVIDER_URL` | `http://localhost:11434/v1` | OpenAI-compatible base URL (local Ollama by default) |
-| `AI_MODEL` | `llama3.2` | Model name sent to the provider |
-| `AI_TIMEOUT_MS` | `5000` | Hard cap on the provider call |
+| `AI_PROVIDER_URL` | `https://api.groq.com/openai/v1` | OpenAI-compatible base URL (Groq's free cloud API by default; a local Ollama is `http://localhost:11434/v1`) |
+| `AI_MODEL` | `openai/gpt-oss-20b` | Model name sent to the provider (Groq's free model names change; list them at `/openai/v1/models`) |
+| `AI_TIMEOUT_MS` | `10000` | Hard cap on the provider call |
 | `AI_OFFLINE_FALLBACK` | `true` | Answer from the built-in keyword classifier (always labelled `source: "offline"`) when no model is available; `false` = strict `{ suggestion: null, error }` |
-| `AI_API_KEY` | *(unset)* | Optional bearer token for hosted providers |
+| `AI_API_KEY` | *(unset)* | **Required for Groq** — free key from console.groq.com (a keyless local provider needs none) |
 
 ## Layout
 ```
@@ -62,7 +74,10 @@ src/
                         main.ts AND the API tests, so tests hit the real boundary
   app.module.ts         module wiring + TypeORM + admin-only seed
   common/               domain enums + JWT/RBAC guards + decorators
-  auth/                 login/me (no public registration, ADR-004)
+  auth/                 login + forgot/reset/change password (no public
+                        registration, ADR-004/ADR-005)
+  mail/                 console-first email delivery (optional webhook/Resend,
+                        no dependency) used by the password reset
   users/                Admin-only account provisioning (the only way to create users)
   tickets/              tickets + history (entities/service/controller);
                         claim, admin assign, admin cancel, status/override
@@ -74,6 +89,7 @@ test/
   tickets.database.integration.spec.ts  backend <-> database integration test
   tickets.api.spec.ts                   HTTP contract/authorization/regression test
   admin-seed.spec.ts                    Admin-seed recovery (a DB is never locked out)
+  auth-password.spec.ts                 v0.5 forgot/reset/change + any-email rule
 ```
 
 ## Security
@@ -83,6 +99,14 @@ next boot creates one (an existing Admin is never duplicated or reset). See
 [`../docs/security.md`](../docs/security.md) — set a strong `ADMIN_PASSWORD` and
 `JWT_SECRET` before any real deployment.
 
+Passwords are bcrypt-hashed and can never be retrieved; recovery issues a
+one-time link whose **hash** (never the token) and 30-minute expiry are stored,
+and `POST /auth/change-password` re-checks the current password. Forgot-password
+answers identically for unknown emails, so accounts cannot be enumerated. With
+no mail provider configured the reset message is printed to this process's
+console — set `MAIL_WEBHOOK_URL` or `RESEND_API_KEY` before deployment so it
+reaches the user instead. See [ADR-005](../docs/decisions/ADR-005.md).
+
 ## Quick start
 ```bash
 mkdir -p .data                                     # DB_FILE's folder (absent in a fresh clone)
@@ -90,6 +114,8 @@ npm run build && DB_FILE="$PWD/.data/hub.sqlite" npm start
 # wait for: Eurisko Hub API listening on http://localhost:3000
 # the web client runs in another terminal: cd ../frontend && npm run dev
 # sign in as admin@eurisko.com / Admin123!, then create users from the Users tab
+# accounts accept any real email address (gmail.com, hotmail.com, a company domain…);
+# `admin@eurisko.com` is only the development default — override it with ADMIN_EMAIL
 # (or follow "Scenario walk-through" in ../docs/api.md)
 ```
 

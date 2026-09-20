@@ -350,6 +350,38 @@ table.tickets th {
 .auth-footnote {
   margin: 0.9rem 0 0;
 }
+/* "Forgot password?" / "Back to sign in" rows and dialog action rows */
+.auth-links {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -0.2rem;
+}
+.auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* Modal (change password) -------------------------------------------------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: safe center;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+  overflow-y: auto;
+  background: rgba(15, 23, 42, 0.45);
+}
+.modal {
+  width: 100%;
+  max-width: 460px;
+}
+.modal h2 {
+  margin: 0 0 0.2rem;
+}
 
 /* Filter chips (Admin ticket filters) ------------------------------------- */
 .chip {

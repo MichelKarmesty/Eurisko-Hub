@@ -12,7 +12,7 @@ Employees currently ask for IT, HR, or Maintenance help through WhatsApp and sca
 
 ## 3. Functional Requirements
 **What must the product do?**
-* **Authentication & Authorization:** Only the **Admin** account is seeded; the Admin creates every other account (employees and IT/HR/Maintenance agents) from inside the app ([ADR-004](decisions/ADR-004.md)) — there is **no public registration**. Role-Based Access Control (RBAC) ensures employees, agents, and admins only see the views and tickets they are allowed to access.
+* **Authentication & Authorization:** Only the **Admin** account is seeded; the Admin creates every other account (employees and IT/HR/Maintenance agents) from inside the app ([ADR-004](decisions/ADR-004.md)) — there is **no public registration**. Accounts use **any real email address** (Gmail, Hotmail/Outlook, Yahoo, a company domain) and a password. A user who forgets their password can **reset** it from a one-time emailed link, and a signed-in user can **change** it by confirming the current one ([ADR-005](decisions/ADR-005.md)). Role-Based Access Control (RBAC) ensures employees, agents, and admins only see the views and tickets they are allowed to access.
 * **Ticket Submission:** Employees can create a ticket with a Title, Category (Fixed list: IT, HR, Maintenance), Priority (Low, Medium, High), and Description.
 * **Ticket Dashboard (Requester):** Employees can see a list of their own tickets and their current status.
 * **Agent Queue:** Agents can view open tickets for their department.
@@ -31,12 +31,13 @@ Employees currently ask for IT, HR, or Maintenance help through WhatsApp and sca
 * The MVP focuses on the core workflow: open a ticket, track it, and close it.
 
 ## 6. Assumptions, Constraints, & Unknowns
-* **Assumption:** Accounts are provisioned by an Admin; people sign in with an email address and password. There is no self-registration.
+* **Assumption:** Accounts are provisioned by an Admin; people sign in with an email address (any real domain) and a password. There is no self-registration.
 * **Constraint (Manual Assignment):** Tickets are not automatically assigned to individual agents. Agents choose and claim tickets from their department's open queue.
 
 ## 7. Non-Goals
 **What is explicitly out of scope for this MVP?**
-* No automated email/SMS notifications.
+* No automated email/SMS notifications about tickets (the only transactional
+  email is the password-reset link of ADR-005).
 * No complex SLA breach background timers.
 * No AI, Chatbots, or external enterprise integrations.
 * No complex Single Sign-On (SSO).
@@ -52,3 +53,6 @@ Employees currently ask for IT, HR, or Maintenance help through WhatsApp and sca
 * **Scenario 3: Admin Global View & Actions**
   * *Action:* The Admin logs in and opens their dashboard.
   * *Result:* The admin sees tickets from IT, HR, and Maintenance in one combined list, and may act on them under guard: assign an unclaimed ticket to a matching agent, cancel a request with a reason (kept for audit, never deleted), or change a status as a recorded override (ADR-002/ADR-003). Employees and Agents still cannot see other departments or change statuses they do not own.
+* **Scenario 4: Recovering a Forgotten Password**
+  * *Action:* An employee who cannot remember their password opens **Forgot password?**, enters the email on their account (for example `rana@gmail.com`), and follows the one-time link to choose a new password. A signed-in user instead uses **Change password**.
+  * *Result:* The new password works immediately and the old one stops working; the one-time link cannot be reused, the same generic confirmation is shown whether or not the address is registered, and no password is ever displayed or emailed in readable form.

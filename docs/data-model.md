@@ -6,6 +6,14 @@
 
 ## 1. Domain: Entities & Relationships
 *   **User:** Anyone who uses the system. A user has login credentials and one defined role: Employee, IT_Agent, HR_Agent, Maintenance_Agent, or Admin.
+    *   `email` is unique and validated as an email only — **any real domain** is
+        accepted (Gmail, Hotmail/Outlook, Yahoo, a company domain); no domain is
+        privileged (ADR-005).
+    *   `passwordHash` is a bcrypt hash (never exposed). Password **recovery**
+        (ADR-005) adds two transient fields: `passwordResetTokenHash` (SHA-256 of
+        a one-time token — the raw token is never stored) and
+        `passwordResetExpiresAt` (epoch ms, default +30 minutes). Both are cleared
+        whenever the password changes, and both are excluded from API responses.
 *   **Ticket:** A request for help. It contains a title, description, category, priority, status, and resolution note.
 *   **Relationships:**
     *   A requester can own many tickets (1-to-M).

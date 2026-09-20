@@ -14,14 +14,14 @@ This document turns the product specification into a practical system design. Th
   * **Requester (Employee):** Submits tickets and checks their status.
   * **Support Agent:** Works from a department-specific queue and updates ticket status.
   * **Admin/Manager:** Views all tickets across all departments and manages user accounts. May also **assign** an unclaimed ticket to a matching agent, **cancel** a request softly (audited, never deleted), or change a ticket's status only as a recorded **override** with a reason ([ADR-002](decisions/ADR-002.md) / [ADR-003](decisions/ADR-003.md)).
-  * **External dependencies:** None in the Phase 1 MVP. There is no SSO, external email service, or ERP integration, which keeps the first release isolated and straightforward to deliver.
+  * **External dependencies:** None required for the Phase 1 MVP. There is no SSO or ERP integration. Password-reset email is **optional**: with nothing configured the Auth Module prints the link to the server console, and an operator may later plug in an HTTP mail provider ([ADR-005](decisions/ADR-005.md)) without changing the application code.
 
 ## 2. Structure & Flow
 ### Components & Responsibilities
 To keep the system easy to understand and operate, the first version is a modular monolith with three main parts:
 1. **Web Client (Frontend App):** Renders the submission forms, requester dashboard, agent queue, and admin view. It presents data but does not enforce business rules.
 2. **Backend API (Core Server):** Enforces the rules and exposes the application operations. It contains two main modules:
-  * **Auth Module:** Handles login and identifies each user's role. There is no public registration (ADR-004); accounts are provisioned by an Admin through the Users API.
+  * **Auth Module:** Handles login, identifies each user's role, and provides password recovery/change (one-time reset links and an authenticated change, [ADR-005](decisions/ADR-005.md)). There is no public registration (ADR-004); accounts are provisioned by an Admin through the Users API. A small `MailModule` delivers the reset link — console-first, with an optional HTTP provider, so no external service is required to run the app.
   * **Ticket Module:** Handles ticket operations, limits agents to their department, and processes status changes.
 3. **Primary Database:** The source of truth for user credentials, tickets, and ticket history.
 

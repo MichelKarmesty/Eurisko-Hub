@@ -40,6 +40,24 @@ export class User {
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
+  /**
+   * Password recovery (`POST /auth/forgot-password`, `POST /auth/reset-password`).
+   *
+   * The raw one-time token only ever travels in the reset link; the database
+   * keeps its SHA-256 **hash** (never the token itself) plus an expiry, so a
+   * database leak cannot be replayed. Both fields are cleared the moment the
+   * password is changed through any path (reset or authenticated change).
+   * `@Exclude()` keeps them out of every API response too.
+   */
+  @Exclude()
+  @Column({ type: 'text', nullable: true })
+  passwordResetTokenHash: string | null;
+
+  /** Expiry of the reset token, as epoch milliseconds (0/null = none). */
+  @Exclude()
+  @Column({ type: 'integer', nullable: true })
+  passwordResetExpiresAt: number | null;
+
   @CreateDateColumn()
   createdAt: Date;
 }

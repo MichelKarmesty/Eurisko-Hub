@@ -40,7 +40,9 @@ required to resolve) is enforced by the NestJS backend in `../backend/`.
    (`admin@eurisko.com` / `Admin123!`, override via `ADMIN_EMAIL` /
    `ADMIN_PASSWORD`). Sign in with it and create everyone else from the
    **👥 Users** tab. There is **no public registration** and no demo data
-   (ADR-004): the login screen is a plain sign-in form.
+   (ADR-004): the login screen is a sign-in form (plus **Forgot password?**).
+   Accounts accept **any real email address** — Gmail, Hotmail/Outlook, Yahoo or
+   a company domain; `@eurisko.com` is only the development default.
 
    To also run the live HTTP definition-of-done checks (they provision their own
    test accounts through the Admin API), with the backend running:
@@ -66,6 +68,17 @@ Nothing is auto-submitted and `Open ticket` still calls the unchanged
 and works by hand. Full detail:
 [`../docs/week4-production-ai.md`](../docs/week4-production-ai.md).
 
+**Password recovery (v0.5).** The sign-in card carries **Forgot password?**,
+which asks for the account email and starts a one-time reset
+(`POST /auth/forgot-password`); the reset form
+(`POST /auth/reset-password`) opens either from that flow or from a
+`?resetToken=…` link in the address bar. Every field accepts **any real email
+address**. A signed-in user can rotate their password from **Change password**
+in the top bar (`POST /auth/change-password`, current password required). With
+no mail provider configured the backend returns the one-time link to the UI
+(outside production), so the flow is testable with no mail server. Design record:
+[`../docs/decisions/ADR-005.md`](../docs/decisions/ADR-005.md).
+
 The "React action" lives in
 [`src/components/ResolveControl.tsx`](src/components/ResolveControl.tsx): it
 submits `PATCH /tickets/:id/status` with
@@ -81,11 +94,12 @@ resolver in the table.
 ```
 vite.config.ts       dev proxy: /api -> http://localhost:3000 (API_PROXY_TARGET overrides)
 src/
-  api.ts             typed fetch client (auth + tickets + admin actions + stats)
+  api.ts             typed fetch client (auth + password recovery/change + tickets + admin actions + stats)
   types.ts           domain vocabulary mirrored from backend/src/common/domain.ts
-  App.tsx            session handling + role-based view routing
+  App.tsx            session handling + role-based view routing + change-password dialog
   components/
-    AuthScreen.tsx        sign-in only (no registration, no demo accounts)
+    AuthScreen.tsx        sign-in + Forgot password / reset-token modes (no registration, no demo accounts)
+    ChangePasswordDialog.tsx  signed-in "change my password" modal (current password required)
     RequesterView.tsx     open a ticket (with the v0.4 AI Suggest flow) + my tickets (React result)
     AgentView.tsx         queue -> claim -> resolve (the slice flow)
     AdminView.tsx         global list + stats + users + assign/cancel controls

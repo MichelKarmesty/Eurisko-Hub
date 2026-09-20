@@ -23,6 +23,8 @@ class CreateUserDto {
   @MinLength(2)
   name: string;
 
+  // Any real email address is accepted (Gmail, Hotmail/Outlook, Yahoo, a
+  // company domain) — no domain restriction anywhere (ADR-005).
   @IsEmail()
   email: string;
 

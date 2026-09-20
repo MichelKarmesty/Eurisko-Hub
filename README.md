@@ -28,11 +28,22 @@ it was resolved.
 > Full delivery record:
 > [`docs/week4-production-ai.md`](docs/week4-production-ai.md).
 
+> **v0.5 status — password recovery + any real email address.** A forgotten
+> password can be **reset** (never "retrieved": passwords are bcrypt-hashed) from
+> a one-time emailed link, and a signed-in user can **change** their own
+> password with the current one. With no mail server configured the reset link is
+> printed to the backend console and, outside production, returned to the UI — so
+> the flow works with nothing installed, exactly like the offline AI classifier.
+> Set `MAIL_WEBHOOK_URL` or `RESEND_API_KEY` for real email. Accounts accept
+> **any valid email address** — Gmail, Hotmail/Outlook, Yahoo or a company domain
+> — not just `@eurisko.com`. Design record:
+> [`docs/decisions/ADR-005.md`](docs/decisions/ADR-005.md).
+
 ## Repository layout
 
 | Folder | What it is |
 |---|---|
-| [`backend/`](backend/) | NestJS + TypeORM API (auth, RBAC, tickets with claim/status flow, durable history, advisory AI intake under `src/ai/`) |
+| [`backend/`](backend/) | NestJS + TypeORM API (auth with password reset/change, RBAC, tickets with claim/status flow, durable history, advisory AI intake under `src/ai/`, console/HTTP mail under `src/mail/`) |
 | [`frontend/`](frontend/) | React + Vite web client (requester dashboard with AI Suggest, agent queue, admin view) |
 | [`docs/`](docs/) | Product spec, architecture, data model, ADR, API reference, Week 3 & Week 4 delivery records |
 | [`scripts/`](scripts/) | [`verify-slice.mjs`](scripts/verify-slice.mjs) live HTTP checks · [`run-tests.mjs`](scripts/run-tests.mjs) one-command test suite |
@@ -83,6 +94,11 @@ registration** and no demo data (ADR-004): sign in as the Admin and create
 everyone else from the **Users** tab. Set `DB_FILE` so tickets survive restarts;
 without it the database is in-memory.
 
+`admin@eurisko.com` is only the development **default**: the application accepts
+**any valid email address** — `someone@gmail.com`, `someone@hotmail.com`,
+`someone@outlook.com`, `someone@yahoo.com`, or a company domain. The Admin should
+use a real, deliverable address if password-reset emails are to reach people.
+
 If a database ever has **no Admin at all**, the backend seeds one on the next
 boot — so an instance created before the Admin email changed is recovered rather
 than locked out. An existing Admin is never duplicated or reset.
@@ -101,7 +117,8 @@ sign in as the Admin (`admin@eurisko.com` / `Admin123!`), then open the
 **👥 Users** tab and use **Create account** to add people — for example an
 **Employee** (Requester), an **IT Agent**, an **HR Agent** and a
 **Maintenance Agent**. Only an Admin can create accounts, and only an Admin sees
-the Users tab; the login screen is sign-in only.
+the Users tab; the login screen is sign-in plus **Forgot password?** (v0.5), and
+any real email address is accepted for the people you create.
 
 To also run the live HTTP definition-of-done checks (these provision their own
 throwaway test accounts through the Admin API), with the backend running:
@@ -148,40 +165,93 @@ tag clears as soon as the employee edits a field, and **Open ticket** still call
 the ordinary `POST /tickets`. The AI never creates a ticket and never writes to
 the database. Full detail: [`docs/week4-production-ai.md`](docs/week4-production-ai.md).
 
-**It works with no AI configured.** The defaults point at a local Ollama. If no
-model is answering, the built-in **offline classifier** still fills the form in
-— clearly labelled: the API returns `source: "offline"` with a notice, and the
-UI tags those fields **"Suggested (offline)"** instead of "AI suggested", so a
+**The default provider is Groq's free cloud API** — nothing to install, no
+credit card. Get a free key at <https://console.groq.com>, then start the
+backend with it:
+
+```bash
+export AI_API_KEY=gsk_…        # Windows PowerShell: $env:AI_API_KEY="gsk_…"
+cd backend && npm start
+```
+
+`AI_MODEL` defaults to `openai/gpt-oss-20b`. Free model names change over time,
+so list what your key can use before changing it:
+`curl -s https://api.groq.com/openai/v1/models -H "Authorization: Bearer $AI_API_KEY"`.
+
+**It works with no key at all.** With no `AI_API_KEY` the provider answers `401`
+and the built-in **offline classifier** still fills the form in — clearly
+labelled: the API returns `source: "offline"` with a notice, and the UI tags
+those fields **"Suggested (offline)"** instead of "AI suggested", so a
 rules-based answer is never passed off as the model's. Set
 `AI_OFFLINE_FALLBACK=false` for the strict `{ suggestion: null, error }`
-behaviour. Nothing about running the app or the test suite requires a model.
+behaviour. Nothing about running the app or the test suite requires a key.
 
 | Variable | Default | Purpose |
 |---|---|---|
 | `AI_ENABLED` | `true` | `false` disables the feature (the endpoint answers with a clear disabled message) |
-| `AI_PROVIDER_URL` | `http://localhost:11434/v1` | Any OpenAI-compatible base URL |
-| `AI_MODEL` | `llama3.2` | Model name |
-| `AI_TIMEOUT_MS` | `5000` | Hard cap on the provider call |
+| `AI_PROVIDER_URL` | `https://api.groq.com/openai/v1` | Any OpenAI-compatible base URL |
+| `AI_MODEL` | `openai/gpt-oss-20b` | Groq's fast free model (names change over time) |
+| `AI_TIMEOUT_MS` | `10000` | Hard cap on the provider call |
 | `AI_OFFLINE_FALLBACK` | `true` | Suggest from the offline keyword classifier when no model answers (always labelled); `false` = strict provider-only |
-| `AI_API_KEY` | *(unset)* | Optional bearer token for hosted providers |
+| `AI_API_KEY` | *(unset)* | **Required for Groq** — free key from console.groq.com |
 
-Local model (free, no API key):
+**Prefer to run the model locally?** You can also use a local Ollama, which needs
+no API key: install it from <https://ollama.com> and start the backend with
+`AI_PROVIDER_URL=http://localhost:11434/v1 AI_MODEL=llama3.2 npm start`.
 
-```bash
-ollama pull llama3.2     # or: ollama pull mistral
-ollama serve             # http://localhost:11434 — already the default URL
-```
-
-Then just use the app. To point somewhere else, start the backend with the
-variables set, e.g. `AI_MODEL=mistral npm start`, or
-`AI_PROVIDER_URL=https://api.example.com/v1 AI_API_KEY=sk-… npm start`.
+To point anywhere else OpenAI-compatible, set the same two variables, e.g.
+`AI_PROVIDER_URL=https://api.example.com/v1 AI_MODEL=… AI_API_KEY=… npm start`.
 
 **See it working in one command** (with the API running; passes with or without
-a model and says which one answered):
+a key and says which source answered):
 
 ```bash
 node scripts/verify-ai-intake.mjs
 ```
+
+## Password recovery & any email address (v0.5)
+
+**Passwords are bcrypt-hashed, so they can never be *retrieved*** — the capability
+is to **reset** one, or to **change** it from inside the app. Three routes cover
+that, and all of them accept any real email address:
+
+| I want to… | Where | What happens |
+|---|---|---|
+| Reset a forgotten password | **Log in → Forgot password?** (or `POST /auth/forgot-password`) | A one-time, 30-minute link is sent to the account's email; the same generic answer is returned whether or not the address exists, so the form cannot be used to discover accounts. |
+| Finish a reset | The link opens **Set a new password** (or `POST /auth/reset-password`) | The token is accepted once, the new password (8+ characters) is saved, and the old one stops working. |
+| Change my password while signed in | **Change password** in the top bar (or `POST /auth/change-password`) | The current password is required; a session token alone cannot take the account over. |
+
+**It works with no mail server.** By default the backend has no provider
+configured, so the reset message (including the link) is printed to the backend
+console, and outside production the one-time token is also returned to the UI so
+the whole flow is demonstrable in one browser. For real email, set one variable
+and restart the backend — no package to install:
+
+```bash
+# option A — any HTTPS endpoint that accepts { to, subject, text }
+export MAIL_WEBHOOK_URL=https://mailer.example.com/send
+export MAIL_WEBHOOK_TOKEN=…            # optional bearer token
+
+# option B — Resend's HTTP API (https://resend.com)
+export RESEND_API_KEY=re_…
+export MAIL_FROM="Eurisko Hub <no-reply@your-domain.com>"
+```
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `APP_BASE_URL` | `http://localhost:5173` | Front of the reset link (`…/?resetToken=…`) |
+| `PASSWORD_RESET_TTL_MINUTES` | `30` | How long a reset link stays valid |
+| `MAIL_WEBHOOK_URL` / `MAIL_WEBHOOK_TOKEN` | *(unset)* | Optional HTTP mail relay |
+| `RESEND_API_KEY` / `MAIL_FROM` | *(unset)* | Optional Resend delivery |
+| `PASSWORD_RESET_RETURN_TOKEN` | `true` outside production | Return the one-time token in the API response (development only; **always off** when `NODE_ENV=production`) |
+
+**Any real email address is accepted — `@eurisko.com` is only the development
+default.** Account creation, login, password reset and every example work
+identically for `someone@gmail.com`, `someone@hotmail.com`,
+`someone@outlook.com`, `someone@yahoo.com` or a company domain; a malformed
+address is the only thing the API rejects (`400`). See
+[`docs/decisions/ADR-005.md`](docs/decisions/ADR-005.md) and
+[`docs/security.md`](docs/security.md).
 
 ## Run the automated tests
 
@@ -218,6 +288,7 @@ npm run test:ai-eval      # v0.4: the 8 AI intake eval cases
 | Admin seed can never lock a database out | `npm test` | `backend/test/admin-seed.spec.ts` |
 | Admin account deletion: contract, authorization, audit | `npm test` | `backend/test/admin-user-deletion.spec.ts` |
 | v0.4: AI intake evals (5 real-or-skip + 3 mocked) | `npm run test:ai-eval` | `backend/test/ai-intake-eval.spec.ts` |
+| v0.5: password recovery/change + any-email rule | `npm test` | `backend/test/auth-password.spec.ts` |
 
 **UI E2E — two layers:**
 
@@ -270,7 +341,10 @@ Base URL `http://localhost:3000`; authenticated calls send
 
 | Method & path | Who | Purpose |
 |---|---|---|
-| `POST /auth/login` | public | sign in (the only public auth call — no registration) |
+| `POST /auth/login` | public | sign in (no registration; any valid email domain) |
+| `POST /auth/forgot-password` | public | email a one-time reset link; always the same generic answer |
+| `POST /auth/reset-password` | public | set a new password with the one-time token (single use, 30 min) |
+| `POST /auth/change-password` | authenticated | change your own password (current password required) |
 | `POST /tickets` | any authenticated user | open a request (title, description, category, priority) |
 | `GET /tickets` | role-scoped | requester: own tickets · agent: own department's `Open` queue (`?mine=true` for claimed) · admin: all |
 | `PATCH /tickets/:id/claim` | matching agent | claim an `Open` ticket → `In Progress` |
@@ -312,10 +386,11 @@ Read in this order:
 5. [`docs/decisions/ADR-002.md`](docs/decisions/ADR-002.md) — Admin override policy
 6. [`docs/decisions/ADR-003.md`](docs/decisions/ADR-003.md) — Admin assign & soft cancel
 7. [`docs/decisions/ADR-004.md`](docs/decisions/ADR-004.md) — Admin-provisioned accounts, no public registration
-8. [`docs/api.md`](docs/api.md)
-9. [`docs/security.md`](docs/security.md) — the seeded Admin, no public registration, and the authorization model
-10. [`docs/week3-full-stack-delivery.md`](docs/week3-full-stack-delivery.md) — the Week 3 delivery record
-11. [`docs/week4-production-ai.md`](docs/week4-production-ai.md) — the Week 4 AI-assisted intake record
+8. [`docs/decisions/ADR-005.md`](docs/decisions/ADR-005.md) — password recovery/change and any-real-email accounts
+9. [`docs/api.md`](docs/api.md)
+10. [`docs/security.md`](docs/security.md) — the seeded Admin, no public registration, the authorization model, and password recovery
+11. [`docs/week3-full-stack-delivery.md`](docs/week3-full-stack-delivery.md) — the Week 3 delivery record
+12. [`docs/week4-production-ai.md`](docs/week4-production-ai.md) — the Week 4 AI-assisted intake record
 
 ## Troubleshooting
 
@@ -327,6 +402,13 @@ Read in this order:
   `Unable to connect to the database. Retrying…`, the `DB_FILE` folder is missing
   or not writable: `mkdir -p .data` (or point `DB_FILE` at a writable path) and
   restart. A wrong password is `401`, never `500`.
+- **A password reset link never arrives:** no mail provider is configured, so the
+  message is printed to the **backend terminal** (and outside production the token
+  is shown in the UI too). Look for `No mail provider configured` in the backend
+  output, or set `MAIL_WEBHOOK_URL` / `RESEND_API_KEY` for real delivery. A reset
+  link is valid for 30 minutes (`PASSWORD_RESET_TTL_MINUTES`) and can be used once;
+  the API always answers `200` with the same generic message even for an unknown
+  email (that is deliberate — it prevents account discovery).
 - **Port 3000 is busy:** start the API with `PORT=3001 npm start`. The Vite dev
   proxy targets 3000, so either free port 3000 or point the client at the new
   port with `VITE_API_BASE=http://localhost:3001`.
@@ -351,4 +433,6 @@ note, review it from the admin dashboard — and the React client in `frontend/`
 wires that workflow end-to-end for the **"assigned agent resolves a ticket"**
 slice, with durable SQLite persistence across restarts and an automated
 test suite covering the business rule, the database integration, the HTTP
-boundaries, regression, and the UI E2E.
+boundaries, regression, and the UI E2E. On top of that: advisory AI intake
+(v0.4) and self-service **password recovery/change with any real email address**
+(v0.5).

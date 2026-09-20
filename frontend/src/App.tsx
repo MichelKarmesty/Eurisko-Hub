@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { apiMe, getToken, setToken } from './api';
 import type { Session } from './types';
 import { AuthScreen } from './components/AuthScreen';
+import { ChangePasswordDialog } from './components/ChangePasswordDialog';
 import { RequesterView } from './components/RequesterView';
 import { AgentView } from './components/AgentView';
 import { AdminView } from './components/AdminView';
@@ -10,6 +11,7 @@ import { Spinner } from './components/ui';
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [booting, setBooting] = useState(true);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   // Restore a previously stored token on refresh (validated via /auth/me).
   useEffect(() => {
@@ -60,6 +62,9 @@ export default function App() {
           <span className="muted small">
             {user.name} · {user.email}
           </span>
+          <button className="btn btn-ghost" onClick={() => setChangingPassword(true)}>
+            Change password
+          </button>
           <button className="btn btn-ghost" onClick={logout}>
             Switch account
           </button>
@@ -74,6 +79,9 @@ export default function App() {
           <AgentView user={user} />
         )}
       </main>
+      {changingPassword && (
+        <ChangePasswordDialog onClose={() => setChangingPassword(false)} />
+      )}
     </div>
   );
 }

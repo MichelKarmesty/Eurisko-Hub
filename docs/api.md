@@ -31,6 +31,13 @@ account — the Admin (`ADMIN_EMAIL` / `ADMIN_PASSWORD`, default
 `admin@eurisko.com` / `Admin123!`) — and the Admin creates every other account
 through `POST /users` (below).
 
+**Any real email address is accepted** (ADR-005). Every email field is validated
+with `@IsEmail()` and nothing else, so a personal provider
+(`someone@gmail.com`, `someone@hotmail.com`, `someone@outlook.com`,
+`someone@yahoo.com`…) and a company domain behave identically for login, account
+creation and password recovery. `@eurisko.com` is only the development default
+for the seeded Admin; a malformed address is the only thing rejected (`400`).
+
 ### POST /auth/login  — public
 ```json
 { "email": "admin@eurisko.com", "password": "Admin123!" }
@@ -39,6 +46,57 @@ through `POST /users` (below).
 
 A wrong email and a wrong password both return the same generic
 `401 Invalid credentials.`, so the endpoint cannot be used to discover accounts.
+
+### POST /auth/forgot-password  — public
+Step 1 of "I forgot my password". Body: `{ "email": "someone@gmail.com" }`.
+
+```json
+// 200 — the SAME answer whether or not the address is registered
+{ "message": "If that email is registered, a password reset link has been sent." }
+```
+
+Passwords are bcrypt-hashed and can never be **retrieved**; this endpoint starts
+a **reset**. For a real, active account a `randomBytes(32)` token is generated,
+stored only as its SHA-256 hash with a 30-minute expiry
+(`PASSWORD_RESET_TTL_MINUTES`), and the reset link is delivered by the mail
+service. The generic answer (and the unchanged `200` for unknown emails) is what
+keeps the endpoint from enumerating accounts.
+
+* `400` — `email` missing or malformed.
+* **Delivery:** with no provider configured the message is printed to the backend
+  console; set `MAIL_WEBHOOK_URL` (+ optional `MAIL_WEBHOOK_TOKEN`) or
+  `RESEND_API_KEY` (+ `MAIL_FROM`) for real email. Outside production the response
+  additionally carries `resetToken`/`resetUrl` (and `delivery`) so the flow is
+  usable with no mail server; `NODE_ENV=production` always removes them, and
+  `PASSWORD_RESET_RETURN_TOKEN=false` disables them explicitly.
+
+### POST /auth/reset-password  — public
+Step 2: complete the reset with the token from the link.
+
+```json
+{ "token": "64-char hex token from the reset link", "password": "new-password-8+" }
+```
+→ `200` `{ "message": "Your password has been changed. You can sign in with your new password." }`
+
+* The token is **single-use**: on success it is consumed, so the same link cannot
+  be replayed. Changing the password also invalidates any other outstanding token.
+* `400` — unknown, already-used or expired token (`"This password reset link is
+  invalid or has expired."`); token shorter than 20 characters; password shorter
+  than 8 characters; unknown body field.
+
+### POST /auth/change-password  — authenticated
+Change **your own** password while signed in (`Authorization: Bearer …`).
+
+```json
+{ "currentPassword": "password123", "newPassword": "new-password-8+" }
+```
+→ `200` `{ "message": "Your password has been changed." }`
+
+* The current password is required, so a session token alone cannot take the
+  account over.
+* `401` — no/invalid bearer token; `400` — wrong current password
+  (`"Your current password is incorrect."`), a new password shorter than 8
+  characters, or an unknown body field.
 
 ### GET /auth/me
 → current user profile `{ id, email, role }`.
@@ -55,7 +113,9 @@ A wrong email and a wrong password both return the same generic
 { "name": "Karim Haddad", "email": "karim.haddad@eurisko.com", "password": "password123", "role": "IT_Agent" }
 ```
 → `201` with the created user (never its password hash). A duplicate email →
-`409`; a non-Admin caller → `403`.
+`409`; a non-Admin caller → `403`. `email` may be **any real address**
+(`karim.haddad@gmail.com`, `karim@hotmail.com`, `k.haddad@acme-corp.com`…): no
+domain restriction is applied anywhere in the system (ADR-005).
 `PATCH /users/3/role` body: `{ "role": "HR_Agent" }` → `200` with the updated
 user.
 * `400` — an invalid role; changing **your own** Admin role
@@ -210,9 +270,11 @@ creation is never blocked.
 * `400` — `text` missing or shorter than 3 characters (DTO validation).
 * `401` — no or invalid bearer token (any signed-in user may call it).
 * Configuration: `AI_ENABLED`, `AI_PROVIDER_URL` (default
-  `http://localhost:11434/v1`), `AI_MODEL` (default `llama3.2`),
-  `AI_TIMEOUT_MS` (default `5000`), `AI_OFFLINE_FALLBACK` (default `true`),
-  optional `AI_API_KEY`.
+  `https://api.groq.com/openai/v1`), `AI_MODEL` (default
+  `openai/gpt-oss-20b`, free model names change over time), `AI_TIMEOUT_MS` (default `10000`),
+  `AI_OFFLINE_FALLBACK` (default `true`), and `AI_API_KEY` — **required for
+  Groq** (free key from console.groq.com); a keyless local provider such as
+  Ollama needs none.
 
 ### GET-free check script
 `node scripts/verify-ai-intake.mjs` drives five realistic descriptions through
@@ -254,7 +316,11 @@ Wait for `Eurisko Hub API listening on http://localhost:3000`; the web client
 First boot seeds exactly **one** account — the Admin
 (`admin@eurisko.com` / `Admin123!`, override via `ADMIN_EMAIL` / `ADMIN_PASSWORD`).
 Sign in with it and create everyone else from the **Users** tab (ADR-004); there
-is no public registration and no demo data. By default the API uses an in-memory
-SQLite database (TypeORM `sqljs` driver — zero setup); set
-`DB_FILE=/path/db.sqlite` to persist it, or swap the TypeORM config for
-PostgreSQL later.
+is no public registration and no demo data. Any real email domain is accepted
+(Gmail, Hotmail/Outlook, Yahoo, company domains — ADR-005); `@eurisko.com` is
+only the development default, and password-reset emails need a deliverable
+address. By default the API uses an in-memory SQLite database (TypeORM `sqljs`
+driver — zero setup); set `DB_FILE=/path/db.sqlite` to persist it, or swap the
+TypeORM config for PostgreSQL later. Password recovery works with no mail server
+(the reset link prints to the backend console); set `MAIL_WEBHOOK_URL` or
+`RESEND_API_KEY` for real delivery.

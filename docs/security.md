@@ -11,6 +11,12 @@ On an **empty** database the backend seeds exactly **one** account:
 |---|---|---|
 | Admin | `admin@eurisko.com` (or `ADMIN_EMAIL`) | `Admin123!` (or `ADMIN_PASSWORD`) |
 
+`admin@eurisko.com` is only the development default: the application accepts
+**any real email address** — a personal provider (Gmail, Hotmail/Outlook, Yahoo)
+or a company domain. Every account email is validated with `@IsEmail()` and
+nothing else, so no domain is privileged or blocked (ADR-005). Use a deliverable
+address for people who must receive password-reset emails.
+
 Everything else is created **from inside the app** by that Admin, on the
 **Users** tab (`POST /users`, Admin-only), with an explicit role and password.
 The same tab lets the Admin **delete** an account (`DELETE /users/:id`) — see
@@ -31,8 +37,10 @@ See [ADR-004](decisions/ADR-004.md).
   the running deployment is left alone.
 
 **Before any real deployment:** set a strong `ADMIN_PASSWORD` and a real
-`JWT_SECRET` (the default is a development value), and preferably change the
-seeded Admin password after first login.
+`JWT_SECRET` (the default is a development value), give the Admin a deliverable
+email address, configure a mail provider (`MAIL_WEBHOOK_URL` or
+`RESEND_API_KEY`) so password-reset links actually reach people, and preferably
+change the seeded Admin password after first login.
 
 ## Authorization model
 
@@ -72,6 +80,35 @@ guards are `JwtAuthGuard` (a valid bearer token is required unless a route is
   and a wrong password, so the endpoint cannot be used to enumerate accounts.
 * The request contract is closed: the global `ValidationPipe` rejects unknown
   fields (`forbidNonWhitelisted`).
+
+## Password recovery and change (ADR-005)
+
+* **A password is never "retrieved".** bcrypt is one-way; the capability is to
+  **reset** a password (forgot it) or **change** it (signed in).
+* `POST /auth/forgot-password` answers with the **same generic message for every
+  address**, registered or not, active or not — like login, it cannot be used to
+  discover accounts.
+* A reset token is `randomBytes(32)`. The database stores **only its SHA-256
+  hash** (both reset fields are `@Exclude()`d and never appear in a response)
+  plus a **30-minute expiry** (`PASSWORD_RESET_TTL_MINUTES`).
+* **Single use:** `POST /auth/reset-password` consumes the token; a second
+  attempt with the same link is a generic `400`. Changing the password through
+  *either* path clears any outstanding token, so an old link cannot outlive the
+  change.
+* `POST /auth/change-password` requires the **current** password. A stolen
+  session token alone cannot take the account over.
+* **Mail delivery never breaks recovery.** With no provider configured the
+  message (including the reset link) is printed to the backend console; a
+  provider failure falls back to the console instead of throwing. Set
+  `MAIL_WEBHOOK_URL` (+ `MAIL_WEBHOOK_TOKEN`) or `RESEND_API_KEY` (+ `MAIL_FROM`)
+  for real delivery.
+* **Development convenience:** outside production the one-time token is also
+  returned in the response so the flow is demonstrable with no mail server.
+  `NODE_ENV=production` always removes it (`PASSWORD_RESET_RETURN_TOKEN` cannot
+  turn it back on); real deployments rely on the email link alone.
+* Reset links do **not** revoke already-issued JWTs. Session revocation
+  (`passwordChangedAt`/token versioning) is a documented non-goal for the MVP, so
+  set a short `JWT_EXPIRES_IN` and a strong `JWT_SECRET` in production.
 
 ## Test fixtures are not an application feature
 

@@ -40,6 +40,13 @@ The suite contains four tests:
   Admin creates an Employee in the **Users** tab, then **Switch account** signs
   in as that new account and it opens a ticket.
 
+These harnesses keep using the sign-in form (the same `Email` / `Password`
+labels and `Log in` button). The sign-in card now also offers **Forgot
+password?** and accounts accept any real email domain (Gmail, Hotmail/Outlook,
+Yahoo, a company domain) — see [ADR-005](../docs/decisions/ADR-005.md). The
+recovery/change contract itself is pinned by the backend spec
+`../backend/test/auth-password.spec.ts`, so no extra browser fixture is needed.
+
 ## Browser E2E (primary, self-contained)
 
 ```bash

@@ -61,6 +61,40 @@ export class UsersService {
   }
 
   /**
+   * Password recovery (`POST /auth/forgot-password`): store the SHA-256 hash of
+   * a fresh one-time reset token with its expiry. The raw token is never stored.
+   */
+  async setPasswordResetToken(
+    id: number,
+    tokenHash: string,
+    expiresAt: number,
+  ): Promise<void> {
+    await this.users.update(id, {
+      passwordResetTokenHash: tokenHash,
+      passwordResetExpiresAt: expiresAt,
+    });
+  }
+
+  /** Resolve the account a reset token belongs to (lookup by token hash). */
+  findByResetTokenHash(tokenHash: string): Promise<User | null> {
+    return this.users.findOne({ where: { passwordResetTokenHash: tokenHash } });
+  }
+
+  /**
+   * Set a new password (bcrypt-hashed) and consume any outstanding reset token.
+   * Used by both `POST /auth/reset-password` and `POST /auth/change-password`,
+   * so a reset link can never be replayed after the password has moved on.
+   */
+  async setPassword(id: number, plainPassword: string): Promise<void> {
+    const passwordHash = await bcrypt.hash(plainPassword, 10);
+    await this.users.update(id, {
+      passwordHash,
+      passwordResetTokenHash: null,
+      passwordResetExpiresAt: null,
+    });
+  }
+
+  /**
    * Admin action: change an account's role (`PATCH /users/:id/role`).
    *
    * A demotion can empty the Admin seat just as effectively as a delete, so the
