@@ -34,9 +34,9 @@ through `POST /users` (below).
 **Any real email address is accepted** (ADR-005). Every email field is validated
 with `@IsEmail()` and nothing else, so a personal provider
 (`someone@gmail.com`, `someone@hotmail.com`, `someone@outlook.com`,
-`someone@yahoo.com`…) and a company domain behave identically for login, account
-creation and password recovery. `@eurisko.com` is only the development default
-for the seeded Admin; a malformed address is the only thing rejected (`400`).
+`someone@yahoo.com`…) and a company domain behave identically for login and
+account creation. `@eurisko.com` is only the development default for the seeded
+Admin; a malformed address is the only thing rejected (`400`).
 
 ### POST /auth/login  — public
 ```json
@@ -47,33 +47,41 @@ for the seeded Admin; a malformed address is the only thing rejected (`400`).
 A wrong email and a wrong password both return the same generic
 `401 Invalid credentials.`, so the endpoint cannot be used to discover accounts.
 
-### POST /auth/forgot-password  — public
-Step 1 of "I forgot my password". Body: `{ "email": "someone@gmail.com" }`.
+### POST /auth/forgot-password  — public (ADR-008)
+Step 1 of self-service recovery. The answer is **always** the same generic
+message — the address being registered or not, active or not — so the endpoint
+cannot be used to enumerate accounts:
 
 ```json
-// 200 — the SAME answer whether or not the address is registered
-{ "message": "If that email is registered, a password reset link has been sent." }
+{ "email": "someone@gmail.com" }
+```
+→ `200` `{ "message": "If that email is registered, a password reset link has been sent." }`
+
+When the account exists and is active, a single-use, 30-minute token is minted
+(stored only as a SHA-256 hash) and the reset link is emailed to the account's
+address through `MailService` — the primary SMTP server (`SMTP_HOST`…), then the
+**backup SMTP server** (`SMTP_ALT_HOST`…, e.g. Gmail then Outlook), then
+`MAIL_WEBHOOK_URL`, then `RESEND_API_KEY`, and finally the backend console when
+no provider is configured. Outside production the response additionally carries
+the token so the flow is demonstrable with no mail server
+(`PASSWORD_RESET_RETURN_TOKEN`, **always off** when `NODE_ENV=production`):
+
+```json
+{ "message": "If that email is registered, a password reset link has been sent.",
+  "resetToken": "9f2c…", "resetUrl": "http://localhost:5173/?resetToken=9f2c…",
+  "delivery": "smtp" | "smtp-alt" | "webhook" | "resend" | "console" }
 ```
 
-Passwords are bcrypt-hashed and can never be **retrieved**; this endpoint starts
-a **reset**. For a real, active account a `randomBytes(32)` token is generated,
-stored only as its SHA-256 hash with a 30-minute expiry
-(`PASSWORD_RESET_TTL_MINUTES`), and the reset link is delivered by the mail
-service. The generic answer (and the unchanged `200` for unknown emails) is what
-keeps the endpoint from enumerating accounts.
-
-* `400` — `email` missing or malformed.
-* **Delivery:** with no provider configured the message is printed to the backend
-  console; set `SMTP_HOST` (+ `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`) for Gmail /
-  Outlook / any standard mail server, or `MAIL_WEBHOOK_URL` (+ optional
-  `MAIL_WEBHOOK_TOKEN`), or `RESEND_API_KEY` (+ `MAIL_FROM`) for real email.
-  Outside production the response additionally carries `resetToken`/`resetUrl`
-  (and `delivery`) so the flow is usable with no mail server;
-  `NODE_ENV=production` always removes them, and
-  `PASSWORD_RESET_RETURN_TOKEN=false` disables them explicitly.
+* `400` — malformed email address or an unknown body field.
+* At most one email per address per `PASSWORD_RESET_COOLDOWN_SECONDS` (default
+  60): a repeat request inside the window gets the same generic answer but mints
+  and sends nothing (anti mail-bomb).
 
 ### POST /auth/reset-password  — public
-Step 2: complete the reset with the token from the link.
+Complete a reset with the one-time token from an **emailed** link (ADR-008,
+`POST /auth/forgot-password`) or an **Admin-issued** one (ADR-007,
+`POST /users/:id/reset-password` below — or, for a locked-out lone Admin, the
+offline `scripts/reset-password.mjs`).
 
 ```json
 { "token": "64-char hex token from the reset link", "password": "new-password-8+" }
@@ -103,8 +111,8 @@ Change **your own** password while signed in (`Authorization: Bearer …`).
 ### GET /auth/me
 → current user profile `{ id, email, role }`.
 
-> `POST /auth/register` does **not** exist: an outsider cannot create an
-> account, and any request to it returns `404 Not Found`.
+> `POST /auth/register` does **not** exist: an outsider cannot create an account
+> (ADR-004); any request to it returns `404 Not Found`.
 
 ## User management (Admin only) — the only way to create accounts
 
@@ -147,6 +155,29 @@ disappears from the Users list immediately and can no longer sign in
 * `400` — deleting **your own** account, or deleting the **last active Admin**
   (`"The last active Admin cannot be deleted — the hub would be locked out."`).
 * `404` — unknown account; non-Admin caller → `403`.
+
+### POST /users/:id/reset-password — Admin only (ADR-007)
+Admin-initiated recovery for a colleague who forgot their password. It needs
+**no mail server**: the Admin mints the same single-use, hashed, expiring token
+the email flow uses and receives the link to hand over — the employee sets their
+own new password with `POST /auth/reset-password`, so the Admin never sees or
+chooses it (docs/security.md §"Admin-initiated reset").
+
+```json
+// 200 response
+{ "id": 4, "email": "layla.nassar@eurisko.com",
+  "resetToken": "9f2c…", "resetUrl": "http://localhost:5173/?resetToken=9f2c…",
+  "expiresAt": "2026-09-20T21:45:00.000Z", "expiresInMinutes": 30 }
+```
+
+* Single-use and time-limited exactly like an emailed link
+  (`PASSWORD_RESET_TTL_MINUTES`, default 30): issuing a new link invalidates the
+  previous one, and using it clears it.
+* `400` — the account is deactivated (it cannot sign in, so a link would be
+  misleading).
+* `404` — unknown account; non-Admin caller → `403`; no token → `401`.
+* The action is logged (which Admin issued a link for which account), and the
+  token hash/expiry never appear in any response.
 
 ## Tickets
 
@@ -353,10 +384,8 @@ First boot seeds exactly **one** account — the Admin
 Sign in with it and create everyone else from the **Users** tab (ADR-004); there
 is no public registration and no demo data. Any real email domain is accepted
 (Gmail, Hotmail/Outlook, Yahoo, company domains — ADR-005); `@eurisko.com` is
-only the development default, and password-reset emails need a deliverable
-address. By default the API uses an in-memory SQLite database (TypeORM `sqljs`
-driver — zero setup); set `DB_FILE=/path/db.sqlite` to persist it, or swap the
-TypeORM config for PostgreSQL later. Password recovery works with no mail server
-(the reset link prints to the backend console); set `SMTP_HOST` (+ `SMTP_PORT`,
-`SMTP_USER`, `SMTP_PASS`) for Gmail / Outlook / any mail server, or
-`MAIL_WEBHOOK_URL`, or `RESEND_API_KEY`, for real delivery.
+only the development default. By default the API uses an in-memory SQLite
+database (TypeORM `sqljs` driver — zero setup); set `DB_FILE=/path/db.sqlite` to
+persist it, or swap the TypeORM config for PostgreSQL later. Password recovery
+needs **no mail server at all** (ADR-007): an Admin mints a one-time link in the
+app, and `scripts/reset-password.mjs` is the offline break-glass.

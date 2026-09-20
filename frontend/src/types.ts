@@ -85,6 +85,20 @@ export interface AdminStats {
 }
 
 /**
+ * ADR-007 — an Admin mints a one-time password reset link for someone who forgot
+ * theirs. Deliberately available with no mail server: the Admin hands the link
+ * over, the employee sets their own password, and the Admin never sees it.
+ */
+export interface AdminResetResult {
+  id: number;
+  email: string;
+  resetToken: string;
+  resetUrl: string;
+  expiresAt: string;
+  expiresInMinutes: number;
+}
+
+/**
  * v0.4 — AI-assisted intake (docs/week4-production-ai.md).
  * Mirrors backend/src/ai/ai-intake.service.ts. The AI only *suggests*: the
  * employee can change every field, and POST /tickets stays authoritative.

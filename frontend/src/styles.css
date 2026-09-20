@@ -353,7 +353,7 @@ table.tickets th {
 .auth-footnote {
   margin: 0.9rem 0 0;
 }
-/* "Forgot password?" / "Back to sign in" rows and dialog action rows */
+/* "Back to sign in" rows and dialog action rows */
 .auth-links {
   display: flex;
   justify-content: flex-end;

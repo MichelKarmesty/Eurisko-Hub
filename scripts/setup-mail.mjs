@@ -4,20 +4,28 @@
  *
  *     node scripts/setup-mail.mjs [you@gmail.com]
  *
- * It asks for your Gmail address and a Google **App Password**, writes them into
- * `backend/.env` (gitignored — never committed), and then sends a real test
- * message through the same built-in SMTP client the backend uses, so a PASS
+ * It asks for your address(es) and an App Password, writes them into
+ * `backend/.env` (gitignored — never committed), and then sends real test
+ * messages through the same built-in SMTP client the backend uses, so a PASS
  * means reset links will genuinely reach an inbox.
  *
- * The App Password is typed hidden and is never echoed, logged or printed.
+ * **Two senders are supported** (ADR-008): the backend tries the first one and
+ * falls back to the second when it fails. Give a Gmail address first and an
+ * Outlook one second — or just one and press Enter at the second prompt.
+ * The provider is recognised from the domain:
+ *
+ *   @gmail.com                      -> smtp.gmail.com:587
+ *   @outlook.com/@hotmail.com/…     -> smtp-mail.outlook.com:587
+ *   anything else                   -> you are asked for the SMTP host
+ *
+ * App Passwords are typed hidden and are never echoed, logged or printed.
  *
  * Gmail requires an App Password — a normal account password will not work:
  *   1. turn on 2-Step Verification  https://myaccount.google.com/security
  *   2. create one                   https://myaccount.google.com/apppasswords
  *   3. copy the 16 characters (spaces are ignored)
- *
- * Any other provider works too — edit SMTP_HOST / SMTP_PORT in backend/.env
- * (Outlook/Hotmail: smtp-mail.outlook.com; or MAIL_WEBHOOK_URL / RESEND_API_KEY).
+ * Outlook (personal): https://account.microsoft.com/security ->
+ *   Advanced security options -> App passwords.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -28,6 +36,12 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ENV_FILE = join(ROOT, 'backend', '.env');
 const EXAMPLE = join(ROOT, 'backend', '.env.example');
 const CLIENT = join(ROOT, 'backend', 'dist', 'mail', 'smtp.client.js');
+
+/** Known providers, recognised from the address domain. */
+const PROVIDERS = [
+  { match: /@(gmail|googlemail)\.com$/i, host: 'smtp.gmail.com', name: 'Gmail' },
+  { match: /@(outlook|hotmail|live|msn)\./i, host: 'smtp-mail.outlook.com', name: 'Outlook' },
+];
 
 /** Lines already supplied on a pipe (non-interactive runs / tests). */
 let pipedLines = null;
@@ -101,38 +115,77 @@ function upsertEnv(values) {
   writeFileSync(ENV_FILE, `${lines.join('\n').replace(/\n+$/, '')}\n`);
 }
 
-async function main() {
-  console.log('Eurisko Hub — real password-reset email setup\n');
+/** Ask for one sender's address + App Password; null when skipped. */
+async function readSender(ordinal, presetAddress) {
+  const label = ordinal === 1 ? 'Sender 1' : 'Sender 2 (backup, Enter to skip)';
+  const address = (presetAddress ?? (await ask(`${label} address  : `))).trim();
+  if (!address) return null;
 
-  const argAddress = process.argv[2]?.trim();
-  const address = argAddress || (await ask('Gmail address           : '));
-  if (!address || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address)) {
-    console.error('That does not look like an email address.');
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address)) {
+    console.error(`"${address}" does not look like an email address.`);
     process.exit(1);
   }
 
-  const typed = await ask('Google App Password     : ', true);
+  const typed = await ask(`${label} App Password : `, true);
   const appPassword = typed.replace(/\s+/g, '');
   if (!appPassword) {
-    console.error('No App Password given — nothing was changed.');
+    console.error(`No App Password given for ${address} — nothing was changed.`);
     process.exit(1);
   }
   if (appPassword.length !== 16) {
     console.warn(
-      `\n  ! A Google App Password is 16 characters; you gave ${appPassword.length}.\n` +
-        '    Writing it anyway — if it is a normal account password, Gmail will refuse it.\n',
+      `  ! An App Password is 16 characters; you gave ${appPassword.length} for ${address}.\n` +
+        '    Writing it anyway — if it is a normal account password, the provider will refuse it.',
     );
   }
 
-  upsertEnv({
-    SMTP_HOST: 'smtp.gmail.com',
+  const known = PROVIDERS.find((p) => p.match.test(address));
+  let host = known?.host;
+  if (!host) {
+    host = (await ask(`  SMTP host for ${address} (e.g. mail.company.com): `)).trim();
+    if (!host) {
+      console.error(`No SMTP host given for ${address} — nothing was changed.`);
+      process.exit(1);
+    }
+  } else {
+    console.log(`  ${known.name} detected -> ${host}`);
+  }
+
+  return { address, appPassword, host, name: known?.name ?? host };
+}
+
+async function main() {
+  console.log('Eurisko Hub — real password-reset email setup\n');
+  console.log('You can configure TWO senders: the backend uses the first and falls');
+  console.log('back to the second if it fails (e.g. Gmail primary, Outlook backup).\n');
+
+  const first = await readSender(1, process.argv[2]?.trim() || undefined);
+  if (!first) {
+    console.error('No sender address given — nothing was changed.');
+    process.exit(1);
+  }
+  const second = await readSender(2);
+
+  const values = {
+    SMTP_HOST: first.host,
     SMTP_PORT: '587',
     SMTP_SECURE: 'false',
-    SMTP_USER: address,
-    SMTP_PASS: appPassword,
-    MAIL_FROM: `Eurisko Hub <${address}>`,
-  });
+    SMTP_USER: first.address,
+    SMTP_PASS: first.appPassword,
+    MAIL_FROM: `Eurisko Hub <${first.address}>`,
+    SMTP_ALT_HOST: second?.host ?? '',
+    SMTP_ALT_PORT: second ? '587' : '',
+    SMTP_ALT_SECURE: second ? 'false' : '',
+    SMTP_ALT_USER: second?.address ?? '',
+    SMTP_ALT_PASS: second?.appPassword ?? '',
+    SMTP_ALT_FROM: second ? `Eurisko Hub <${second.address}>` : '',
+  };
+  upsertEnv(values);
   console.log(`\nSaved to ${ENV_FILE.replace(`${ROOT}/`, '')} (gitignored — never committed).`);
+  console.log(`  sender 1: ${first.address} via ${first.host}`);
+  console.log(
+    `  sender 2: ${second ? `${second.address} via ${second.host}` : '(none — the first sender is the only one)'}`,
+  );
 
   if (!existsSync(CLIENT)) {
     console.log('\nBuilding the backend (needed for the SMTP client)…');
@@ -147,10 +200,10 @@ async function main() {
     }
   }
 
-  console.log(`\nSending a real test message to ${address} …\n`);
+  console.log(`\nSending real test messages to ${first.address} …\n`);
   const check = spawnSync(
     process.execPath,
-    [join(ROOT, 'scripts', 'verify-mail.mjs'), address],
+    [join(ROOT, 'scripts', 'verify-mail.mjs'), first.address],
     { stdio: 'inherit' },
   );
 
@@ -158,8 +211,8 @@ async function main() {
     console.log('\nDone. Reset links will now be emailed.');
     console.log('Restart the backend so it picks the file up:  cd backend && npm start');
   } else {
-    console.log('\nThe message could not be sent — the output above says why.');
-    console.log('Check the address and the App Password (16 characters, spaces removed).');
+    console.log('\nNo sender could deliver — the output above says why.');
+    console.log('Check the addresses and the App Passwords (16 characters, spaces removed).');
   }
   process.exit(check.status ?? 1);
 }

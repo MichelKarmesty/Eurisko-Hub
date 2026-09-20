@@ -6,6 +6,7 @@ import {
   apiCreateUser,
   apiPatchUserRole,
   apiDeleteUser,
+  apiAdminResetPassword,
   apiMe,
   apiAssignTicket,
   apiCancelTicket,
@@ -374,6 +375,14 @@ function UsersTab() {
   const [notice, setNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
   const [patchingId, setPatchingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [resettingId, setResettingId] = useState<number | null>(null);
+  /**
+   * ADR-007: the last one-time reset link an Admin minted, kept on screen so it
+   * can be copied and handed over. Never persisted anywhere.
+   */
+  const [resetResult, setResetResult] = useState<
+    { name: string; email: string; resetUrl: string; expiresInMinutes: number } | null
+  >(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
@@ -452,6 +461,49 @@ function UsersTab() {
     }
   };
 
+  /**
+   * ADR-007: mint a one-time reset link for a user who forgot their password.
+   * Needs no mail server — the Admin copies the link and hands it over, and the
+   * employee chooses their own new password (the Admin never sees it).
+   */
+  const handleResetPassword = async (user: User) => {
+    setResettingId(user.id);
+    try {
+      const result = await apiAdminResetPassword(user.id);
+      setResetResult({
+        name: user.name,
+        email: result.email,
+        resetUrl: result.resetUrl,
+        expiresInMinutes: result.expiresInMinutes,
+      });
+      setNotice({
+        kind: 'success',
+        text: `One-time reset link created for ${user.name} — hand it over; it expires in ${result.expiresInMinutes} minutes and works once.`,
+      });
+    } catch (err) {
+      setResetResult(null);
+      setNotice({
+        kind: 'error',
+        text: err instanceof Error ? err.message : 'Could not create a reset link.',
+      });
+    } finally {
+      setResettingId(null);
+    }
+  };
+
+  const copyResetLink = async () => {
+    if (!resetResult) return;
+    try {
+      await navigator.clipboard.writeText(resetResult.resetUrl);
+      setNotice({ kind: 'success', text: 'Reset link copied to the clipboard.' });
+    } catch {
+      setNotice({
+        kind: 'error',
+        text: 'Could not copy automatically — select the link and copy it by hand.',
+      });
+    }
+  };
+
   return (
     <div className="stack">
       <Notice kind={notice?.kind ?? 'info'}>{notice?.text}</Notice>
@@ -466,6 +518,38 @@ function UsersTab() {
           then use <strong>Switch account</strong> (top right) to sign in as them and test the
           ticket flow.
         </Notice>
+      )}
+
+      {/* ADR-007: a freshly minted one-time reset link, shown so the Admin can
+          copy it and hand it over. It is never stored anywhere. */}
+      {resetResult && (
+        <section className="card">
+          <h2>Reset link for {resetResult.name}</h2>
+          <p className="muted small">
+            Give this one-time link to <strong>{resetResult.email}</strong>. It expires in{' '}
+            {resetResult.expiresInMinutes} minutes and works once. They choose their own new
+            password — you never see it.
+          </p>
+          <div className="form-row">
+            <input
+              className="input"
+              readOnly
+              value={resetResult.resetUrl}
+              aria-label="One-time password reset link"
+              onFocus={(e) => e.currentTarget.select()}
+            />
+            <button type="button" className="btn" onClick={() => void copyResetLink()}>
+              Copy link
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setResetResult(null)}
+            >
+              Dismiss
+            </button>
+          </div>
+        </section>
       )}
 
       {/* Create user form */}
@@ -569,20 +653,32 @@ function UsersTab() {
                     </select>
                   </td>
                   <td>
-                    {/* Deleting your own account is refused by the backend
-                        (400) — hide the control for your own row instead. */}
-                    {u.id === currentUserId ? (
-                      <span className="muted small">you</span>
-                    ) : (
+                    <div className="admin-actions">
+                      {/* ADR-007: mint a one-time link for anyone who forgot
+                          their password — no mail server required. */}
                       <button
                         type="button"
-                        className="btn btn-danger"
-                        disabled={deletingId === u.id}
-                        onClick={() => void handleDelete(u)}
+                        className="btn btn-ghost"
+                        disabled={resettingId === u.id}
+                        onClick={() => void handleResetPassword(u)}
                       >
-                        {deletingId === u.id ? 'Deleting…' : 'Delete'}
+                        {resettingId === u.id ? 'Creating…' : 'Reset password'}
                       </button>
-                    )}
+                      {/* Deleting your own account is refused by the backend
+                          (400) — hide the control for your own row instead. */}
+                      {u.id === currentUserId ? (
+                        <span className="muted small">you</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn btn-danger"
+                          disabled={deletingId === u.id}
+                          onClick={() => void handleDelete(u)}
+                        >
+                          {deletingId === u.id ? 'Deleting…' : 'Delete'}
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

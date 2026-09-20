@@ -61,8 +61,10 @@ export class UsersService {
   }
 
   /**
-   * Password recovery (`POST /auth/forgot-password`): store the SHA-256 hash of
-   * a fresh one-time reset token with its expiry. The raw token is never stored.
+   * Password recovery (ADR-007): store the SHA-256 hash of a fresh one-time
+   * reset token with its expiry. Used by the Admin-issued link
+   * (`POST /users/:id/reset-password`) and the offline `scripts/reset-password.mjs`
+   * break-glass. The raw token is never stored.
    */
   async setPasswordResetToken(
     id: number,

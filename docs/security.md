@@ -40,10 +40,12 @@ See [ADR-004](decisions/ADR-004.md).
 
 **Before any real deployment:** set a strong `ADMIN_PASSWORD` and a real
 `JWT_SECRET` (the default is a development value), give the Admin a deliverable
-email address, configure a mail provider (`SMTP_HOST` for Gmail / Outlook /
-a company server, or `MAIL_WEBHOOK_URL` / `RESEND_API_KEY`) so password-reset
-links actually reach people, and preferably change the seeded Admin password
-after first login.
+email address, and preferably change the seeded Admin password after first login.
+Password recovery works with **no** mail provider (ADR-007): an Admin issues
+one-time links from the app, and `scripts/reset-password.mjs` covers a locked-out
+lone Admin. With a provider configured (`SMTP_HOST` / `MAIL_WEBHOOK_URL` /
+`RESEND_API_KEY`), the self-service **Forgot password?** path emails the link
+instead (ADR-008).
 
 ## Authorization model
 
@@ -90,19 +92,30 @@ guards are `JwtAuthGuard` (a valid bearer token is required unless a route is
   reads its query from a plain object, so unknown query parameters there are
   ignored rather than rejected.
 
-## Password recovery and change (ADR-005)
+## Password reset and change (ADR-005, ADR-007, ADR-008)
 
 * **A password is never "retrieved".** bcrypt is one-way; the capability is to
   **reset** a password (forgot it) or **change** it (signed in).
-* `POST /auth/forgot-password` answers with the **same generic message for every
-  address**, registered or not, active or not — like login, it cannot be used to
-  discover accounts. The **response shape** is only identical in production,
-  though: outside production the deliberate development convenience returns the
-  one-time token (`resetToken` / `resetUrl`) when — and only when — the address is
-  registered and active, so the flow is demonstrable with no mail server. Set
-  `PASSWORD_RESET_RETURN_TOKEN=false` (or run with `NODE_ENV=production`, which
-  forces it off) if the endpoint is reachable by people who should not be able to
-  probe for accounts.
+* **Recovery is self-service first (ADR-008).** `POST /auth/forgot-password`
+  mails a one-time link to the account's address and **always answers the same
+  generic message** — registered or not, active or not — so it cannot be used to
+  enumerate accounts. A per-address cooldown (`PASSWORD_RESET_COOLDOWN_SECONDS`,
+  default 60 s) stops it being used to mail-bomb a victim: a repeat request
+  inside the window gets the generic answer but mints and sends nothing.
+* **Delivery never breaks recovery.** `MailService` tries the first configured
+  transport that works — built-in SMTP (`SMTP_HOST`…), then the **backup SMTP
+  server** (`SMTP_ALT_HOST`…, e.g. Gmail primary and Outlook backup),
+  `MAIL_WEBHOOK_URL`, `RESEND_API_KEY` — and finally prints the message to the
+  backend console, so a missing or misconfigured provider can never silently
+  swallow a reset. Outside production the one-time token is additionally
+  returned in the response (`PASSWORD_RESET_RETURN_TOKEN`; `NODE_ENV=production`
+  always suppresses it).
+* **Admin-initiated as a fallback (ADR-007).** An Admin mints a one-time link
+  with `POST /users/:id/reset-password` and hands it over; the employee completes
+  it at `POST /auth/reset-password`. For a **lone Admin who has locked
+  themselves out**, the offline `scripts/reset-password.mjs` mints the same
+  token straight into the database (run it with the backend stopped, so the API
+  cannot overwrite the change).
 * A reset token is `randomBytes(32)`. The database stores **only its SHA-256
   hash** (both reset fields are `@Exclude()`d and never appear in a response —
   pinned by a regression test in `backend/test/auth-password.spec.ts`, because a
@@ -112,19 +125,19 @@ guards are `JwtAuthGuard` (a valid bearer token is required unless a route is
 * **Single use:** `POST /auth/reset-password` consumes the token; a second
   attempt with the same link is a generic `400`. Changing the password through
   *either* path clears any outstanding token, so an old link cannot outlive the
-  change.
+  change; issuing a new link invalidates the previous one.
 * `POST /auth/change-password` requires the **current** password. A stolen
   session token alone cannot take the account over.
-* **Mail delivery never breaks recovery.** With no provider configured the
-  message (including the reset link) is printed to the backend console; a
-  provider failure falls back to the console instead of throwing. Set
-  `SMTP_HOST` (+ `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` — an app password for
-  Gmail/Outlook) or `MAIL_WEBHOOK_URL` (+ `MAIL_WEBHOOK_TOKEN`) or
-  `RESEND_API_KEY` (+ `MAIL_FROM`) for real delivery.
-* **Development convenience:** outside production the one-time token is also
-  returned in the response so the flow is demonstrable with no mail server.
-  `NODE_ENV=production` always removes it (`PASSWORD_RESET_RETURN_TOKEN` cannot
-  turn it back on); real deployments rely on the email link alone.
+* **The Admin never sees or chooses the password.** Whether the link was emailed
+  or hand-delivered, the employee sets their own — the Admin cannot read the
+  password afterwards (bcrypt is one-way) and never types it.
+* **Issuing a link is powerful, so it is authorized and logged.** A reset link is
+  a credential: whoever holds it can set that account's password. Minting one is
+  Admin-only (`403` otherwise) and the `AdminReset` logger records which Admin
+  issued a link for which account and when; the endpoint refuses a deactivated
+  account (`400`). The project has no user-action audit table (only tickets carry
+  events), so the log is the trace. Treat the link like a password — anyone who
+  can read the Admin's screen or the API response can use it until it expires.
 * Reset links do **not** revoke already-issued JWTs. Session revocation
   (`passwordChangedAt`/token versioning) is a documented non-goal for the MVP, so
   set a short `JWT_EXPIRES_IN` and a strong `JWT_SECRET` in production.

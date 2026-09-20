@@ -41,7 +41,9 @@ export class User {
   isActive: boolean;
 
   /**
-   * Password recovery (`POST /auth/forgot-password`, `POST /auth/reset-password`).
+   * Password recovery (ADR-007: an Admin-issued link, or the offline
+   * `scripts/reset-password.mjs` break-glass), completed at
+   * `POST /auth/reset-password`.
    *
    * The raw one-time token only ever travels in the reset link; the database
    * keeps its SHA-256 **hash** (never the token itself) plus an expiry, so a

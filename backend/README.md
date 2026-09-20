@@ -11,11 +11,12 @@ NestJS + TypeORM implementation of the Internal Operations Service Hub
   history recorded durably in a `ticket_events` table
 - **No public registration** (ADR-004): the backend seeds only the Admin; the
   Admin creates every other account via the Admin-only Users API
-- **Password recovery & change** (v0.5, ADR-005): one-time emailed reset links
-  (stored only as an expiring SHA-256 hash) plus an authenticated change that
-  requires the current password. Mail is console-first (`src/mail/`) — no
+- **Password recovery & change** (v0.5, ADR-005/007/008): one-time emailed reset
+  links (stored only as an expiring SHA-256 hash) plus an authenticated change
+  that requires the current password. Mail is console-first (`src/mail/`) — no
   dependency — with **SMTP** (`SMTP_HOST`, for Gmail / Outlook / any mail server),
-  `MAIL_WEBHOOK_URL` or `RESEND_API_KEY` for real delivery
+  `MAIL_WEBHOOK_URL` or `RESEND_API_KEY` for real delivery; an Admin-issued
+  one-time link (`POST /users/:id/reset-password`) covers no-mail deployments
 - **Any real email address is accepted** (Gmail, Hotmail/Outlook, Yahoo, a
   company domain); `@eurisko.com` is only the development default for the Admin
 - **AI-assisted intake** (v0.4, docs/week4-production-ai.md): an advisory
@@ -58,7 +59,9 @@ npm run test:watch       # watch mode
 | `APP_BASE_URL` | `http://localhost:5173` | Front of the password-reset link (`…/?resetToken=…`) |
 | `PASSWORD_RESET_TTL_MINUTES` | `30` | How long a reset link stays valid |
 | `PASSWORD_RESET_RETURN_TOKEN` | `true` outside production | Return the one-time token in the response (development; **always off** when `NODE_ENV=production`) |
+| `PASSWORD_RESET_COOLDOWN_SECONDS` | `60` | At most one forgot-password email per address in this window (anti mail-bomb) |
 | `SMTP_HOST` / `SMTP_PORT` | *(unset)* / `587` | Standard SMTP (Gmail, Outlook/Hotmail, company); `SMTP_SECURE=true` for port 465 |
+| `SMTP_ALT_HOST` / `SMTP_ALT_PORT` | *(unset)* / `587` | Optional **second** sender, tried when the first fails (ADR-008); same `SMTP_ALT_*` variables plus `SMTP_ALT_FROM` |
 | `SMTP_USER` / `SMTP_PASS` | *(unset)* | SMTP login — use an **App Password** when 2FA is on |
 | `MAIL_WEBHOOK_URL` / `MAIL_WEBHOOK_TOKEN` | *(unset)* | Optional: POST `{ to, subject, text }` to an HTTPS mail relay |
 | `RESEND_API_KEY` | *(unset)* | Optional: real delivery through Resend's HTTP API |
@@ -115,11 +118,16 @@ next boot creates one (an existing Admin is never duplicated or reset). See
 Passwords are bcrypt-hashed and can never be retrieved; recovery issues a
 one-time link whose **hash** (never the token) and 30-minute expiry are stored,
 and `POST /auth/change-password` re-checks the current password. Forgot-password
-answers identically for unknown emails, so accounts cannot be enumerated. With
-no mail provider configured the reset message is printed to this process's
-console — set `SMTP_HOST` (Gmail/Outlook/company), `MAIL_WEBHOOK_URL` or
-`RESEND_API_KEY` before deployment so it reaches the user instead. See
-[ADR-005](../docs/decisions/ADR-005.md).
+answers identically for unknown emails, so accounts cannot be enumerated, and a
+per-address cooldown stops it being used to mail-bomb someone. With no mail
+provider configured the reset message is printed to this process's console —
+set `SMTP_HOST` (Gmail/Outlook/company), `MAIL_WEBHOOK_URL` or
+`RESEND_API_KEY` before deployment so it reaches the user instead. An Admin can
+also mint a one-time link for a colleague (`POST /users/:id/reset-password`) with
+no mail at all, and a locked-out lone Admin uses `scripts/reset-password.mjs`
+offline. See [ADR-005](../docs/decisions/ADR-005.md),
+[ADR-007](../docs/decisions/ADR-007.md) and
+[ADR-008](../docs/decisions/ADR-008.md).
 
 ## Quick start
 ```bash

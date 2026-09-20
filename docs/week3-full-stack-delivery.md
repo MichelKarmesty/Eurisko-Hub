@@ -40,8 +40,8 @@ The app cannot be exercised end to end before that step.
    (`ADMIN_EMAIL` / `ADMIN_PASSWORD` override both). This is the only account
    that exists on a fresh database. `@eurisko.com` is only the development
    default: new accounts accept **any real email address** (Gmail,
-   Hotmail/Outlook, Yahoo, a company domain), and a forgotten password can be
-   reset from the sign-in screen's **Forgot password?** link (ADR-005). The
+   Hotmail/Outlook, Yahoo, a company domain), and a forgotten password is reset
+   with an Admin-issued one-time link (ADR-007). The
    `@eurisko.com` addresses used as examples below are just fixtures.
 
 4. **Create the people the scenario needs** on the **👥 Users** tab — the tab
@@ -204,10 +204,11 @@ why. A missing/blank reason → `400`; a `Resolved`/`Cancelled` ticket → `403`
 Admin through `POST /users` (Admin-only, explicit role). A wrong email and a
 wrong password both return the same generic `401`.
 
-> Since v0.5 the public `POST /auth/forgot-password` and
-> `POST /auth/reset-password` routes recover an **existing** account (ADR-005)
-> and `POST /auth/change-password` is authenticated; none of them can create an
-> account. Any real email domain is accepted. See [api.md](api.md).
+> Since ADR-007 `POST /auth/reset-password` (public, completed with an
+> Admin-issued one-time token) recovers an **existing** account and
+> `POST /auth/change-password` is authenticated; neither can create an account,
+> and the self-service `POST /auth/forgot-password` was removed. Any real email
+> domain is accepted. See [api.md](api.md).
 
 ### `GET /tickets` — role-scoped list
 
@@ -385,13 +386,15 @@ $ cd backend && npm test
  ✓ test/admin-user-deletion.spec.ts           ( 6 tests)  account deletion + audit
  Test Files  5 passed (5)   Tests  48 passed (48)
 
-> **Added after this record.** Two suites landed later — `backend/test/ai-intake-eval.spec.ts`
-> (Week 4 AI intake, [`week4-production-ai.md`](week4-production-ai.md)) and
-> `backend/test/auth-password.spec.ts` (ADR-005 password recovery) — and three more
-> since (`admin-role-change.spec.ts`, `admin-user-deletion.spec.ts`, `mail-smtp.spec.ts`),
-> so `npm test` now runs **9 spec files** (five AI-eval cases skip when no AI
-> provider is running), and `npm run test:ai-eval` runs the AI evals on their own.
-> The Week 3 numbers above are kept as the record of that delivery.
+> **Added after this record.** Several suites landed later — `ai-intake-eval.spec.ts`
+> (Week 4 AI intake, [`week4-production-ai.md`](week4-production-ai.md)),
+> `auth-password.spec.ts`, `admin-role-change.spec.ts`,
+> `admin-user-deletion.spec.ts`, and `admin-reset-password.spec.ts` (ADR-007) — so
+> `npm test` runs **9 spec files** (five AI-eval cases skip when no AI provider is
+> running), and `npm run test:ai-eval` runs the AI evals on their own. The
+> `mail-smtp.spec.ts` suite that shipped with ADR-005 was removed together with the
+> mail subsystem (ADR-007). The Week 3 numbers above are kept as the record of that
+> delivery.
 
 $ node scripts/verify-slice.mjs full
  28/28 checks passed   (live HTTP definition of done, fresh database)

@@ -18,13 +18,15 @@ function clearResetTokenFromUrl() {
 }
 
 /**
- * Sign in, and the two password-recovery paths.
+ * Sign in, and the password-recovery paths.
  *
  * This is an internal tool, so there is **no public registration** (ADR-004):
  * the backend seeds exactly one Admin account, and that Admin creates every
- * other account (employees and agents) from the **Users** tab. The screen is
- * therefore a plain email + password form — plus **"Forgot password?"**, which
- * emails a one-time link, and the reset form that link opens.
+ * other account (employees and agents) from the **Users** tab. Recovery is
+ * **self-service** (ADR-008): **"Forgot password?"** mails a one-time link to
+ * the account's address, and that link opens this screen's reset form. An
+ * Admin can additionally mint a one-time link for a colleague (**Users →
+ * Reset password**, ADR-007) and hand the link over.
  *
  * Any real email address is accepted here: a personal provider such as Gmail,
  * Hotmail/Outlook or Yahoo, or a company domain. The app never ties accounts to
@@ -72,15 +74,16 @@ export function AuthScreen({ onAuthed }: { onAuthed: (session: Session) => void 
     setNotice(null);
     try {
       const res = await apiForgotPassword(forgotEmail.trim());
-      if (res.resetToken) {
-        // No mail server configured (development/demo): carry the one-time
-        // token straight into the reset form instead of pretending it was
-        // emailed. A real deployment delivers it by email and this branch
-        // never runs.
+      if (res.resetToken && res.delivery === 'console') {
+        // No mail reached an inbox (no provider configured, or every provider
+        // failed): carry the one-time link straight into the reset form instead
+        // of pretending it was emailed. A real deployment delivers it by email
+        // and this branch never runs.
         setResetToken(res.resetToken);
         setNotice(
-          `${res.message} No mail provider is configured, so here is your one-time link — set a new password below.`,
+          `${res.message} No mail was actually sent, so here is your one-time link: ${res.resetUrl} — choose a new password below.`,
         );
+        setMode('reset');
       } else {
         setNotice(res.message);
       }
@@ -191,13 +194,6 @@ export function AuthScreen({ onAuthed }: { onAuthed: (session: Session) => void 
             <div className="full auth-actions">
               <button className="btn btn-primary" disabled={busy}>
                 {busy ? 'Please wait…' : 'Send reset link'}
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => goTo('reset')}
-              >
-                I have a reset token
               </button>
               <button
                 type="button"

@@ -2,16 +2,20 @@
  * PASSWORD RECOVERY + CHANGE — HTTP contract tests.
  *
  * Boots the whole application over the same HTTP pipeline as `main.ts` and
- * drives it with supertest, pinning the behaviour of the two recovery paths
- * added on top of login:
+ * drives it with supertest, pinning the behaviour of the recovery paths on top
+ * of login:
  *
- *   FORGOT   POST /auth/forgot-password  -> always the same generic 200 answer
+ *   FORGOT   POST /auth/forgot-password  -> always the same generic 200 answer,
+ *                                           mails a one-time link when the
+ *                                           account exists (ADR-008)
+ *   ISSUE    POST /users/:id/reset-password -> Admin mints a one-time link
+ *                                           (ADR-007, own spec too)
  *   RESET    POST /auth/reset-password   -> one-time token, then new password
  *   CHANGE   POST /auth/change-password  -> signed in, current password required
  *
  * It also proves the "any real email" rule: accounts are created (by the Admin)
- * and recovered under gmail.com / hotmail.com / outlook.com addresses, and a
- * malformed address is the only thing the API rejects.
+ * under gmail.com / hotmail.com / outlook.com addresses, and a malformed address
+ * is the only thing the API rejects.
  */
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -21,8 +25,10 @@ import { configureApp } from '../src/app.setup';
 
 // The reset token may only be echoed back outside production; the tests run
 // with NODE_ENV=test and rely on that development behaviour to complete the
-// flow without a mail server. Make it explicit rather than implicit.
+// flow without a mail server. Make it explicit rather than implicit, and turn
+// the anti mail-bomb cooldown off so each test can mint freely.
 process.env.PASSWORD_RESET_RETURN_TOKEN = 'true';
+process.env.PASSWORD_RESET_COOLDOWN_SECONDS = '0';
 
 const PASSWORD = 'password123';
 const NEW_PASSWORD = 'brand-new-pass-456';
@@ -44,11 +50,20 @@ describe('Password recovery and change over HTTP', () => {
       .post('/users')
       .set(auth(adminToken))
       .send({ name, email, password, role: 'Employee' });
-    return { email, password, status: created.status, body: created.body };
+    return { email, password, id: created.body?.id as number, status: created.status, body: created.body };
   }
 
   async function login(email: string, password: string) {
     return request(http).post('/auth/login').send({ email, password });
+  }
+
+  /** Mint a one-time reset link for an account the way an Admin would. */
+  async function issueReset(id: number): Promise<string> {
+    const res = await request(http)
+      .post(`/users/${id}/reset-password`)
+      .set(auth(adminToken));
+    expect(res.status).toBe(200);
+    return res.body.resetToken as string;
   }
 
   beforeAll(async () => {
@@ -85,17 +100,30 @@ describe('Password recovery and change over HTTP', () => {
 
   it('rejects a malformed address and an unknown DTO field (400)', async () => {
     const badEmail = await request(http)
-      .post('/auth/forgot-password')
-      .send({ email: 'not-an-email' });
+      .post('/users')
+      .set(auth(adminToken))
+      .send({ name: 'Bad Email', email: 'not-an-email', password: PASSWORD, role: 'Employee' });
     expect(badEmail.status).toBe(400);
 
     const unknownField = await request(http)
+      .post('/users')
+      .set(auth(adminToken))
+      .send({ name: 'Extra', email: `x.${run}@gmail.com`, password: PASSWORD, role: 'Employee', admin: true });
+    expect(unknownField.status).toBe(400);
+
+    // The same DTO rules guard the public recovery endpoint.
+    const badForgot = await request(http)
+      .post('/auth/forgot-password')
+      .send({ email: 'not-an-email' });
+    expect(badForgot.status).toBe(400);
+
+    const unknownForgotField = await request(http)
       .post('/auth/forgot-password')
       .send({ email: `x.${run}@gmail.com`, role: 'Admin' });
-    expect(unknownField.status).toBe(400);
+    expect(unknownForgotField.status).toBe(400);
   });
 
-  // --- Forgot password: step 1 -------------------------------------------
+  // --- Forgot password: step 1 (self-service, ADR-008) --------------------
 
   it('answers generically for an unknown email and never leaks a token', async () => {
     const res = await request(http)
@@ -104,6 +132,119 @@ describe('Password recovery and change over HTTP', () => {
     expect(res.status).toBe(200);
     expect(String(res.body.message)).toMatch(/if that email is registered/i);
     expect(res.body.resetToken).toBeUndefined();
+    expect(res.body.delivery).toBeUndefined();
+  });
+
+  it('answers generically for a deleted account and mints nothing', async () => {
+    const email = `gone.${run}@gmail.com`;
+    const created = await provision(email);
+    expect(created.status).toBe(201);
+
+    // The account has no history, so DELETE really removes it — a forgotten
+    // password for a row that no longer exists must stay indistinguishable
+    // from a never-registered address.
+    const deleted = await request(http)
+      .delete(`/users/${created.id}`)
+      .set(auth(adminToken));
+    expect(deleted.status).toBe(200);
+
+    const res = await request(http).post('/auth/forgot-password').send({ email });
+    expect(res.status).toBe(200);
+    expect(String(res.body.message)).toMatch(/if that email is registered/i);
+    expect(res.body.resetToken).toBeUndefined();
+  });
+
+  it('returns the dev token with its URL and delivery channel when allowed', async () => {
+    const email = `devtoken.${run}@gmail.com`;
+    expect((await provision(email)).status).toBe(201);
+
+    const res = await request(http).post('/auth/forgot-password').send({ email });
+    expect(res.status).toBe(200);
+    expect(res.body.resetToken).toMatch(/^[0-9a-f]{64}$/);
+    expect(res.body.resetUrl).toBe(
+      `http://localhost:5173/?resetToken=${res.body.resetToken}`,
+    );
+    // No mail provider is configured in the test environment, so MailService
+    // falls through to its console transport — proving the send path ran.
+    expect(res.body.delivery).toBe('console');
+  });
+
+  it('never returns the dev token in production, even without mail configured', async () => {
+    const email = `prodtoken.${run}@gmail.com`;
+    expect((await provision(email)).status).toBe(201);
+
+    const previous = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      const res = await request(http)
+        .post('/auth/forgot-password')
+        .send({ email });
+      expect(res.status).toBe(200);
+      expect(String(res.body.message)).toMatch(/if that email is registered/i);
+      expect(res.body.resetToken).toBeUndefined();
+      expect(res.body.resetUrl).toBeUndefined();
+    } finally {
+      process.env.NODE_ENV = previous;
+    }
+  });
+
+  it('throttles repeated requests for one address (anti mail-bomb)', async () => {
+    const email = `spammed.${run}@gmail.com`;
+    expect((await provision(email)).status).toBe(201);
+
+    const previous = process.env.PASSWORD_RESET_COOLDOWN_SECONDS;
+    process.env.PASSWORD_RESET_COOLDOWN_SECONDS = '3600';
+    try {
+      const first = await request(http)
+        .post('/auth/forgot-password')
+        .send({ email });
+      expect(first.status).toBe(200);
+      expect(first.body.resetToken).toBeTruthy();
+
+      const second = await request(http)
+        .post('/auth/forgot-password')
+        .send({ email });
+      expect(second.status).toBe(200);
+      expect(String(second.body.message)).toMatch(/if that email is registered/i);
+      // Same generic answer, but no fresh mint inside the cooldown window.
+      expect(second.body.resetToken).toBeUndefined();
+      expect(second.body.resetUrl).toBeUndefined();
+    } finally {
+      process.env.PASSWORD_RESET_COOLDOWN_SECONDS = previous;
+    }
+  });
+
+  it('resets a forgotten password with an emailed one-time token, then consumes it', async () => {
+    const email = `forgetful.mail.${run}@gmail.com`;
+    expect((await provision(email)).status).toBe(201);
+
+    const forgot = await request(http)
+      .post('/auth/forgot-password')
+      .send({ email });
+    expect(forgot.status).toBe(200);
+    expect(String(forgot.body.message)).toMatch(/if that email is registered/i);
+    const token = forgot.body.resetToken as string;
+    expect(token).toHaveLength(64); // randomBytes(32).toString('hex')
+
+    // The old password still works until the reset completes.
+    expect((await login(email, PASSWORD)).status).toBe(200);
+
+    const reset = await request(http)
+      .post('/auth/reset-password')
+      .send({ token, password: NEW_PASSWORD });
+    expect(reset.status).toBe(200);
+    expect(String(reset.body.message)).toMatch(/password has been changed/i);
+
+    // The old password is gone; the new one works.
+    expect((await login(email, PASSWORD)).status).toBe(401);
+    expect((await login(email, NEW_PASSWORD)).status).toBe(200);
+
+    // A one-time token cannot be replayed.
+    const replay = await request(http)
+      .post('/auth/reset-password')
+      .send({ token, password: 'yet-another-pass-789' });
+    expect(replay.status).toBe(400);
+    expect(String(replay.body.message)).toMatch(/invalid or has expired/i);
   });
 
   // --- The stored reset secret never rides along on a user payload --------
@@ -114,8 +255,7 @@ describe('Password recovery and change over HTTP', () => {
     expect(created.status).toBe(201);
 
     // Put a live reset token on the account, so both fields are non-null...
-    const forgot = await request(http).post('/auth/forgot-password').send({ email });
-    expect(forgot.status).toBe(200);
+    await issueReset(created.id);
 
     // ...then check every endpoint that returns a user object.
     const signIn = await login(email, PASSWORD);
@@ -147,19 +287,14 @@ describe('Password recovery and change over HTTP', () => {
     expect(Object.keys(role.body)).not.toContain('passwordHash');
   });
 
-  // --- Full recovery: forgot -> reset -> sign in --------------------------
+  // --- Reset: Admin-issued link -> new password -> sign in ----------------
 
-  it('resets a forgotten password with the one-time token, then consumes the token', async () => {
+  it('completes a reset with an Admin-issued one-time token, then consumes it', async () => {
     const email = `forgetful.${run}@gmail.com`;
-    expect((await provision(email)).status).toBe(201);
+    const account = await provision(email);
+    expect(account.status).toBe(201);
 
-    const forgot = await request(http)
-      .post('/auth/forgot-password')
-      .send({ email });
-    expect(forgot.status).toBe(200);
-    expect(String(forgot.body.message)).toMatch(/if that email is registered/i);
-    const token = forgot.body.resetToken as string;
-    expect(token).toBeTruthy();
+    const token = await issueReset(account.id);
     expect(token).toHaveLength(64); // randomBytes(32).toString('hex')
 
     // The old password still works until the reset completes.
@@ -183,7 +318,7 @@ describe('Password recovery and change over HTTP', () => {
     expect(String(replay.body.message)).toMatch(/invalid or has expired/i);
   });
 
-  it('rejects an unknown or malformed reset token (400)', async () => {
+  it('rejects an unknown or malformed reset token, and a too-weak password (400)', async () => {
     const unknown = await request(http)
       .post('/auth/reset-password')
       .send({ token: 'a'.repeat(64), password: NEW_PASSWORD });
@@ -236,13 +371,10 @@ describe('Password recovery and change over HTTP', () => {
 
   it('a change of password invalidates an outstanding reset link', async () => {
     const email = `both-paths.${userSeq}.${run}@outlook.com`;
-    expect((await provision(email)).status).toBe(201);
+    const account = await provision(email);
+    expect(account.status).toBe(201);
 
-    const forgot = await request(http)
-      .post('/auth/forgot-password')
-      .send({ email });
-    const token = forgot.body.resetToken as string;
-    expect(token).toBeTruthy();
+    const token = await issueReset(account.id);
 
     const session = await login(email, PASSWORD);
     const change = await request(http)

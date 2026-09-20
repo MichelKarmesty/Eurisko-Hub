@@ -7,6 +7,7 @@
  * or to VITE_API_BASE when set.
  */
 import type {
+  AdminResetResult,
   AiIntakeResult,
   Category,
   Priority,
@@ -99,16 +100,25 @@ export interface ForgotPasswordResult {
    */
   resetToken?: string;
   resetUrl?: string;
-  /** How the message actually left the backend: console, webhook or Resend. */
-  delivery?: 'console' | 'webhook' | 'resend';
+  /** How the message actually left the backend: smtp, smtp-alt, webhook, resend or console. */
+  delivery?: 'smtp' | 'smtp-alt' | 'webhook' | 'resend' | 'console';
 }
 
-/** "I forgot my password" — emails a one-time reset link (step 1). */
+/**
+ * "I forgot my password" — step 1 (ADR-008): emails a one-time reset link to
+ * the account's address. The answer is always the same generic message so the
+ * endpoint cannot enumerate accounts; with no mail provider configured (or as a
+ * dev convenience) the token is returned so the flow stays demonstrable.
+ */
 export function apiForgotPassword(email: string): Promise<ForgotPasswordResult> {
   return request<ForgotPasswordResult>('POST', '/auth/forgot-password', { email });
 }
 
-/** Complete a reset with the token from the link and the new password (step 2). */
+/**
+ * Complete a reset with the one-time token from an emailed (ADR-008) or
+ * **Admin-issued** (ADR-007: `apiAdminResetPassword`, or
+ * `scripts/reset-password.mjs`) link and the new password (step 2).
+ */
 export function apiResetPassword(
   token: string,
   password: string,
@@ -234,4 +244,14 @@ export function apiDeleteUser(
   id: number,
 ): Promise<{ id: number; email: string; mode: 'deleted' | 'deactivated' }> {
   return request('DELETE', `/users/${id}`);
+}
+
+/**
+ * ADR-007: Admin-initiated password recovery — mints a one-time reset link for
+ * an account and returns it, so the Admin can hand it to the employee. Needs no
+ * mail provider; the employee sets their own password and the Admin never sees
+ * it. Single-use and time-limited (docs/security.md).
+ */
+export function apiAdminResetPassword(id: number): Promise<AdminResetResult> {
+  return request<AdminResetResult>('POST', `/users/${id}/reset-password`);
 }

@@ -19,8 +19,9 @@ export class LoginDto {
 }
 
 /**
- * POST /auth/forgot-password — public. Always answers the same generic message
- * (registered or not), so it cannot be used to enumerate accounts.
+ * POST /auth/forgot-password — public, step 1 of recovery. Always answers the
+ * same generic message (registered or not), so it cannot be used to enumerate
+ * accounts.
  */
 export class ForgotPasswordDto {
   @IsEmail()
@@ -28,9 +29,12 @@ export class ForgotPasswordDto {
 }
 
 /**
- * POST /auth/reset-password — public. The one-time `token` comes from the reset
- * link/email; `token` is a 64-char hex string, so the 20-char floor rejects
- * obviously malformed input before it reaches the service.
+ * POST /auth/reset-password — public, step 2 of recovery. The one-time `token`
+ * comes from the reset link/email — self-service (`POST /auth/forgot-password`,
+ * ADR-008), **Admin-issued** (`POST /users/:id/reset-password`, ADR-007) or the
+ * offline `scripts/reset-password.mjs` break-glass. `token` is a 64-char hex
+ * string, so the 20-char floor rejects obviously malformed input before it
+ * reaches the service.
  */
 export class ResetPasswordDto {
   @IsString()

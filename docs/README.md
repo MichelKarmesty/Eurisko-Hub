@@ -10,12 +10,14 @@ This folder contains the decisions and working notes behind the Internal Operati
 5. [decisions/ADR-002.md](decisions/ADR-002.md) - explains the Admin override policy: an Admin may act on an unclaimed ticket, but only with a mandatory, recorded reason.
 6. [decisions/ADR-003.md](decisions/ADR-003.md) - explains Admin assignment and soft cancellation: give urgent tickets an owner, retire junk requests, never hard-delete.
 7. [decisions/ADR-004.md](decisions/ADR-004.md) - explains why there is no public registration: only the Admin is seeded and the Admin creates every account.
-8. [decisions/ADR-005.md](decisions/ADR-005.md) - explains password recovery and password change: one-time emailed reset links (hashed, expiring, single-use), an authenticated change, and why any real email address is accepted.
+8. [decisions/ADR-005.md](decisions/ADR-005.md) - explains password **reset** and password **change**: hashed, expiring, single-use one-time tokens, an authenticated change, and why any real email address is accepted. (Its self-service email path was removed by ADR-007 and restored by ADR-008; the token and change mechanics stand throughout.)
 9. [decisions/ADR-006.md](decisions/ADR-006.md) - explains why the AI-assisted intake is **advisory only**: it suggests form fields, never creates or changes a ticket, validates model output, and falls back to a labelled offline classifier — the decision that scopes the MVP's original "no AI" non-goal.
-10. [api.md](api.md) - documents the NestJS backend API (in `../backend/`) that implements this design.
-11. [security.md](security.md) - the seeded Admin, the no-public-registration rule, the authorization model, and the password-recovery lifecycle.
-12. [week3-full-stack-delivery.md](week3-full-stack-delivery.md) - the Week 3 delivery record: the integrated slice, its API contract, the authorization rule and its allowed/denied cases, and the automated tests that protect the behaviour.
-13. [week4-production-ai.md](week4-production-ai.md) - the Week 4 delivery record: the AI-assisted Request Intake capability, why it is advisory-only, the validation layer, the graceful fallback, how to run it, and the eval results.
+10. [decisions/ADR-007.md](decisions/ADR-007.md) - explains Admin-initiated password reset: the Admin mints a one-time link for a colleague who forgot theirs and never sees or sets the password; kept as the no-mail fallback alongside the offline CLI break-glass.
+11. [decisions/ADR-008.md](decisions/ADR-008.md) - explains the restoration of self-service **forgot password**: the one-time link is emailed through the built-in mail transports (SMTP → webhook → Resend → console), with a non-enumerating generic answer and an anti mail-bomb cooldown.
+12. [api.md](api.md) - documents the NestJS backend API (in `../backend/`) that implements this design.
+13. [security.md](security.md) - the seeded Admin, the no-public-registration rule, the authorization model, and the password-recovery lifecycle.
+14. [week3-full-stack-delivery.md](week3-full-stack-delivery.md) - the Week 3 delivery record: the integrated slice, its API contract, the authorization rule and its allowed/denied cases, and the automated tests that protect the behaviour.
+15. [week4-production-ai.md](week4-production-ai.md) - the Week 4 delivery record: the AI-assisted Request Intake capability, why it is advisory-only, the validation layer, the graceful fallback, how to run it, and the eval results.
 
 ## Purpose of these documents
 They are the living record of the delivered product, not a pre-build plan: the product specification, the architecture, the data model, and the decisions behind them, kept in step with the code in `../backend/` and `../frontend/`. Each document states what was decided, why, and where it is implemented.

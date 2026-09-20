@@ -15,7 +15,11 @@ import { AuthUser, CurrentUser, Public } from '../common/auth.decorators';
  * Outlook, Yahoo, a company domain…); the app never restricts accounts to one
  * domain.
  *
- * Public routes: `POST /auth/login`, `POST /auth/forgot-password` and
+ * Public routes: `POST /auth/login`, `POST /auth/forgot-password` (step 1 of
+ * recovery, ADR-008) and `POST /auth/reset-password` (step 2). Recovery is
+ * therefore **self-service**: the reset link is emailed through MailService.
+ * An Admin can additionally mint a one-time link for a colleague
+ * (ADR-007, `POST /users/:id/reset-password`) that completes through the same
  * `POST /auth/reset-password`. Changing a password while signed in
  * (`POST /auth/change-password`) requires a bearer token.
  */
@@ -32,9 +36,9 @@ export class AuthController {
   }
 
   /**
-   * POST /auth/forgot-password — public. "I forgot my password": starts the
-   * reset by email. Always returns the same generic message so the endpoint
-   * cannot reveal which emails are registered.
+   * POST /auth/forgot-password — public, step 1. Always answers the same
+   * generic message so it cannot enumerate accounts; when the account exists,
+   * the reset link is emailed (see MailService for the transports).
    */
   @Public()
   @HttpCode(HttpStatus.OK)
@@ -44,8 +48,8 @@ export class AuthController {
   }
 
   /**
-   * POST /auth/reset-password — public. Completes the reset with the one-time
-   * token from the link plus the new password.
+   * POST /auth/reset-password — public, step 2. Completes the reset with the
+   * one-time token from an emailed or Admin-issued link plus the new password.
    */
   @Public()
   @HttpCode(HttpStatus.OK)

@@ -9,15 +9,12 @@ import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
 import { publicUser, User } from '../users/user.entity';
 import { MailService } from '../mail/mail.service';
-import {
-  ChangePasswordDto,
-  ForgotPasswordDto,
-  LoginDto,
-  ResetPasswordDto,
-} from './dto';
+import { ChangePasswordDto, ForgotPasswordDto, LoginDto, ResetPasswordDto } from './dto';
 
 /** Reset links live for 30 minutes unless PASSWORD_RESET_TTL_MINUTES says otherwise. */
 const DEFAULT_RESET_TTL_MINUTES = 30;
+/** One forgot-password email per address per 60 s unless overridden. */
+const DEFAULT_FORGOT_COOLDOWN_SECONDS = 60;
 /** Every public answer for "forgot password" is identical (no account enumeration). */
 const GENERIC_FORGOT_MESSAGE =
   'If that email is registered, a password reset link has been sent.';
@@ -53,14 +50,18 @@ export class AuthService {
   }
 
   /**
-   * POST /auth/forgot-password — public, step 1 of recovery.
+   * POST /auth/forgot-password — public, step 1 of recovery (ADR-008).
    *
    * Passwords are bcrypt-hashed, so they can never be *retrieved* — the
    * capability is to **reset** one. The answer is always the generic message
    * (registered or not, active or not) so the endpoint cannot enumerate
    * accounts. When the account does exist and is active, a single-use token is
    * generated, stored only as a SHA-256 hash with an expiry, and the reset link
-   * is handed to MailService.
+   * is handed to MailService (SMTP → webhook → Resend → console).
+   *
+   * A per-email cooldown (`PASSWORD_RESET_COOLDOWN_SECONDS`, default 60) stops
+   * the endpoint being used to mail-bomb a victim: a repeat request inside the
+   * window gets the same generic answer but mints nothing and sends nothing.
    *
    * Outside production the one-time token is also returned in the response
    * (unless `PASSWORD_RESET_RETURN_TOKEN=false`) so the flow is demonstrable
@@ -72,12 +73,20 @@ export class AuthService {
     const user = await this.users.findByEmail(dto.email);
     if (!user || !user.isActive) return generic;
 
+    const cooldownKey = dto.email.trim().toLowerCase();
+    const now = Date.now();
+    const lastSent = this.forgotCooldowns.get(cooldownKey);
+    if (lastSent !== undefined && now - lastSent < this.forgotCooldownMs) {
+      return generic;
+    }
+    this.forgotCooldowns.set(cooldownKey, now);
+
     const token = randomBytes(32).toString('hex');
     const ttlMinutes = this.resetTtlMinutes;
     await this.users.setPasswordResetToken(
       user.id,
       AuthService.hashToken(token),
-      Date.now() + ttlMinutes * 60_000,
+      now + ttlMinutes * 60_000,
     );
 
     const resetUrl = `${this.baseUrl}/?resetToken=${token}`;
@@ -97,13 +106,18 @@ export class AuthService {
       ].join('\n'),
     });
 
-    return this.exposeResetToken ? { ...generic, resetToken: token, resetUrl, delivery } : generic;
+    return this.exposeResetToken
+      ? { ...generic, resetToken: token, resetUrl, delivery }
+      : generic;
   }
 
   /**
    * POST /auth/reset-password — public, step 2 of recovery.
    *
-   * Accepts the one-time token from the link and the new password. An unknown,
+   * Accepts a one-time token from a reset link — emailed by the self-service
+   * flow (ADR-008, `POST /auth/forgot-password`), **Admin-issued** (ADR-007,
+   * `POST /users/:id/reset-password`), or minted offline by
+   * `scripts/reset-password.mjs` — plus the new password. An unknown,
    * already-used or expired token gets one generic 400; on success the password
    * is replaced and the token is consumed, so the same link cannot be replayed.
    */
@@ -150,6 +164,52 @@ export class AuthService {
   }
 
   /**
+   * POST /users/:id/reset-password — **Admin-initiated** recovery (ADR-007).
+   *
+   * Alongside the self-service flow (ADR-008, `POST /auth/forgot-password`), an
+   * Admin can mint a single-use, hashed, time-limited token for a colleague who
+   * forgot their password and hand them the link, so the Admin never sees or
+   * chooses the password — the employee sets their own through the shared
+   * `POST /auth/reset-password` (docs/security.md).
+   *
+   * Returns `null` when the account does not exist (the controller maps that to
+   * 404). An **inactive** account is refused (400): it cannot sign in at all, so
+   * a reset link would be misleading. The token storage/lookup is shared with the
+   * email flow and the offline `scripts/reset-password.mjs` break-glass.
+   */
+  async issuePasswordReset(targetId: number) {
+    const user = await this.users.findById(targetId);
+    if (!user) return null;
+
+    if (!user.isActive) {
+      throw new BadRequestException(
+        'This account is deactivated — reactivate it before issuing a reset link.',
+      );
+    }
+
+    const token = randomBytes(32).toString('hex');
+    const ttlMinutes = this.resetTtlMinutes;
+    const expiresAt = Date.now() + ttlMinutes * 60_000;
+    await this.users.setPasswordResetToken(
+      user.id,
+      AuthService.hashToken(token),
+      expiresAt,
+    );
+
+    // The raw token is returned here by design: handing it to the employee *is*
+    // the delivery mechanism (ADR-007). It is single-use and expires; see
+    // docs/security.md.
+    return {
+      id: user.id,
+      email: user.email,
+      resetToken: token,
+      resetUrl: `${this.baseUrl}/?resetToken=${token}`,
+      expiresAt: new Date(expiresAt).toISOString(),
+      expiresInMinutes: ttlMinutes,
+    };
+  }
+
+  /**
    * `POST /auth/login` — the token plus the public view of the account.
    *
    * The body is built by `publicUser()`, not by spreading the entity: a spread
@@ -167,6 +227,22 @@ export class AuthService {
 
   private static hashToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
+  }
+
+  /**
+   * Anti mail-bomb cooldown for `POST /auth/forgot-password`: at most one
+   * reset email per address per window. In-memory on purpose — a process
+   * restart merely resets the window, it can never lock a user out.
+   */
+  private readonly forgotCooldowns = new Map<string, number>();
+
+  private get forgotCooldownMs(): number {
+    const seconds = Number(
+      process.env.PASSWORD_RESET_COOLDOWN_SECONDS ?? DEFAULT_FORGOT_COOLDOWN_SECONDS,
+    );
+    return Number.isFinite(seconds) && seconds >= 0
+      ? seconds * 1000
+      : DEFAULT_FORGOT_COOLDOWN_SECONDS * 1000;
   }
 
   private get resetTtlMinutes(): number {

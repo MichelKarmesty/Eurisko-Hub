@@ -102,13 +102,33 @@ function configureSmtp(port: number, from = 'Eurisko Hub <no-reply@eurisko.test>
   delete process.env.NODE_ENV;
 }
 
+/** Configure the SECOND sender (the `SMTP_ALT_*` block, ADR-008). */
+function configureAltSmtp(port: number, from: string): void {
+  process.env.SMTP_ALT_HOST = '127.0.0.1';
+  process.env.SMTP_ALT_PORT = String(port);
+  process.env.SMTP_ALT_SECURE = 'false';
+  process.env.SMTP_ALT_USER = 'backup@eurisko.test';
+  process.env.SMTP_ALT_PASS = 'backup-app-password';
+  process.env.SMTP_ALT_FROM = from;
+}
+
 afterEach(() => {
-  delete process.env.SMTP_HOST;
-  delete process.env.SMTP_PORT;
-  delete process.env.SMTP_SECURE;
-  delete process.env.SMTP_USER;
-  delete process.env.SMTP_PASS;
-  delete process.env.MAIL_FROM;
+  for (const key of [
+    'SMTP_HOST',
+    'SMTP_PORT',
+    'SMTP_SECURE',
+    'SMTP_USER',
+    'SMTP_PASS',
+    'MAIL_FROM',
+    'SMTP_ALT_HOST',
+    'SMTP_ALT_PORT',
+    'SMTP_ALT_SECURE',
+    'SMTP_ALT_USER',
+    'SMTP_ALT_PASS',
+    'SMTP_ALT_FROM',
+  ]) {
+    delete process.env[key];
+  }
 });
 
 /** Pull the base64 body out of the captured DATA lines and decode it. */
@@ -178,5 +198,54 @@ describe('MailService over SMTP', () => {
     expect(server.envelope).toHaveLength(0); // never got past AUTH
 
     await server.close();
+  });
+
+  // --- Two senders: the SMTP_ALT_* backup (ADR-008) ----------------------
+
+  it('uses the second sender when the first one refuses the login', async () => {
+    const primary = await startFakeSmtp({ rejectAuth: true });
+    const backup = await startFakeSmtp();
+    configureSmtp(primary.port, 'Eurisko Hub <reset@gmail.test>');
+    configureAltSmtp(backup.port, 'Eurisko Hub <reset@outlook.test>');
+    const mail = new MailService();
+
+    const delivery = await mail.send({
+      to: 'employee@gmail.com',
+      subject: 'Reset your Eurisko Hub password',
+      text: 'Open this link:\nhttp://localhost:5173/?resetToken=abc123\n',
+    });
+
+    // The message left through the backup, over a real SMTP conversation…
+    expect(delivery).toBe('smtp-alt');
+    expect(backup.envelope).toContain('MAIL FROM:<reset@outlook.test>');
+    expect(backup.envelope).toContain('RCPT TO:<employee@gmail.com>');
+    // …authenticated as the backup account, from the backup's own address.
+    expect(backup.auth[0]).toMatch(/^AUTH PLAIN /);
+    expect(Buffer.from(backup.auth[0].split(' ')[2], 'base64').toString('utf8')).toBe(
+      '\0backup@eurisko.test\0backup-app-password',
+    );
+    expect(backup.lines[0]).toBe('From: Eurisko Hub <reset@outlook.test>');
+    expect(decodeBody(backup.lines)).toContain('resetToken=abc123');
+    // The primary was tried first and got nowhere.
+    expect(primary.envelope).toHaveLength(0);
+
+    await primary.close();
+    await backup.close();
+  });
+
+  it('reports the second sender as "smtp-alt" and uses it when it is the only one', async () => {
+    const backup = await startFakeSmtp();
+    // No SMTP_HOST at all: only the alternate block is configured.
+    delete process.env.SMTP_HOST;
+    delete process.env.MAIL_FROM;
+    configureAltSmtp(backup.port, 'Eurisko Hub <reset@outlook.test>');
+    const mail = new MailService();
+
+    const delivery = await mail.send({ to: 'a@b.test', subject: 's', text: 'link' });
+
+    expect(delivery).toBe('smtp-alt');
+    expect(backup.envelope).toContain('RCPT TO:<a@b.test>');
+
+    await backup.close();
   });
 });
