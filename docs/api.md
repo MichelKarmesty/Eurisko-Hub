@@ -262,7 +262,8 @@ event records the Admin and the assignee.
 ### PATCH /tickets/:id/cancel — Admin only (ADR-003)
 Retires a request that should not be worked (duplicate, obsolete, withdrawn).
 **Soft cancel:** the ticket keeps its row and full history with status
-`Cancelled`; tickets are never hard-deleted.
+`Cancelled`. A `Cancelled` ticket is never deleted — the only ticket an Admin can
+delete outright is a `Resolved` one (ADR-010, below).
 
 ```json
 { "reason": "Duplicate of an existing request." }
@@ -271,6 +272,24 @@ Retires a request that should not be worked (duplicate, obsolete, withdrawn).
 * A non-empty `reason` is **required** → otherwise `400 Bad Request`.
 * Cancelling a `Resolved` or already `Cancelled` ticket → `403 Forbidden`.
 * Non-Admin caller → `403 Forbidden`.
+
+### DELETE /tickets/:id — Admin only, `Resolved` only (ADR-010)
+Permanently removes a finished ticket **and its history** from the database, so it
+disappears for the requester, the agents and the dashboard. This is the one
+deliberate exception to ADR-003's "never delete" rule.
+
+```
+DELETE /tickets/12        (Authorization: Bearer <admin token>)
+→ 200 { "id": 12, "mode": "deleted" }
+```
+
+* Only `status: "Resolved"` qualifies. `Open` / `In Progress` → `409 Conflict`
+  (`"…cancel it instead."`), because a live request must be retired through the
+  soft cancel above.
+* A `Cancelled` ticket → `409 Conflict` (`"A Cancelled ticket is kept for audit…"`).
+* Unknown id → `404`; non-Admin caller → `403`; no token → `401`.
+* The deletion leaves no database record of itself; the backend writes a
+  `Tickets` log line naming the Admin, the ticket id, title and category.
 
 ## AI-assisted intake (v0.4)
 

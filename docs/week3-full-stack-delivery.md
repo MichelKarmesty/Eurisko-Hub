@@ -254,7 +254,9 @@ an Admin can also **assign** unclaimed tickets and **cancel** them softly
 
 The allowed and denied cases are asserted at both the service/database layer and
 the HTTP layer (see §5). Tickets are **never hard-deleted** — "erase" is the
-audited soft `Cancelled` status.
+audited soft `Cancelled` status. *(Amended later by [ADR-010](decisions/ADR-010.md):
+an Admin may now permanently delete a **`Resolved`** ticket; everything live
+still follows the rule above.)*
 
 ---
 

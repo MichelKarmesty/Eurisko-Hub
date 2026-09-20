@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -108,6 +109,18 @@ export class TicketsController {
     @Body() dto: CancelTicketDto,
   ) {
     return this.tickets.cancel(id, user, dto.reason);
+  }
+
+  /**
+   * ADR-010: DELETE /tickets/:id — Admin only, and only for a **Resolved**
+   * ticket: the one case where a ticket (and its history) leaves the database
+   * instead of being soft-cancelled. Anything else is refused with `409`.
+   */
+  @Roles('Admin')
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.tickets.remove(id, user);
   }
 }
 

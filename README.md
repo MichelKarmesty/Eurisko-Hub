@@ -441,6 +441,7 @@ Base URL `http://localhost:3000`; authenticated calls send
 | `PATCH /tickets/:id/assign` | Admin | give an `Open`, unclaimed ticket a matching agent (ADR-003) |
 | `PATCH /tickets/:id/status` | **assigned agent or Admin override** | advance `Open → In Progress → Resolved`; a note is required to resolve. An Admin acting on a ticket not assigned to them must also send `overrideReason` (`400` otherwise), recorded as `ADMIN_OVERRIDE` (ADR-002) |
 | `PATCH /tickets/:id/cancel` | Admin | soft-cancel a request with a reason — kept and audited, never deleted (ADR-003) |
+| `DELETE /tickets/:id` | Admin | permanently delete a **`Resolved`** ticket and its history (`409` for anything else; a `Cancelled` ticket is kept) (ADR-010) |
 | `GET /tickets/:id/history` | ticket readers | durable `CREATED → CLAIMED/ASSIGNED → RESOLVED` trail, plus `ADMIN_OVERRIDE` / `CANCELLED` where applicable |
 | `GET /users` · `POST /users` · `PATCH /users/:id/role` · `DELETE /users/:id` | Admin | manage accounts: list, create, change role, **delete any account** (the login is revoked at once; an account with tickets/history is kept for audit, one with none is really deleted). A role change can never empty the Admin seat: you cannot change your own Admin role, and the last active Admin cannot be demoted |
 | `GET /admin/stats` | Admin | company-wide counters |
@@ -481,10 +482,11 @@ Read in this order:
 10. [`docs/decisions/ADR-007.md`](docs/decisions/ADR-007.md) — Admin-initiated password reset (one-time link, no mail server)
 11. [`docs/decisions/ADR-008.md`](docs/decisions/ADR-008.md) — self-service forgot password restored, backed by the built-in mail transports
 12. [`docs/decisions/ADR-009.md`](docs/decisions/ADR-009.md) — recovery is Admin-initiated; the public self-service reset is off by default
-13. [`docs/api.md`](docs/api.md)
-14. [`docs/security.md`](docs/security.md) — the seeded Admin, no public registration, the authorization model, and password recovery
-15. [`docs/week3-full-stack-delivery.md`](docs/week3-full-stack-delivery.md) — the Week 3 delivery record
-16. [`docs/week4-production-ai.md`](docs/week4-production-ai.md) — the Week 4 AI-assisted intake record
+13. [`docs/decisions/ADR-010.md`](docs/decisions/ADR-010.md) — an Admin may permanently delete a **`Resolved`** ticket (the one exception to "never delete")
+14. [`docs/api.md`](docs/api.md)
+15. [`docs/security.md`](docs/security.md) — the seeded Admin, no public registration, the authorization model, and password recovery
+16. [`docs/week3-full-stack-delivery.md`](docs/week3-full-stack-delivery.md) — the Week 3 delivery record
+17. [`docs/week4-production-ai.md`](docs/week4-production-ai.md) — the Week 4 AI-assisted intake record
 
 ## Troubleshooting
 

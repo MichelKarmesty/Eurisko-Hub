@@ -203,6 +203,16 @@ export function apiTicketHistory(id: number): Promise<unknown[]> {
 }
 
 /**
+ * ADR-010: an Admin permanently deletes a **Resolved** ticket — the row and its
+ * history leave the database, so it disappears for the requester and the agents
+ * too. Anything not Resolved is refused with `409` (cancel it instead); a
+ * Cancelled ticket is kept for audit.
+ */
+export function apiDeleteTicket(id: number): Promise<{ id: number; mode: 'deleted' }> {
+  return request<{ id: number; mode: 'deleted' }>('DELETE', `/tickets/${id}`);
+}
+
+/**
  * ADR-003: an Admin gives an unclaimed ticket an owner by assigning it to an
  * agent of the matching department (Open -> In Progress, `ASSIGNED` event).
  */

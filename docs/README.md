@@ -15,10 +15,11 @@ This folder contains the decisions and working notes behind the Internal Operati
 10. [decisions/ADR-007.md](decisions/ADR-007.md) - explains Admin-initiated password reset: the Admin mints a one-time link for a colleague who forgot theirs and never sees or sets the password; this is the supported recovery route, with the offline CLI break-glass for a lone locked-out Admin.
 11. [decisions/ADR-008.md](decisions/ADR-008.md) - explains the self-service **forgot password** path: the one-time link is emailed through the built-in mail transports (SMTP → backup SMTP → webhook → Resend → console), with a non-enumerating generic answer and an anti mail-bomb cooldown. Now opt-in.
 12. [decisions/ADR-009.md](decisions/ADR-009.md) - explains why recovery is **Admin-initiated** and the public self-service reset is **off by default** (`404` unless `PASSWORD_RESET_SELF_SERVICE=true`), keeping the mail capability without exposing an unauthenticated mail-sending endpoint.
-13. [api.md](api.md) - documents the NestJS backend API (in `../backend/`) that implements this design.
-14. [security.md](security.md) - the seeded Admin, the no-public-registration rule, the authorization model, and the password-recovery lifecycle.
-15. [week3-full-stack-delivery.md](week3-full-stack-delivery.md) - the Week 3 delivery record: the integrated slice, its API contract, the authorization rule and its allowed/denied cases, and the automated tests that protect the behaviour.
-16. [week4-production-ai.md](week4-production-ai.md) - the Week 4 delivery record: the AI-assisted Request Intake capability, why it is advisory-only, the validation layer, the graceful fallback, how to run it, and the eval results.
+13. [decisions/ADR-010.md](decisions/ADR-010.md) - explains the one exception to "tickets are never deleted": an Admin may permanently delete a **`Resolved`** ticket (row + history), while everything live is still soft-cancelled and every other state is refused.
+14. [api.md](api.md) - documents the NestJS backend API (in `../backend/`) that implements this design.
+15. [security.md](security.md) - the seeded Admin, the no-public-registration rule, the authorization model, and the password-recovery lifecycle.
+16. [week3-full-stack-delivery.md](week3-full-stack-delivery.md) - the Week 3 delivery record: the integrated slice, its API contract, the authorization rule and its allowed/denied cases, and the automated tests that protect the behaviour.
+17. [week4-production-ai.md](week4-production-ai.md) - the Week 4 delivery record: the AI-assisted Request Intake capability, why it is advisory-only, the validation layer, the graceful fallback, how to run it, and the eval results.
 
 ## Purpose of these documents
 They are the living record of the delivered product, not a pre-build plan: the product specification, the architecture, the data model, and the decisions behind them, kept in step with the code in `../backend/` and `../frontend/`. Each document states what was decided, why, and where it is implemented.

@@ -10,6 +10,7 @@ import {
   apiMe,
   apiAssignTicket,
   apiCancelTicket,
+  apiDeleteTicket,
 } from '../api';
 import type { AdminStats, Category, Ticket, User } from '../types';
 import { ROLES, type Role } from '../types';
@@ -242,6 +243,38 @@ function TicketsTab() {
   const cancel = (t: Ticket, reason: string) =>
     run(t, () => apiCancelTicket(t.id, reason.trim()), `Ticket #${t.id} cancelled.`);
 
+  /**
+   * ADR-010: permanently delete a **Resolved** ticket. Unlike every other Admin
+   * action the record does not survive — the ticket and its history rows are
+   * removed from the database — so this is the one action that asks for an
+   * explicit confirmation spelling that out.
+   */
+  const removeTicket = async (t: Ticket) => {
+    if (
+      !window.confirm(
+        `Delete ticket #${t.id} — “${t.title}”?\n\n` +
+          'This permanently removes the ticket and its entire history from the database. ' +
+          'It cannot be undone and the requester will no longer see it.\n\n' +
+          '(A request that should not be worked is cancelled instead — that keeps the record.)',
+      )
+    ) {
+      return;
+    }
+    setBusyId(t.id);
+    try {
+      await apiDeleteTicket(t.id);
+      setTickets((prev) => prev.filter((x) => x.id !== t.id));
+      setNotice({ kind: 'success', text: `Ticket #${t.id} deleted.` });
+    } catch (err) {
+      setNotice({
+        kind: 'error',
+        text: err instanceof Error ? err.message : 'Could not delete the ticket.',
+      });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   if (loading) return <Spinner />;
 
   const stats = computeStats(tickets);
@@ -346,6 +379,22 @@ function TicketsTab() {
                       override and the reason is mandatory. */}
                   <ResolveControl ticket={t} onResolved={replace} overrideReasonRequired />
                   <AdminCancelControl busy={busyId === t.id} onCancel={(reason) => void cancel(t, reason)} />
+                </div>
+              );
+            }
+            if (t.status === 'Resolved') {
+              return (
+                <div className="admin-actions">
+                  {/* ADR-010: a Resolved ticket is the only one an Admin may
+                      delete outright; its history goes with it. */}
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    disabled={busyId === t.id}
+                    onClick={() => void removeTicket(t)}
+                  >
+                    {busyId === t.id ? 'Deleting…' : 'Delete ticket'}
+                  </button>
                 </div>
               );
             }

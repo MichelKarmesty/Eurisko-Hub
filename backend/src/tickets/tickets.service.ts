@@ -1,7 +1,9 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -47,6 +49,8 @@ export interface TicketListQuery {
  */
 @Injectable()
 export class TicketsService {
+  private readonly logger = new Logger('Tickets');
+
   constructor(
     @InjectRepository(Ticket)
     private readonly tickets: Repository<Ticket>,
@@ -388,6 +392,52 @@ export class TicketsService {
       }),
     );
     return this.getById(id, user);
+  }
+
+  /**
+   * ADR-010: DELETE /tickets/:id — an Admin **permanently deletes a Resolved
+   * ticket**. This is the one deliberate exception to ADR-003's "a ticket is
+   * never hard-deleted": the row and its `ticket_events` leave the database
+   * together, so the request disappears for the requester, the agents and the
+   * dashboard instead of sitting in the audit trail.
+   *
+   * Only a `Resolved` ticket qualifies. Anything still being worked is retired
+   * with the **soft** `cancel` above, and a `Cancelled` ticket stays as the
+   * audit record — both are refused here with `409`, so a typo cannot erase
+   * work in progress.
+   *
+   * The deletion removes the ticket's own trace, so the action itself is written
+   * to the server log (there is no separate admin-action table).
+   */
+  async remove(id: number, user: AuthUser): Promise<{ id: number; mode: 'deleted' }> {
+    if (!isAdminRole(user.role)) {
+      throw new ForbiddenException('Only an Admin can delete tickets.');
+    }
+    const ticket = await this.getById(id, user); // 404 when unknown
+
+    if (ticket.status === 'Cancelled') {
+      throw new ConflictException(
+        'A Cancelled ticket is kept for audit and cannot be deleted.',
+      );
+    }
+    if (ticket.status !== 'Resolved') {
+      throw new ConflictException(
+        `Only a Resolved ticket can be deleted — this one is ${ticket.status}; cancel it instead.`,
+      );
+    }
+
+    // Both deletes in one transaction: events first (so no orphan rows even
+    // where the driver does not enforce the FK cascade), then the ticket.
+    await this.tickets.manager.transaction(async (manager) => {
+      await manager.delete(TicketEvent, { ticketId: id });
+      await manager.delete(Ticket, { id });
+    });
+
+    this.logger.log(
+      `Admin ${user.email} permanently deleted Resolved ticket #${id} ` +
+        `("${ticket.title}", ${ticket.category}) and its history rows.`,
+    );
+    return { id, mode: 'deleted' };
   }
 
   /** Durable ticket history (architecture.md: DB stores ticket history). */

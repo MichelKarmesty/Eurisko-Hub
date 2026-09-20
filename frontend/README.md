@@ -59,7 +59,7 @@ required to resolve) is enforced by the NestJS backend in `../backend/`.
 |---|---|---|
 | Requester (`Employee`) | `RequesterView` | describes the problem and presses **AI Suggest** (v0.4), opens a ticket, watches its status (cannot change it — RBAC) |
 | Support Agent | `AgentView` | claims from the department queue (→ `In Progress`), then **resolves** with a note |
-| Admin | `AdminView` | every ticket + stats + user management; **assigns** unclaimed tickets, **cancels** requests softly, or resolves as a recorded **override** |
+| Admin | `AdminView` | every ticket + stats + user management; **assigns** unclaimed tickets, **cancels** requests softly, **deletes a `Resolved` ticket** outright (ADR-010, with an explicit warning), or resolves as a recorded **override** |
 
 **AI Suggest (v0.4).** The free-text box + button call
 `POST /tickets/ai-suggest` and pre-fill Title, Category and Priority, each tagged
@@ -109,7 +109,7 @@ src/
     ChangePasswordDialog.tsx  signed-in "change my password" modal (current password required)
     RequesterView.tsx     open a ticket (with the v0.4 AI Suggest flow) + my tickets (React result)
     AgentView.tsx         queue -> claim -> resolve (the slice flow)
-    AdminView.tsx         global list + stats + users + assign/cancel controls
+    AdminView.tsx         global list + stats + users + assign/cancel/delete-resolved controls
     ResolveControl.tsx    the slice's React action (PATCH status; override reason)
     TicketTable.tsx       shared table with per-row action cell + history
     ui.tsx                StatusBadge / Notice / Spinner

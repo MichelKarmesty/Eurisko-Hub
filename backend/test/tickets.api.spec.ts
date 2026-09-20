@@ -96,6 +96,78 @@ describe('API contract — the resolve-ticket slice over HTTP', () => {
     expect(String(claim.body.message)).toMatch(/submitted yourself/i);
   });
 
+  it('lets an Admin permanently delete a Resolved ticket — and nothing else (ADR-010)', async () => {
+    const alice = await provision('Employee', 'DelAlice');
+    const bob = await provision('IT_Agent', 'DelBob');
+
+    const opened = await request(http)
+      .post('/tickets')
+      .set(auth(alice.token))
+      .send({
+        title: 'Printer jam in room 4',
+        description: 'Paper jammed and the tray is stuck.',
+        category: 'IT',
+        priority: 'Low',
+      });
+    expect(opened.status).toBe(201);
+    const id = opened.body.id as number;
+
+    // Authorization: no token -> 401, non-Admin (agent, requester) -> 403.
+    expect((await request(http).delete(`/tickets/${id}`)).status).toBe(401);
+    expect((await request(http).delete(`/tickets/${id}`).set(auth(bob.token))).status).toBe(403);
+    expect((await request(http).delete(`/tickets/${id}`).set(auth(alice.token))).status).toBe(403);
+
+    // State: an Open ticket is refused (409) — cancel it instead.
+    const tooEarly = await request(http).delete(`/tickets/${id}`).set(auth(adminToken));
+    expect(tooEarly.status).toBe(409);
+    expect(String(tooEarly.body.message)).toMatch(/cancel it instead/i);
+
+    // A still-working ticket is refused too.
+    expect((await request(http).patch(`/tickets/${id}/claim`).set(auth(bob.token))).status).toBe(200);
+    expect((await request(http).delete(`/tickets/${id}`).set(auth(adminToken))).status).toBe(409);
+
+    // Resolve it, then the Admin may delete it.
+    const resolved = await request(http)
+      .patch(`/tickets/${id}/status`)
+      .set(auth(bob.token))
+      .send({ status: 'Resolved', resolutionNote: 'Cleared the jam and freed the tray.' });
+    expect(resolved.status).toBe(200);
+
+    const deleted = await request(http).delete(`/tickets/${id}`).set(auth(adminToken));
+    expect(deleted.status).toBe(200);
+    expect(deleted.body).toMatchObject({ id, mode: 'deleted' });
+
+    // It is gone for everyone: the ticket, its history and every list.
+    expect((await request(http).get(`/tickets/${id}`).set(auth(adminToken))).status).toBe(404);
+    expect((await request(http).get(`/tickets/${id}/history`).set(auth(adminToken))).status).toBe(404);
+    const adminList = await request(http).get('/tickets').set(auth(adminToken));
+    expect(adminList.body.some((t: { id: number }) => t.id === id)).toBe(false);
+    const aliceList = await request(http).get('/tickets').set(auth(alice.token));
+    expect(aliceList.body.some((t: { id: number }) => t.id === id)).toBe(false);
+
+    // Unknown id -> 404; a Cancelled ticket stays for audit -> 409.
+    expect((await request(http).delete('/tickets/999999').set(auth(adminToken))).status).toBe(404);
+
+    const second = await request(http)
+      .post('/tickets')
+      .set(auth(alice.token))
+      .send({
+        title: 'Duplicate request',
+        description: 'Same problem reported twice.',
+        category: 'IT',
+        priority: 'Low',
+      });
+    const cancelled = await request(http)
+      .patch(`/tickets/${second.body.id}/cancel`)
+      .set(auth(adminToken))
+      .send({ reason: 'Duplicate of an earlier ticket.' });
+    expect(cancelled.status).toBe(200);
+    const keepIt = await request(http).delete(`/tickets/${second.body.id}`).set(auth(adminToken));
+    expect(keepIt.status).toBe(409);
+    expect(String(keepIt.body.message)).toMatch(/kept for audit/i);
+    expect((await request(http).get(`/tickets/${second.body.id}`).set(auth(adminToken))).status).toBe(200);
+  });
+
   it('runs the whole slice: open -> claim -> resolve -> requester sees Resolved + note', async () => {
     const alice = await provision('Employee', 'Alice');
     const bob = await provision('IT_Agent', 'Bob');

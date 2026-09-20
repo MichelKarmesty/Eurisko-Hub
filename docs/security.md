@@ -81,8 +81,13 @@ guards are `JwtAuthGuard` (a valid bearer token is required unless a route is
   cannot change **their own Admin role** (400), and the **last active Admin**
   cannot be demoted (400). Promoting somebody to Admin, and any change that
   leaves an active Admin in place, is allowed.
-* Tickets are **never hard-deleted**: `Cancelled` is a terminal, fully audited
-  status (ADR-003).
+* Tickets are **never hard-deleted while they are live**: `Cancelled` is a
+  terminal, fully audited status (ADR-003), and `Open` / `In Progress` tickets
+  cannot be deleted either. The single exception is [ADR-010](decisions/ADR-010.md):
+  an Admin may **permanently delete a `Resolved` ticket** (row + history, in one
+  transaction) from the Users-facing Admin view — it is the one action that leaves
+  no trace in the database, so it is confirmed explicitly in the UI and written to
+  the server log. A `Cancelled` ticket is refused by that endpoint (`409`).
 
 ## Credentials and data
 

@@ -40,6 +40,12 @@
     while `PRAGMA foreign_keys` is ON, which `AppModule` sets on its connection at
     bootstrap (`backend/test/admin-user-deletion.spec.ts` pins it).
 
+    One more delete path exists on tickets themselves ([ADR-010](decisions/ADR-010.md)):
+    an Admin may **permanently delete a `Resolved` ticket**, which removes the
+    ticket row and, with it, every `TicketEvent` that referenced it — deliberately,
+    in a single transaction. Nothing else in the schema references a ticket, so no
+    other row is affected.
+
 ## 2. Lifecycle & Rules
 *   **Status flow:** A ticket moves from `Open` to `In Progress` to `Resolved`.
     *   `Cancelled` is a separate **terminal** status an Admin can set directly
