@@ -12,6 +12,7 @@ import {
   apiCancelTicket,
   apiDeleteTicket,
   apiSetUserActive,
+  apiAdminSetPassword,
 } from '../api';
 import type { AdminStats, Category, Ticket, User } from '../types';
 import { ROLES, type Role } from '../types';
@@ -433,8 +434,11 @@ function UsersTab() {
    * can be copied and handed over. Never persisted anywhere.
    */
   const [resetResult, setResetResult] = useState<
-    { name: string; email: string; resetUrl: string; expiresInMinutes: number } | null
+    { id: number; name: string; email: string; resetUrl: string; expiresInMinutes: number } | null
   >(null);
+  /** ADR-011: the password the Admin types to set it directly for that account. */
+  const [directPassword, setDirectPassword] = useState('');
+  const [settingPassword, setSettingPassword] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
@@ -560,11 +564,13 @@ function UsersTab() {
     try {
       const result = await apiAdminResetPassword(user.id);
       setResetResult({
+        id: user.id,
         name: user.name,
         email: result.email,
         resetUrl: result.resetUrl,
         expiresInMinutes: result.expiresInMinutes,
       });
+      setDirectPassword('');
       setNotice({
         kind: 'success',
         text: `One-time reset link created for ${user.name} — hand it over; it expires in ${result.expiresInMinutes} minutes and works once.`,
@@ -590,6 +596,31 @@ function UsersTab() {
         kind: 'error',
         text: 'Could not copy automatically — select the link and copy it by hand.',
       });
+    }
+  };
+
+  /**
+   * ADR-011: set that account's password right here, instead of handing over a
+   * link. The backend hashes it and clears the link that was just minted, so the
+   * Admin can simply tell the person the new password.
+   */
+  const setPasswordDirectly = async () => {
+    if (!resetResult || directPassword.length < 8) return;
+    setSettingPassword(true);
+    try {
+      await apiAdminSetPassword(resetResult.id, directPassword);
+      setDirectPassword('');
+      setNotice({
+        kind: 'success',
+        text: `Password updated for ${resetResult.email} — give it to them; the link above no longer works. They can change it from the top bar.`,
+      });
+    } catch (err) {
+      setNotice({
+        kind: 'error',
+        text: err instanceof Error ? err.message : 'Could not set the password.',
+      });
+    } finally {
+      setSettingPassword(false);
     }
   };
 
@@ -638,6 +669,37 @@ function UsersTab() {
               Dismiss
             </button>
           </div>
+
+          {/* ADR-011: the direct alternative — set the password here and hand it
+              over, instead of waiting for the person to open a link. */}
+          <div className="form-row" style={{ marginTop: '0.75rem' }}>
+            <label htmlFor="admin-set-password" className="full">
+              Or set {resetResult.email}'s password now
+            </label>
+            <input
+              id="admin-set-password"
+              className="input"
+              type="password"
+              minLength={8}
+              autoComplete="new-password"
+              placeholder="New password (min. 8 characters)"
+              value={directPassword}
+              onChange={(e) => setDirectPassword(e.target.value)}
+            />
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={settingPassword || directPassword.length < 8}
+              onClick={() => void setPasswordDirectly()}
+            >
+              {settingPassword ? 'Setting…' : 'Set password'}
+            </button>
+          </div>
+          <p className="muted small">
+            Stored hashed like any password. Setting it here <strong>invalidates the link
+            above</strong>; the Admin who sets a password knows it, so tell them to change it
+            from the top bar after signing in.
+          </p>
         </section>
       )}
 

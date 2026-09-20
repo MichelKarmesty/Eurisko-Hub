@@ -6,6 +6,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   NotFoundException,
   Param,
   ParseIntPipe,
@@ -63,10 +64,20 @@ class SetUserActiveDto {
   active: boolean;
 }
 
+class SetUserPasswordDto {
+  /** The new password, hashed before it is stored — never echoed back. */
+  @IsString()
+  @MinLength(8)
+  password: string;
+}
+
 /** Admin-only user management (RBAC: agents/admin are provisioned by Admin). */
 @Controller('users')
 @Roles('Admin')
 export class UsersController {
+  /** Trace for the one action where an Admin handles a credential (ADR-011). */
+  private readonly logger = new Logger('AdminPassword');
+
   constructor(private readonly users: UsersService) {}
 
   @Get()
@@ -136,6 +147,30 @@ export class UsersController {
     const user = await this.users.updateRole(id, dto.role, actor.id);
     if (!user) throw new NotFoundException(`User ${id} not found.`);
     return publicUser(user);
+  }
+
+  /**
+   * `PATCH /users/:id/password` — Admin sets an account's password **directly**
+   * (ADR-011), as an alternative to handing over the one-time link.
+   *
+   * The password is hashed and any pending reset link is cleared, so the Admin
+   * can tell the person the password and let them change it (top-bar **Change
+   * password**). The action is logged: the Admin now knows a credential, so the
+   * `AdminPassword` logger records who set a password for whom.
+   */
+  @Patch(':id/password')
+  @HttpCode(HttpStatus.OK)
+  async setPassword(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SetUserPasswordDto,
+    @CurrentUser() actor: AuthUser,
+  ) {
+    const user = await this.users.setPasswordFor(id, dto.password);
+    if (!user) throw new NotFoundException(`User ${id} not found.`);
+    this.logger.log(
+      `Admin ${actor.email} set a new password for ${user.email} (user ${user.id}).`,
+    );
+    return { id: user.id, email: user.email };
   }
 
   /**

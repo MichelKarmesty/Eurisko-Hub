@@ -258,6 +258,19 @@ export function apiCreateUser(input: {
   return request<User>('POST', '/users', input);
 }
 
+/**
+ * ADR-011: the Admin sets an account's password **directly** — the alternative
+ * to handing over the one-time link. The password is hashed server-side and any
+ * pending reset link is cleared, so an old link can never outlive the change.
+ * The Admin then knows the credential; the person can change it from the top bar.
+ */
+export function apiAdminSetPassword(
+  id: number,
+  password: string,
+): Promise<{ id: number; email: string }> {
+  return request<{ id: number; email: string }>('PATCH', `/users/${id}/password`, { password });
+}
+
 export function apiPatchUserRole(id: number, role: Role): Promise<User> {
   return request<User>('PATCH', `/users/${id}/role`, { role });
 }

@@ -275,6 +275,7 @@ real email address.
 | I want to… | Where | What happens |
 |---|---|---|
 | Reset **someone's** forgotten password | **Admin → Users → Reset password** (or `POST /users/:id/reset-password`) | The Admin gets a one-time link to hand over; the employee sets their own password, and the Admin never sees or chooses it. Works out of the box — **no mail server involved** (ADR-007/ADR-009). |
+| Set **someone's** password right now | Same panel → **Set password** (or `PATCH /users/:id/password`) | The Admin types the new password and applies it (bcrypt-hashed, any pending link is invalidated, the action is logged). Use it when the person is present or unreachable — the Admin then knows the credential, so tell them to change it (ADR-011). |
 | Reset **my own** forgotten password | Ask an Admin (or, only if enabled, `POST /auth/forgot-password`) | Recovery is Admin-initiated. The public, emailed variant is **off by default** (it answers `404`) and comes back with `PASSWORD_RESET_SELF_SERVICE=true` (ADR-008/ADR-009). |
 | Finish a reset | The link opens **Set a new password** (or `POST /auth/reset-password`) | The token is accepted once, expires after 30 minutes, and the old password stops working. |
 | Change my own password while signed in | **Change password** in the top bar (or `POST /auth/change-password`) | The current password is required; a session token alone cannot take the account over. |
@@ -435,6 +436,7 @@ Base URL `http://localhost:3000`; authenticated calls send
 | `POST /auth/reset-password` | public | set a new password with the one-time token from an emailed or **Admin-issued** link (single use, 30 min) |
 | `POST /auth/change-password` | authenticated | change your own password (current password required) |
 | `POST /users/:id/reset-password` | Admin | mint a one-time reset link for an account and hand it over — no mail server required; single-use, 30 min (ADR-007) |
+| `PATCH /users/:id/password` | Admin | set that account's password **directly** (bcrypt-hashed, pending link cleared, logged) — the alternative when a link cannot be handed over (ADR-011) |
 | `POST /tickets` | any authenticated user | open a request (title, description, category, priority) |
 | `GET /tickets` | role-scoped | requester: own tickets · agent: own department's `Open` queue (`?mine=true` for claimed) · admin: all |
 | `PATCH /tickets/:id/claim` | matching agent | claim an `Open` ticket → `In Progress` |
@@ -483,10 +485,11 @@ Read in this order:
 11. [`docs/decisions/ADR-008.md`](docs/decisions/ADR-008.md) — self-service forgot password restored, backed by the built-in mail transports
 12. [`docs/decisions/ADR-009.md`](docs/decisions/ADR-009.md) — recovery is Admin-initiated; the public self-service reset is off by default
 13. [`docs/decisions/ADR-010.md`](docs/decisions/ADR-010.md) — an Admin may permanently delete a **`Resolved`** ticket (the one exception to "never delete")
-14. [`docs/api.md`](docs/api.md)
-15. [`docs/security.md`](docs/security.md) — the seeded Admin, no public registration, the authorization model, and password recovery
-16. [`docs/week3-full-stack-delivery.md`](docs/week3-full-stack-delivery.md) — the Week 3 delivery record
-17. [`docs/week4-production-ai.md`](docs/week4-production-ai.md) — the Week 4 AI-assisted intake record
+14. [`docs/decisions/ADR-011.md`](docs/decisions/ADR-011.md) — an Admin may **set a password directly**, not only hand over a one-time link
+15. [`docs/api.md`](docs/api.md)
+16. [`docs/security.md`](docs/security.md) — the seeded Admin, no public registration, the authorization model, and password recovery
+17. [`docs/week3-full-stack-delivery.md`](docs/week3-full-stack-delivery.md) — the Week 3 delivery record
+18. [`docs/week4-production-ai.md`](docs/week4-production-ai.md) — the Week 4 AI-assisted intake record
 
 ## Troubleshooting
 

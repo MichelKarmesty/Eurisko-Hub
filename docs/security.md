@@ -153,9 +153,17 @@ guards are `JwtAuthGuard` (a valid bearer token is required unless a route is
   change; issuing a new link invalidates the previous one.
 * `POST /auth/change-password` requires the **current** password. A stolen
   session token alone cannot take the account over.
-* **The Admin never sees or chooses the password.** Whether the link was emailed
-  or hand-delivered, the employee sets their own — the Admin cannot read the
+* **The Admin normally never sees or chooses the password.** Whether the link was
+  emailed or hand-delivered, the employee sets their own — the Admin cannot read the
   password afterwards (bcrypt is one-way) and never types it.
+* **Exception: an Admin may set a password directly** (`PATCH /users/:id/password`,
+  [ADR-011](decisions/ADR-011.md)). This is the one action where an Admin knowingly
+  handles a credential — it exists for the cases a link cannot cover (the person is
+  present, the owner is unreachable, no mail provider). It is hashed like any other
+  password, **clears any pending reset link**, is refused for a deactivated account
+  (`400`), and is **logged** (`AdminPassword`: who set a password for whom). The
+  Admin should hand it over out-of-band and tell the person to rotate it from the
+  top bar, which still requires the current password.
 * **Issuing a link is powerful, so it is authorized and logged.** A reset link is
   a credential: whoever holds it can set that account's password. Minting one is
   Admin-only (`403` otherwise) and the `AdminReset` logger records which Admin

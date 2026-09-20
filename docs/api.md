@@ -225,6 +225,25 @@ chooses it (docs/security.md §"Admin-initiated reset").
 * The action is logged (which Admin issued a link for which account), and the
   token hash/expiry never appear in any response.
 
+### PATCH /users/:id/password — Admin only (ADR-011)
+Sets an account's password **directly**, as an alternative to handing over a link —
+for when the person is present, the account is a demo/test one, or the link cannot
+be delivered. The password is bcrypt-hashed and **any pending reset link is
+cleared**, so an old link can never outlive the change.
+
+```json
+{ "password": "new-password-8+" }
+```
+→ `200` `{ "id": 4, "email": "layla.nassar@eurisko.com" }` (never the hash)
+
+* `400` — a password shorter than 8 characters, an unknown body field, or a
+  **deactivated** account (it cannot sign in, so a password would be misleading).
+* `404` — unknown account; non-Admin caller → `403`; no token → `401`.
+* **The Admin now knows this credential** — the one documented exception to
+  "the Admin never chooses the password". Every use is logged
+  (`AdminPassword`), and the person can rotate it themselves with
+  `POST /auth/change-password` (which still requires the current password).
+
 ## Tickets
 
 ### POST /tickets — any authenticated user (as Requester)

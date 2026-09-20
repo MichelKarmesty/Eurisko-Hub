@@ -210,4 +210,110 @@ describe('Admin-initiated password reset — POST /users/:id/reset-password', ()
     expect(login.status).toBe(200);
     expect(login.body.user.role).toBe('Admin');
   });
+
+  // --- ADR-011: the Admin sets the password directly ----------------------
+
+  it('lets an Admin set an account password directly, and kills any pending link', async () => {
+    const employee = await provision('Employee', 'DirectSet');
+
+    // An outstanding link must not survive the direct change.
+    const link = await issue(employee.id);
+
+    const set = await request(http)
+      .patch(`/users/${employee.id}/password`)
+      .set(auth(adminToken))
+      .send({ password: 'adminChosenPass123' });
+    expect(set.status).toBe(200);
+    expect(set.body).toMatchObject({ id: employee.id, email: employee.email });
+    expect(set.body.passwordHash).toBeUndefined();
+
+    // The Admin-chosen password works; the old one does not.
+    expect(
+      (await request(http).post('/auth/login').send({ email: employee.email, password: PASSWORD })).status,
+    ).toBe(401);
+    const login = await request(http)
+      .post('/auth/login')
+      .send({ email: employee.email, password: 'adminChosenPass123' });
+    expect(login.status).toBe(200);
+    expect(login.body.user.id).toBe(employee.id);
+
+    // The link minted before the change is dead.
+    const stale = await request(http)
+      .post('/auth/reset-password')
+      .send({ token: link.resetToken, password: 'anotherPass4567' });
+    expect(stale.status).toBe(400);
+
+    // The person can still rotate it themselves afterwards.
+    const changed = await request(http)
+      .post('/auth/change-password')
+      .set(auth(login.body.accessToken))
+      .send({ currentPassword: 'adminChosenPass123', newPassword: 'theirOwnPass7890' });
+    expect(changed.status).toBe(200);
+    expect(
+      (await request(http).post('/auth/login').send({ email: employee.email, password: 'theirOwnPass7890' })).status,
+    ).toBe(200);
+  });
+
+  it('refuses direct password setting for the dangerous cases', async () => {
+    const employee = await provision('Employee', 'DirectGuards');
+
+    // Authorization.
+    expect(
+      (await request(http).patch(`/users/${employee.id}/password`).send({ password: 'whateverPass123' })).status,
+    ).toBe(401);
+    expect(
+      (
+        await request(http)
+          .patch(`/users/${employee.id}/password`)
+          .set(auth(employee.token))
+          .send({ password: 'whateverPass123' })
+      ).status,
+    ).toBe(403);
+
+    // Validation: too weak, or a missing/unknown field.
+    expect(
+      (
+        await request(http)
+          .patch(`/users/${employee.id}/password`)
+          .set(auth(adminToken))
+          .send({ password: 'short' })
+      ).status,
+    ).toBe(400);
+    expect(
+      (await request(http).patch(`/users/${employee.id}/password`).set(auth(adminToken)).send({})).status,
+    ).toBe(400);
+    expect(
+      (
+        await request(http)
+          .patch(`/users/${employee.id}/password`)
+          .set(auth(adminToken))
+          .send({ password: 'longEnoughPass1', unknown: true })
+      ).status,
+    ).toBe(400);
+
+    // Unknown account.
+    expect(
+      (
+        await request(http)
+          .patch('/users/999999/password')
+          .set(auth(adminToken))
+          .send({ password: 'longEnoughPass1' })
+      ).status,
+    ).toBe(404);
+
+    // A deactivated account cannot sign in, so a password would be misleading.
+    await users.update(employee.id, { isActive: false });
+    const deactivated = await request(http)
+      .patch(`/users/${employee.id}/password`)
+      .set(auth(adminToken))
+      .send({ password: 'longEnoughPass1' });
+    expect(deactivated.status).toBe(400);
+    expect(String(deactivated.body.message)).toContain('deactivated');
+
+    // Nothing leaked into the user list.
+    const listed = await request(http).get('/users?includeInactive=true').set(auth(adminToken));
+    const row = listed.body.find((u: { id: number }) => u.id === employee.id);
+    expect(row.passwordHash).toBeUndefined();
+    expect(row.passwordResetTokenHash).toBeUndefined();
+  });
 });

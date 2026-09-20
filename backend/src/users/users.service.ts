@@ -129,6 +129,32 @@ export class UsersService {
   }
 
   /**
+   * Admin action: set an account's password **directly**
+   * (`PATCH /users/:id/password`, ADR-011).
+   *
+   * The Admin-issued link (ADR-007) has the employee choose their own password,
+   * which is the better shape — but it needs the person to open the link. When
+   * the Admin is standing next to them, or resetting a demo/test account, they
+   * can set the password here instead. The password is bcrypt-hashed like any
+   * other, and setting it **clears any pending reset link** (`setPassword` above),
+   * so an old link can never outlive the change.
+   *
+   * A deactivated account is refused (400): it cannot sign in, so a password
+   * would be misleading (same rule as issuing a link).
+   */
+  async setPasswordFor(id: number, plainPassword: string): Promise<User | null> {
+    const user = await this.findById(id);
+    if (!user) return null;
+    if (!user.isActive) {
+      throw new BadRequestException(
+        'This account is deactivated — reactivate it before setting a password.',
+      );
+    }
+    await this.setPassword(id, plainPassword);
+    return user;
+  }
+
+  /**
    * Admin action: change an account's role (`PATCH /users/:id/role`).
    *
    * A demotion can empty the Admin seat just as effectively as a delete, so the
