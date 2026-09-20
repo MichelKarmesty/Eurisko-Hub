@@ -64,10 +64,12 @@ keeps the endpoint from enumerating accounts.
 
 * `400` — `email` missing or malformed.
 * **Delivery:** with no provider configured the message is printed to the backend
-  console; set `MAIL_WEBHOOK_URL` (+ optional `MAIL_WEBHOOK_TOKEN`) or
-  `RESEND_API_KEY` (+ `MAIL_FROM`) for real email. Outside production the response
-  additionally carries `resetToken`/`resetUrl` (and `delivery`) so the flow is
-  usable with no mail server; `NODE_ENV=production` always removes them, and
+  console; set `SMTP_HOST` (+ `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`) for Gmail /
+  Outlook / any standard mail server, or `MAIL_WEBHOOK_URL` (+ optional
+  `MAIL_WEBHOOK_TOKEN`), or `RESEND_API_KEY` (+ `MAIL_FROM`) for real email.
+  Outside production the response additionally carries `resetToken`/`resetUrl`
+  (and `delivery`) so the flow is usable with no mail server;
+  `NODE_ENV=production` always removes them, and
   `PASSWORD_RESET_RETURN_TOKEN=false` disables them explicitly.
 
 ### POST /auth/reset-password  — public
@@ -322,5 +324,6 @@ only the development default, and password-reset emails need a deliverable
 address. By default the API uses an in-memory SQLite database (TypeORM `sqljs`
 driver — zero setup); set `DB_FILE=/path/db.sqlite` to persist it, or swap the
 TypeORM config for PostgreSQL later. Password recovery works with no mail server
-(the reset link prints to the backend console); set `MAIL_WEBHOOK_URL` or
-`RESEND_API_KEY` for real delivery.
+(the reset link prints to the backend console); set `SMTP_HOST` (+ `SMTP_PORT`,
+`SMTP_USER`, `SMTP_PASS`) for Gmail / Outlook / any mail server, or
+`MAIL_WEBHOOK_URL`, or `RESEND_API_KEY`, for real delivery.

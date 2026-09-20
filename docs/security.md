@@ -38,9 +38,10 @@ See [ADR-004](decisions/ADR-004.md).
 
 **Before any real deployment:** set a strong `ADMIN_PASSWORD` and a real
 `JWT_SECRET` (the default is a development value), give the Admin a deliverable
-email address, configure a mail provider (`MAIL_WEBHOOK_URL` or
-`RESEND_API_KEY`) so password-reset links actually reach people, and preferably
-change the seeded Admin password after first login.
+email address, configure a mail provider (`SMTP_HOST` for Gmail / Outlook /
+a company server, or `MAIL_WEBHOOK_URL` / `RESEND_API_KEY`) so password-reset
+links actually reach people, and preferably change the seeded Admin password
+after first login.
 
 ## Authorization model
 
@@ -100,8 +101,9 @@ guards are `JwtAuthGuard` (a valid bearer token is required unless a route is
 * **Mail delivery never breaks recovery.** With no provider configured the
   message (including the reset link) is printed to the backend console; a
   provider failure falls back to the console instead of throwing. Set
-  `MAIL_WEBHOOK_URL` (+ `MAIL_WEBHOOK_TOKEN`) or `RESEND_API_KEY` (+ `MAIL_FROM`)
-  for real delivery.
+  `SMTP_HOST` (+ `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` — an app password for
+  Gmail/Outlook) or `MAIL_WEBHOOK_URL` (+ `MAIL_WEBHOOK_TOKEN`) or
+  `RESEND_API_KEY` (+ `MAIL_FROM`) for real delivery.
 * **Development convenience:** outside production the one-time token is also
   returned in the response so the flow is demonstrable with no mail server.
   `NODE_ENV=production` always removes it (`PASSWORD_RESET_RETURN_TOKEN` cannot

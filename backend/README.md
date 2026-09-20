@@ -14,7 +14,8 @@ NestJS + TypeORM implementation of the Internal Operations Service Hub
 - **Password recovery & change** (v0.5, ADR-005): one-time emailed reset links
   (stored only as an expiring SHA-256 hash) plus an authenticated change that
   requires the current password. Mail is console-first (`src/mail/`) — no
-  dependency — with `MAIL_WEBHOOK_URL` / `RESEND_API_KEY` for real delivery
+  dependency — with **SMTP** (`SMTP_HOST`, for Gmail / Outlook / any mail server),
+  `MAIL_WEBHOOK_URL` or `RESEND_API_KEY` for real delivery
 - **Any real email address is accepted** (Gmail, Hotmail/Outlook, Yahoo, a
   company domain); `@eurisko.com` is only the development default for the Admin
 - **AI-assisted intake** (v0.4, docs/week4-production-ai.md): an advisory
@@ -57,6 +58,8 @@ npm run test:watch       # watch mode
 | `APP_BASE_URL` | `http://localhost:5173` | Front of the password-reset link (`…/?resetToken=…`) |
 | `PASSWORD_RESET_TTL_MINUTES` | `30` | How long a reset link stays valid |
 | `PASSWORD_RESET_RETURN_TOKEN` | `true` outside production | Return the one-time token in the response (development; **always off** when `NODE_ENV=production`) |
+| `SMTP_HOST` / `SMTP_PORT` | *(unset)* / `587` | Standard SMTP (Gmail, Outlook/Hotmail, company); `SMTP_SECURE=true` for port 465 |
+| `SMTP_USER` / `SMTP_PASS` | *(unset)* | SMTP login — use an **App Password** when 2FA is on |
 | `MAIL_WEBHOOK_URL` / `MAIL_WEBHOOK_TOKEN` | *(unset)* | Optional: POST `{ to, subject, text }` to an HTTPS mail relay |
 | `RESEND_API_KEY` / `MAIL_FROM` | *(unset)* | Optional: real delivery through Resend's HTTP API |
 | `AI_ENABLED` | `true` | `false` switches the AI intake feature off |
@@ -76,8 +79,8 @@ src/
   common/               domain enums + JWT/RBAC guards + decorators
   auth/                 login + forgot/reset/change password (no public
                         registration, ADR-004/ADR-005)
-  mail/                 console-first email delivery (optional webhook/Resend,
-                        no dependency) used by the password reset
+  mail/                 console-first email delivery (optional SMTP / webhook /
+                        Resend, no npm dependency) used by the password reset
   users/                Admin-only account provisioning (the only way to create users)
   tickets/              tickets + history (entities/service/controller);
                         claim, admin assign, admin cancel, status/override
@@ -104,8 +107,9 @@ one-time link whose **hash** (never the token) and 30-minute expiry are stored,
 and `POST /auth/change-password` re-checks the current password. Forgot-password
 answers identically for unknown emails, so accounts cannot be enumerated. With
 no mail provider configured the reset message is printed to this process's
-console — set `MAIL_WEBHOOK_URL` or `RESEND_API_KEY` before deployment so it
-reaches the user instead. See [ADR-005](../docs/decisions/ADR-005.md).
+console — set `SMTP_HOST` (Gmail/Outlook/company), `MAIL_WEBHOOK_URL` or
+`RESEND_API_KEY` before deployment so it reaches the user instead. See
+[ADR-005](../docs/decisions/ADR-005.md).
 
 ## Quick start
 ```bash

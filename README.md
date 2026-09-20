@@ -34,7 +34,8 @@ it was resolved.
 > password with the current one. With no mail server configured the reset link is
 > printed to the backend console and, outside production, returned to the UI — so
 > the flow works with nothing installed, exactly like the offline AI classifier.
-> Set `MAIL_WEBHOOK_URL` or `RESEND_API_KEY` for real email. Accounts accept
+> Set `SMTP_HOST` (Gmail / Outlook / any mail server) or `MAIL_WEBHOOK_URL` /
+> `RESEND_API_KEY` for real email. Accounts accept
 > **any valid email address** — Gmail, Hotmail/Outlook, Yahoo or a company domain
 > — not just `@eurisko.com`. Design record:
 > [`docs/decisions/ADR-005.md`](docs/decisions/ADR-005.md).
@@ -224,15 +225,23 @@ that, and all of them accept any real email address:
 **It works with no mail server.** By default the backend has no provider
 configured, so the reset message (including the link) is printed to the backend
 console, and outside production the one-time token is also returned to the UI so
-the whole flow is demonstrable in one browser. For real email, set one variable
-and restart the backend — no package to install:
+the whole flow is demonstrable in one browser. For real email — Gmail,
+Outlook/Hotmail, a company server or any SMTP provider — set the SMTP variables
+and restart the backend (the SMTP client is built in; no package to install):
 
 ```bash
-# option A — any HTTPS endpoint that accepts { to, subject, text }
+# option A — any standard mail server (Gmail / Outlook / company SMTP)
+export SMTP_HOST=smtp.gmail.com          # Outlook/Hotmail: smtp-mail.outlook.com
+export SMTP_PORT=587                     # 587 = STARTTLS · 465 = implicit TLS
+export SMTP_USER=you@gmail.com
+export SMTP_PASS=your-app-password       # an App Password, not your normal login
+export MAIL_FROM="Eurisko Hub <you@gmail.com>"
+
+# option B — any HTTPS endpoint that accepts { to, subject, text }
 export MAIL_WEBHOOK_URL=https://mailer.example.com/send
 export MAIL_WEBHOOK_TOKEN=…            # optional bearer token
 
-# option B — Resend's HTTP API (https://resend.com)
+# option C — Resend's HTTP API (https://resend.com)
 export RESEND_API_KEY=re_…
 export MAIL_FROM="Eurisko Hub <no-reply@your-domain.com>"
 ```
@@ -241,6 +250,8 @@ export MAIL_FROM="Eurisko Hub <no-reply@your-domain.com>"
 |---|---|---|
 | `APP_BASE_URL` | `http://localhost:5173` | Front of the reset link (`…/?resetToken=…`) |
 | `PASSWORD_RESET_TTL_MINUTES` | `30` | How long a reset link stays valid |
+| `SMTP_HOST` / `SMTP_PORT` | *(unset)* / `587` | Standard SMTP server (Gmail, Outlook, company); `SMTP_SECURE=true` for port 465 |
+| `SMTP_USER` / `SMTP_PASS` | *(unset)* | SMTP login — use an **App Password** when 2FA is on |
 | `MAIL_WEBHOOK_URL` / `MAIL_WEBHOOK_TOKEN` | *(unset)* | Optional HTTP mail relay |
 | `RESEND_API_KEY` / `MAIL_FROM` | *(unset)* | Optional Resend delivery |
 | `PASSWORD_RESET_RETURN_TOKEN` | `true` outside production | Return the one-time token in the API response (development only; **always off** when `NODE_ENV=production`) |
@@ -405,7 +416,9 @@ Read in this order:
 - **A password reset link never arrives:** no mail provider is configured, so the
   message is printed to the **backend terminal** (and outside production the token
   is shown in the UI too). Look for `No mail provider configured` in the backend
-  output, or set `MAIL_WEBHOOK_URL` / `RESEND_API_KEY` for real delivery. A reset
+  output, or set `SMTP_HOST` (+ `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` — an **App
+  Password** for Gmail/Outlook with 2FA), or `MAIL_WEBHOOK_URL` / `RESEND_API_KEY`,
+  for real delivery. A reset
   link is valid for 30 minutes (`PASSWORD_RESET_TTL_MINUTES`) and can be used once;
   the API always answers `200` with the same generic message even for an unknown
   email (that is deliberate — it prevents account discovery).
