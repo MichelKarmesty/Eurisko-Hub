@@ -274,6 +274,8 @@ creation is never blocked.
 * Configuration: `AI_ENABLED`, `AI_PROVIDER_URL` (default
   `https://api.groq.com/openai/v1`), `AI_MODEL` (default
   `openai/gpt-oss-20b`, free model names change over time), `AI_TIMEOUT_MS` (default `15000`),
+  `AI_FALLBACK_MODEL` (unset — comma-separated models tried when the primary
+  fails), `AI_RETRY_DELAY_MS` (default `1500` — wait before the one retry),
   `AI_OFFLINE_FALLBACK` (default `true`), and `AI_API_KEY` — **required for
   Groq** (free key from console.groq.com); a keyless local provider such as
   Ollama needs none.

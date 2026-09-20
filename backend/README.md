@@ -66,6 +66,8 @@ npm run test:watch       # watch mode
 | `AI_PROVIDER_URL` | `https://api.groq.com/openai/v1` | OpenAI-compatible base URL (Groq's free cloud API by default; a local Ollama is `http://localhost:11434/v1`) |
 | `AI_MODEL` | `openai/gpt-oss-20b` | Model name sent to the provider (Groq's free model names change; list them at `/openai/v1/models`) |
 | `AI_TIMEOUT_MS` | `15000` | Hard cap on the provider call (a transient blip is retried once) |
+| `AI_FALLBACK_MODEL` | *(unset)* | Comma-separated models tried when the primary fails (429/5xx/retired) instead of dropping to the offline rules |
+| `AI_RETRY_DELAY_MS` | `1500` | Wait before the one retry of a rate-limited / transient call |
 | `AI_OFFLINE_FALLBACK` | `true` | Answer from the built-in keyword classifier (always labelled `source: "offline"`) when no model is available; `false` = strict `{ suggestion: null, error }` |
 | `AI_API_KEY` | *(unset)* | **Required for Groq** — free key from console.groq.com (a keyless local provider needs none) |
 

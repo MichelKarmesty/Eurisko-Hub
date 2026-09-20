@@ -193,6 +193,8 @@ behaviour. Nothing about running the app or the test suite requires a key.
 | `AI_PROVIDER_URL` | `https://api.groq.com/openai/v1` | Any OpenAI-compatible base URL |
 | `AI_MODEL` | `openai/gpt-oss-20b` | Groq's fast free model (names change over time) |
 | `AI_TIMEOUT_MS` | `15000` | Hard cap on the provider call |
+| `AI_FALLBACK_MODEL` | *(unset)* | Comma-separated models tried when the primary fails (rate limit / retired) instead of dropping to the offline rules, e.g. `qwen/qwen3.8-27b` |
+| `AI_RETRY_DELAY_MS` | `1500` | Wait before the one retry of a rate-limited/transient call |
 | `AI_OFFLINE_FALLBACK` | `true` | Suggest from the offline keyword classifier when no model answers (always labelled); `false` = strict provider-only |
 | `AI_API_KEY` | *(unset)* | **Required for Groq** — free key from console.groq.com |
 

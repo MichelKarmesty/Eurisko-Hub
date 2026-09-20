@@ -47,6 +47,8 @@ let providerAvailable = false;
 beforeAll(async () => {
   // Cloud APIs (Groq) and local models both get a little room to answer.
   process.env.AI_TIMEOUT_MS = process.env.AI_TIMEOUT_MS ?? '15000';
+  // The service retries a transient failure once; tests keep that instant.
+  process.env.AI_RETRY_DELAY_MS = process.env.AI_RETRY_DELAY_MS ?? '0';
 
   // Groq requires the key on every call — including this probe, otherwise it
   // answers 401 and the real cases would always skip.
@@ -338,6 +340,35 @@ describe('AI intake eval — validation and failure handling (mocked, always run
     expectUsable(prose, 'non-JSON answer');
     expect(prose.source).toBe('offline');
     expect(prose.notice).toMatch(/unexpected format/i);
+
+    // A dead primary model is rescued by AI_FALLBACK_MODEL, so one retired or
+    // rate-limited model does not drop the answer to the rules.
+    process.env.AI_FALLBACK_MODEL = 'working-model';
+    globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const sent = JSON.parse(String(init?.body)) as { model?: string };
+      if (sent.model === 'working-model') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            choices: [
+              {
+                message: {
+                  content:
+                    '{"category":"IT","priority":"High","title":"Recovered by fallback","confidence":0.9}',
+                },
+              },
+            ],
+          }),
+        } as unknown as Response;
+      }
+      return { ok: false, status: 404, json: async () => ({}) } as unknown as Response;
+    }) as typeof fetch;
+
+    const recovered = await service.suggest('my laptop is broken');
+    expect(recovered.source, 'the fallback model must answer').toBe('ai');
+    expect(recovered.suggestion?.title).toBe('Recovered by fallback');
+    delete process.env.AI_FALLBACK_MODEL;
 
     // AI switched off entirely: no suggestion at all, whatever the fallback says.
     process.env.AI_ENABLED = 'false';

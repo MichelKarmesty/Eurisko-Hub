@@ -90,7 +90,7 @@ export const FALLBACK_PRIORITY: Priority = 'Medium';
  * asks for the *title* in the employee's own language, while `category` and
  * `priority` stay in English because they are domain enum values, not prose.
  */
-const SYSTEM_PROMPT = [
+export const SYSTEM_PROMPT = [
   'You classify internal support requests for an IT / HR / Maintenance service desk of a company in Lebanon.',
   'The employee may write in English, Arabic (including Lebanese dialect), French, or a mix of them.',
   'Answer with ONLY one JSON object — no prose, no markdown, no code fences:',
@@ -359,19 +359,30 @@ export class AiIntakeService {
       this.logger.warn(`AI intake unavailable: ${message}`);
 
       if (this.offlineFallbackEnabled()) {
-        // A 401 almost always means the key is missing or wrong (Groq needs one,
-        // a local Ollama does not). Say so instead of a generic "unavailable".
-        const needsKey = /HTTP 401/.test(message) || /unauthori/i.test(message);
-        return this.offlineResult(
-          source,
-          needsKey
-            ? 'The AI provider rejected the request (401) — set AI_API_KEY with a free key from console.groq.com. This suggestion comes from the offline keyword classifier.'
-            : 'AI provider unavailable — this suggestion comes from the offline keyword classifier, not from a model. See docs/week4-production-ai.md for how to configure one.',
-        );
+        return this.offlineResult(source, this.offlineNotice(message));
       }
 
       return { suggestion: null, error: 'AI provider unavailable' };
     }
+  }
+
+  /**
+   * Turn a provider failure into an honest, actionable notice, so the employee
+   * (and whoever is configuring it) sees *why* the answer is rules-based instead
+   * of a generic "unavailable".
+   */
+  private offlineNotice(message: string): string {
+    const tail = 'This suggestion comes from the offline keyword classifier, not from a model.';
+    if (/HTTP 401/.test(message) || /unauthori/i.test(message)) {
+      return `The AI provider rejected the request (401) — set AI_API_KEY with a free key from console.groq.com. ${tail}`;
+    }
+    if (/HTTP 429/.test(message) || /rate.?limit/i.test(message)) {
+      return `The AI provider is rate-limited (429) — wait a few seconds and try again. ${tail}`;
+    }
+    if (/HTTP 404/.test(message) || /model_not_found/i.test(message)) {
+      return `The configured AI model is not available (404) — check AI_MODEL (list the free models at GET /openai/v1/models). ${tail}`;
+    }
+    return `AI provider unavailable — ${tail} See docs/week4-production-ai.md for how to configure one.`;
   }
 
   /**
@@ -384,33 +395,66 @@ export class AiIntakeService {
   }
 
   /**
-   * One OpenAI-compatible chat completion call, with a single retry.
+   * Ask the provider for a classification.
    *
-   * Two failures are worth one retry because both are common and recoverable: a
-   * compatible provider that rejects `response_format` (HTTP 400 — valid OpenAI
-   * shape, but not every server implements it), and a transient network blip
-   * (`fetch failed`, reset, timeout). A 401/404/429 is **not** retried: the key
-   * or model is wrong, so retrying only delays the graceful fallback.
+   * Tries the configured model first. If it is rate-limited (429), returns a 5xx,
+   * or the network blips, it waits briefly and retries once, then moves on to
+   * `AI_FALLBACK_MODEL` (comma-separated) before giving up — so one busy model
+   * does not drop the answer to the keyword rules. A rejected `response_format`
+   * (HTTP 400) is retried without JSON mode, because the field is valid OpenAI
+   * but not every compatible server implements it. A 401/404 is not retried: the
+   * key or the model name is wrong.
    */
   private async callProvider(text: string, timeoutMs: number): Promise<string> {
-    try {
-      return await this.callOnce(text, timeoutMs, true);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      const jsonModeUnsupported = /HTTP 400/.test(message);
-      const transient =
-        /fetch failed|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENETUNREACH|EAI_AGAIN|aborted|network|socket/i.test(
-          message,
-        );
-      if (jsonModeUnsupported || transient) {
-        return this.callOnce(text, timeoutMs, false);
+    const models = [this.model(), ...this.fallbackModels()];
+    let lastError: unknown = new Error('AI provider unavailable');
+
+    for (const model of models) {
+      try {
+        return await this.callOnce(text, timeoutMs, true, model);
+      } catch (err) {
+        lastError = err;
+        const message = describe(err);
+
+        if (/HTTP 400/.test(message)) {
+          try {
+            return await this.callOnce(text, timeoutMs, false, model);
+          } catch (retryErr) {
+            lastError = retryErr;
+          }
+        }
+
+        if (this.isRetryable(describe(lastError))) {
+          await sleep(this.retryDelayMs());
+          try {
+            return await this.callOnce(text, timeoutMs, true, model);
+          } catch (retryErr) {
+            lastError = retryErr;
+          }
+        }
       }
-      throw err;
     }
+
+    throw lastError;
+  }
+
+  /** 429/5xx and network failures are worth retrying; a bad key or model is not. */
+  private isRetryable(message: string): boolean {
+    return (
+      /HTTP (429|500|502|503|504)/.test(message) ||
+      /rate.?limit|fetch failed|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENETUNREACH|EAI_AGAIN|aborted|network|socket/i.test(
+        message,
+      )
+    );
   }
 
   /** A single request. `jsonMode` asks the provider for strict JSON output. */
-  private async callOnce(text: string, timeoutMs: number, jsonMode: boolean): Promise<string> {
+  private async callOnce(
+    text: string,
+    timeoutMs: number,
+    jsonMode: boolean,
+    model: string,
+  ): Promise<string> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     const apiKey = process.env.AI_API_KEY;
@@ -423,7 +467,7 @@ export class AiIntakeService {
           ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
         },
         body: JSON.stringify({
-          model: this.model(),
+          model,
           temperature: 0,
           stream: false,
           ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
@@ -465,8 +509,28 @@ export class AiIntakeService {
     return process.env.AI_MODEL ?? DEFAULT_MODEL;
   }
 
+  /** Extra models to try when the primary one fails (`AI_FALLBACK_MODEL=a,b`). */
+  private fallbackModels(): string[] {
+    return (process.env.AI_FALLBACK_MODEL ?? '')
+      .split(',')
+      .map((m) => m.trim())
+      .filter((m) => m.length > 0 && m !== this.model());
+  }
+
+  /** How long to wait before the one retry (`AI_RETRY_DELAY_MS`). */
+  private retryDelayMs(): number {
+    const parsed = Number(process.env.AI_RETRY_DELAY_MS ?? 1500);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 1500;
+  }
+
   private timeoutMs(): number {
     const parsed = Number(process.env.AI_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TIMEOUT_MS;
   }
+}
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+function describe(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }

@@ -133,6 +133,8 @@ affected". It is a read-only advisory call.
 | `AI_PROVIDER_URL` | `https://api.groq.com/openai/v1` | Any OpenAI-compatible base URL. Groq's free cloud API by default, so nothing has to be installed; a local Ollama is `http://localhost:11434/v1` |
 | `AI_MODEL` | `openai/gpt-oss-20b` | Model name sent to the provider. Groq's free model names change over time, so list what your key can use at `GET /openai/v1/models` (e.g. `openai/gpt-oss-120b`, `groq/compound-mini`, `qwen/qwen3.8-27b`) |
 | `AI_TIMEOUT_MS` | `15000` | Hard cap on the provider call (AbortController); cloud APIs get a little more room than a local model, and a transient blip is retried once |
+| `AI_FALLBACK_MODEL` | *(unset)* | Comma-separated models tried when the primary model fails (429/5xx/retired) — so one busy model does not drop the answer to the offline rules (e.g. `qwen/qwen3.8-27b`) |
+| `AI_RETRY_DELAY_MS` | `1500` | How long to wait before the one retry of a rate-limited / transient call |
 | `AI_OFFLINE_FALLBACK` | `true` | When no model answers, return a suggestion from the built-in keyword classifier — always labelled `source: "offline"`. Set to `false` for the strict `{ suggestion: null, error }` contract |
 | `AI_API_KEY` | *(unset)* | **Required for Groq** — a free key from <https://console.groq.com>; sent as `Authorization: Bearer …`. A keyless local provider such as Ollama needs none |
 
