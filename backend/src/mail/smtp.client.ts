@@ -97,18 +97,23 @@ class LineReader {
     });
   }
 
-  /** Read one full response, joining "250-…" continuation lines. */
+  /** Read one full response, joining "250-…" continuation lines (keeps their text). */
   async response(): Promise<string> {
     let line = await this.next();
     const code = line.slice(0, 3);
-    while (line.length >= 4 && line[3] === '-') line = await this.next();
-    return `${code} ${line.slice(4)}`;
+    const parts = [line.slice(4)];
+    while (line.length >= 4 && line[3] === '-') {
+      line = await this.next();
+      parts.push(line.slice(4));
+    }
+    return `${code} ${parts.join(' ')}`;
   }
 }
 
 class SmtpSession {
   private socket: net.Socket | tls.TLSSocket;
   private reader: LineReader;
+  private capabilities = '';
 
   constructor(private readonly cfg: SmtpConfig) {
     this.socket = cfg.secure
@@ -138,7 +143,9 @@ class SmtpSession {
   }
 
   private async ehlo(): Promise<string> {
-    return this.command('EHLO eurisko-hub', [250]);
+    const reply = await this.command('EHLO eurisko-hub', [250]);
+    this.capabilities = reply;
+    return reply;
   }
 
   private async upgradeToTls(): Promise<void> {
@@ -158,14 +165,32 @@ class SmtpSession {
   private async authenticate(): Promise<void> {
     const { user, pass } = this.cfg;
     if (!user) return;
-    try {
+
+    // Prefer whichever mechanism the server actually advertises, so we never
+    // burn a failed attempt (some servers lock the account after a few).
+    const advertised = /AUTH\s+([A-Z0-9 _-]+)/i.exec(this.capabilities)?.[1]?.toUpperCase() ?? '';
+    const offersPlain = advertised.includes('PLAIN');
+    const offersLogin = advertised.includes('LOGIN');
+    if (advertised && !offersPlain && !offersLogin) {
+      throw new Error(`SMTP server offers no supported AUTH mechanism (${advertised})`);
+    }
+
+    const plain = async () => {
       const token = Buffer.from(`\0${user}\0${pass ?? ''}`, 'utf8').toString('base64');
       await this.command(`AUTH PLAIN ${token}`, [235]);
-    } catch {
-      // Not every server offers PLAIN; LOGIN is the other universal mechanism.
+    };
+    const login = async () => {
       await this.command('AUTH LOGIN', [334]);
       await this.command(Buffer.from(user, 'utf8').toString('base64'), [334]);
       await this.command(Buffer.from(pass ?? '', 'utf8').toString('base64'), [235]);
+    };
+
+    if (offersLogin && !offersPlain) return login();
+    try {
+      await plain();
+    } catch {
+      // Not every server implements PLAIN; LOGIN is the other universal one.
+      await login();
     }
   }
 
