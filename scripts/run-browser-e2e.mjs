@@ -17,7 +17,7 @@
  *   STRICT_BROWSER_E2E=1          fail instead of skipping when no browser
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -154,6 +154,9 @@ async function main() {
       if (build.status !== 0) throw new Error('backend build failed');
     }
 
+    // `backend/.data` is gitignored, so a fresh clone does not have it and the
+    // isolated API could not open its SQLite file.
+    mkdirSync(path.dirname(DB_FILE), { recursive: true });
     rmSync(DB_FILE, { force: true });
     console.log(`[browser-e2e] API  -> ${apiBase}`);
     const api = spawn(process.execPath, [path.join(BACKEND, 'dist', 'main.js')], {

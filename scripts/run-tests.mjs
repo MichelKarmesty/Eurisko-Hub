@@ -22,7 +22,7 @@
  *   SKIP_E2E=1             skip step 6 (DOM E2E)
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { rmSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -114,6 +114,9 @@ async function main() {
     }
 
     // 4. Start an isolated backend for the live HTTP/UI checks.
+    //    `backend/.data` is gitignored, so a fresh clone does not have it: this
+    //    script must not depend on someone having run `mkdir -p .data` first.
+    mkdirSync(path.dirname(DB_FILE), { recursive: true });
     rmSync(DB_FILE, { force: true });
     banner(`Start isolated backend on ${base} (DB: ${path.relative(ROOT, DB_FILE)})`);
     api = spawn(process.execPath, [path.join(BACKEND, 'dist', 'main.js')], {
