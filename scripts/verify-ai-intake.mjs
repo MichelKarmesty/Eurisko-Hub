@@ -8,10 +8,11 @@
  *
  *     node scripts/verify-ai-intake.mjs
  *
- * It works with **no AI model installed**: the service then answers from its
+ * It works with **no AI key configured**: the service then answers from its
  * offline keyword classifier, labelled `source: "offline"` with a notice, and
- * this script says so. With a model running (Ollama etc.) the same checks run
- * against real classifications and report `source: "ai"`.
+ * this script says so. With a free Groq key (console.groq.com), or any other
+ * OpenAI-compatible provider, the same checks run against real classifications
+ * and report `source: "ai"`.
  *
  * Environment:
  *   BASE_URL        default http://localhost:3000
@@ -140,9 +141,10 @@ async function main() {
   console.log(`\nSuggestion source: ${mode}`);
   if (sources.has('offline')) {
     console.log(
-      'No model is configured, so the answers above come from the offline keyword classifier\n' +
-        '(clearly labelled `source: "offline"`). Install a free local model for real AI answers:\n' +
-        '  curl -fsSL https://ollama.com/install.sh | sh && ollama pull llama3.2 && ollama serve\n' +
+      'No AI model answered, so the answers above come from the offline keyword classifier\n' +
+        '(clearly labelled `source: "offline"`). For real AI answers, set a free Groq key:\n' +
+        '  export AI_API_KEY=gsk_…   # free, no credit card — https://console.groq.com\n' +
+        'You can also use a local Ollama (AI_PROVIDER_URL=http://localhost:11434/v1, no key),\n' +
         'or disable the fallback with AI_OFFLINE_FALLBACK=false.',
     );
   }

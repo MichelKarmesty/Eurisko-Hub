@@ -33,10 +33,13 @@ import { CATEGORIES, Category, PRIORITIES, Priority } from '../common/domain';
  * them without a rebuild):
  *
  *   AI_ENABLED      default true    — set to false to switch the feature off
- *   AI_PROVIDER_URL default http://localhost:11434/v1 (local Ollama)
- *   AI_MODEL        default llama3.2
- *   AI_TIMEOUT_MS   default 5000
- *   AI_API_KEY      default unset   — sent as a bearer token when set
+ *   AI_PROVIDER_URL default https://api.groq.com/openai/v1 (Groq, free tier)
+ *   AI_MODEL        default openai/gpt-oss-20b (a fast free model on Groq;
+ *                   model names change — list them at GET /openai/v1/models)
+ *   AI_TIMEOUT_MS   default 10000   — cloud APIs are a little slower than local
+ *   AI_API_KEY      required for Groq (free key from console.groq.com); sent as
+ *                   `Authorization: Bearer …`. A keyless local provider such as
+ *                   Ollama (http://localhost:11434/v1) needs no key at all.
  */
 
 export interface AiIntakeSuggestion {
@@ -60,9 +63,15 @@ interface ChatCompletionResponse {
   choices?: Array<{ message?: { content?: unknown } }>;
 }
 
-const DEFAULT_PROVIDER_URL = 'http://localhost:11434/v1';
-const DEFAULT_MODEL = 'llama3.2';
-const DEFAULT_TIMEOUT_MS = 5000;
+/**
+ * Defaults: Groq's free OpenAI-compatible cloud API, so the feature works with
+ * nothing installed — only a free API key (console.groq.com). Any other
+ * OpenAI-compatible endpoint can be used instead by setting `AI_PROVIDER_URL`
+ * (e.g. a local Ollama at http://localhost:11434/v1, which needs no key).
+ */
+const DEFAULT_PROVIDER_URL = 'https://api.groq.com/openai/v1';
+const DEFAULT_MODEL = 'openai/gpt-oss-20b';
+const DEFAULT_TIMEOUT_MS = 10000;
 
 /**
  * Defaults used when the model returns a value we cannot trust.
@@ -283,9 +292,14 @@ export class AiIntakeService {
       this.logger.warn(`AI intake unavailable: ${message}`);
 
       if (this.offlineFallbackEnabled()) {
+        // A 401 almost always means the key is missing or wrong (Groq needs one,
+        // a local Ollama does not). Say so instead of a generic "unavailable".
+        const needsKey = /HTTP 401/.test(message) || /unauthori/i.test(message);
         return this.offlineResult(
           source,
-          'AI provider unavailable — this suggestion comes from the offline keyword classifier, not from a model. Install a model (see docs/week4-production-ai.md) for real AI suggestions.',
+          needsKey
+            ? 'The AI provider rejected the request (401) — set AI_API_KEY with a free key from console.groq.com. This suggestion comes from the offline keyword classifier.'
+            : 'AI provider unavailable — this suggestion comes from the offline keyword classifier, not from a model. See docs/week4-production-ai.md for how to configure one.',
         );
       }
 

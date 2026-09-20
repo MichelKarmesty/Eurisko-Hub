@@ -55,7 +55,7 @@ What the employee can do at every point:
 | Suggestion arrives | Category, Priority and Title are pre-filled, each tagged **AI suggested** and highlighted (or **"Suggested (offline)"** when no model answered — §3.4) |
 | Edits any field | That field's highlight and tag disappear — the value is now theirs |
 | Presses **Open ticket** | The ordinary `POST /tickets` runs with whatever the form now holds |
-| No model installed | The offline classifier still fills the form in, clearly labelled; a notice explains how to get real AI answers |
+| No key or model configured | The offline classifier still fills the form in, clearly labelled; a notice explains how to get real AI answers |
 | AI disabled (`AI_ENABLED=false`) | A non-blocking notice: *"AI suggestions unavailable — fill in the fields manually."* The form works exactly as before |
 
 ---
@@ -124,11 +124,11 @@ affected". It is a read-only advisory call.
 | Variable | Default | Meaning |
 |---|---|---|
 | `AI_ENABLED` | `true` | `false` switches the feature off entirely (the endpoint then answers with the disabled error, and the form still works) |
-| `AI_PROVIDER_URL` | `http://localhost:11434/v1` | Any OpenAI-compatible base URL (Ollama's default is exactly this) |
-| `AI_MODEL` | `llama3.2` | Model name sent to the provider |
-| `AI_TIMEOUT_MS` | `5000` | Hard cap on the provider call (AbortController) |
+| `AI_PROVIDER_URL` | `https://api.groq.com/openai/v1` | Any OpenAI-compatible base URL. Groq's free cloud API by default, so nothing has to be installed; a local Ollama is `http://localhost:11434/v1` |
+| `AI_MODEL` | `openai/gpt-oss-20b` | Model name sent to the provider. Groq's free model names change over time, so list what your key can use at `GET /openai/v1/models` (e.g. `openai/gpt-oss-120b`, `groq/compound-mini`, `qwen/qwen3.8-27b`) |
+| `AI_TIMEOUT_MS` | `10000` | Hard cap on the provider call (AbortController); cloud APIs get a little more room than a local model |
 | `AI_OFFLINE_FALLBACK` | `true` | When no model answers, return a suggestion from the built-in keyword classifier — always labelled `source: "offline"`. Set to `false` for the strict `{ suggestion: null, error }` contract |
-| `AI_API_KEY` | *(unset)* | Optional; when set it is sent as `Authorization: Bearer …` for hosted providers |
+| `AI_API_KEY` | *(unset)* | **Required for Groq** — a free key from <https://console.groq.com>; sent as `Authorization: Bearer …`. A keyless local provider such as Ollama needs none |
 
 ---
 
@@ -230,7 +230,8 @@ un-demonstrable, so the service falls back to a small, pure keyword classifier
 
 * **No new dependency.** The provider call uses Node's built-in `fetch` (Node
   20+), so the dependency tree is unchanged.
-* **Any OpenAI-compatible provider.** Ollama, vLLM, LM Studio, or a hosted API —
+* **Any OpenAI-compatible provider.** Groq is the default because it is free and
+  needs nothing installed; Ollama, vLLM, LM Studio or any hosted API work too —
   only the base URL and model differ.
 * **`temperature: 0`.** Classification should be repeatable, not creative.
 * **A JSON-only prompt.** The system prompt asks for the exact four fields, states
@@ -241,22 +242,15 @@ un-demonstrable, so the service falls back to a small, pure keyword classifier
 
 ## 4. How to run it
 
-### It already works with no AI at all
+### Groq (the default — free, nothing to install)
 
-The default configuration points at `http://localhost:11434/v1`. If nothing is
-listening there, pressing **AI Suggest** still fills the form in — from the
-offline keyword classifier, tagged **"Suggested (offline)"** with a notice
-explaining that no model is configured (§3.4). Everything else behaves exactly
-as it did in v0.3, and nothing needs configuring to run the app or the test
-suite. Prefer the strict provider-only behaviour? Start with
-`AI_OFFLINE_FALLBACK=false`.
-
-### Local model with Ollama (optional, free, no API key)
+The default provider is **Groq's free OpenAI-compatible cloud API**, so the AI
+works without installing any model. Get a free key (no credit card) at
+<https://console.groq.com>, then:
 
 ```bash
-# 1. install Ollama (https://ollama.com), then:
-ollama pull llama3.2          # or: ollama pull mistral
-ollama serve                  # listens on http://localhost:11434 — the default AI_PROVIDER_URL
+# 1. make the key available to the API process
+export AI_API_KEY=gsk_…            # Windows PowerShell: $env:AI_API_KEY="gsk_…"
 
 # 2. start the API as usual
 cd backend
@@ -275,18 +269,51 @@ $env:DB_FILE="$PWD\.data\hub.sqlite"; npm start
 ```
 
 Then sign in, create an Employee, and use the free-text box + **AI Suggest** on
-the New Request form.
+the New Request form — the fields come back tagged **"AI suggested"** and the
+API reports `source: "ai"`.
+
+Free-tier models change over time. `AI_MODEL` picks another one and
+`GET /openai/v1/models` lists what your key can use, e.g.
+`AI_MODEL=openai/gpt-oss-120b npm start`.
+
+> **Why not `llama-3.1-8b-instant`?** It was the obvious small default, but Groq
+> now returns `404 model_not_found` for it (as it does for
+> `llama-3.3-70b-versatile`). The default is `openai/gpt-oss-20b`; the eval's
+> `source: "ai"` assertion below is what turns a retired model name into a
+> visible failure instead of a silent offline fallback.
+
+### No key? It still works
+
+With `AI_API_KEY` unset the provider answers `401`, and pressing **AI Suggest**
+fills the form in from the offline keyword classifier, tagged **"Suggested
+(offline)"** with a notice explaining what happened (§3.4). Everything else
+behaves exactly as it did in v0.3, and nothing needs configuring to run the app
+or the test suite. Prefer the strict provider-only behaviour? Start with
+`AI_OFFLINE_FALLBACK=false`.
+
+### Local model with Ollama (the alternative — free, no API key)
+
+Prefer to run the model on your own machine? You can also use a local
+[Ollama](https://ollama.com), which needs no API key. Point the API at it and
+nothing else changes:
+
+```bash
+AI_PROVIDER_URL=http://localhost:11434/v1 AI_MODEL=llama3.2 npm start
+```
 
 ### Pointing somewhere else
 
 ```bash
-# a different Ollama model
-AI_MODEL=mistral npm start
+# another Groq model (list them: GET /openai/v1/models)
+AI_MODEL=openai/gpt-oss-120b npm start
 
-# a hosted OpenAI-compatible endpoint
+# any other OpenAI-compatible endpoint
 AI_PROVIDER_URL=https://api.example.com/v1 AI_MODEL=gpt-4o-mini AI_API_KEY=sk-… npm start
 
-# a longer wait for a slow local model
+# a local model served by vLLM or LM Studio
+AI_PROVIDER_URL=http://localhost:8000/v1 AI_MODEL=mistral npm start
+
+# a longer wait on a slow network or a slow local model
 AI_TIMEOUT_MS=20000 npm start
 
 # strict provider-only answers (no offline suggestion when nothing answers)
@@ -305,10 +332,10 @@ curl -s http://localhost:3000/tickets/ai-suggest \
   -d '{"text":"My laptop screen is flickering and I cannot work"}'
 ```
 
-Without a model the answer carries a **labelled offline suggestion**
-(`"source":"offline"` plus a notice) rather than an error, so the capability is
-demonstrable anywhere. With `AI_OFFLINE_FALLBACK=false` the same call returns
-`{"suggestion":null,"error":"AI provider unavailable"}`.
+Without a key (or any provider) the answer carries a **labelled offline
+suggestion** (`"source":"offline"` plus a notice) rather than an error, so the
+capability is demonstrable anywhere. With `AI_OFFLINE_FALLBACK=false` the same
+call returns `{"suggestion":null,"error":"AI provider unavailable"}`.
 
 ### One command to show it working
 
@@ -319,7 +346,7 @@ node scripts/verify-ai-intake.mjs          # BASE_URL=… to point elsewhere
 It logs in as the seeded Admin and drives five realistic descriptions through
 `POST /tickets/ai-suggest`, printing the category, priority, title, confidence
 and **source** for each, then proves the call created no ticket and that
-`POST /tickets` still works by hand. It passes with or without a model and says
+`POST /tickets` still works by hand. It passes with or without a key and says
 which mode it saw — 10 checks in total. `node scripts/run-tests.mjs` runs it too.
 
 ### Running the evals
@@ -336,7 +363,9 @@ cd .. && node scripts/run-tests.mjs   # everything: backend, live HTTP, AI intak
 ## 5. Eval results
 
 Eight cases in `backend/test/ai-intake-eval.spec.ts`, split by what they can
-guarantee:
+guarantee. Cases 1–5 require the **model itself** to answer (`source: "ai"`): a
+labelled offline fallback is not an acceptable pass, so a retired or misspelled
+`AI_MODEL` fails visibly instead of hiding.
 
 | # | Case | Input | Expectation | Kind |
 |---|---|---|---|---|
@@ -349,19 +378,35 @@ guarantee:
 | 7 | Invalid AI output | stubbed model reply `{"category":"Finance","priority":"Urgent",…}` | corrected to `IT`/`Medium`; the usable parts (the title) are kept; `source: "ai"` | mocked, always runs |
 | 8 | Provider failure | stubbed `ECONNREFUSED`, stubbed `HTTP 503`, a prose answer, `AI_ENABLED=false` | never throws and never a `500`: with `AI_OFFLINE_FALLBACK=false` → `{ suggestion: null, error }`; with it on → a **labelled** `source: "offline"` suggestion; `AI_ENABLED=false` → the disabled error and no suggestion | mocked, always runs |
 
-**Results on this machine** (no AI provider running — the default state):
+**Results on this machine.** With no `AI_API_KEY` the real-provider cases skip —
+the out-of-the-box state on a machine that has not been given a key:
 
 ```text
 $ cd backend && npm run test:ai-eval
- ✓ test/ai-intake-eval.spec.ts (8 tests | 5 skipped) 37ms
+ ✓ test/ai-intake-eval.spec.ts (8 tests | 5 skipped) 5046ms
  Test Files  1 passed (1)
       Tests  3 passed | 5 skipped (8)
 ```
 
-The 5 skipped cases are the real-provider ones: with Ollama running
-(`ollama serve`, `ollama pull llama3.2`) the same command runs all 8 for real.
+With a free Groq key all eight run against the real model. The confidences below
+are the model's own — the offline classifier caps at 0.6 and returns 0.25 for
+"help", which is how the two are told apart:
+
+```text
+$ AI_API_KEY=gsk_… npm run test:ai-eval
+[ai-eval] clear IT: IT / High / "Broken monitor replacement" (confidence 0.97)
+[ai-eval] clear HR: HR / Low / "Update emergency contact information" (confidence 0.95)
+[ai-eval] clear Maintenance: Maintenance / High / "AC not working in conference room B" (confidence 0.95)
+[ai-eval] thin input: IT / Low / "General help request" (confidence 0.3)
+[ai-eval] thin input (second wording): IT / Medium / "General issue reported" (confidence 0.5)
+[ai-eval] mixed signals: Maintenance / High / "Office door lock broken" (confidence 0.95)
+ ✓ test/ai-intake-eval.spec.ts (8 tests)
+      Tests  8 passed (8)
+```
+
 The skip is deliberate — a paid provider is not required to prove this work, and
-a missing local model must not turn a green suite red.
+a missing key must not turn a green suite red. A local Ollama
+(`AI_PROVIDER_URL=http://localhost:11434/v1`) runs the same cases with no key.
 
 **What the evals prove**
 
@@ -380,8 +425,9 @@ Full-suite position after v0.4 (unchanged behaviour plus the new eval):
 
 ```text
 $ node scripts/run-tests.mjs
-  backend suites        51 passed | 5 skipped (56)   (6 files)
+  backend suites        60 passed | 5 skipped (65)   (7 files)
   live HTTP checks      28/28
+  AI intake checks      10/10
   DOM UI E2E            4 passed (4)
   browser E2E           6 checks (skips without Chromium)
   ALL TESTS PASSED
@@ -418,7 +464,7 @@ $ node scripts/run-tests.mjs
 | `POST /tickets` unchanged; no auto-create | ✅ | `tickets.controller.ts`, `dto.ts` untouched |
 | OpenAI-compatible provider, `AI_PROVIDER_URL` / `AI_MODEL` | ✅ | §2 configuration, `callProvider()` |
 | Graceful fallback when the provider is down | ✅ | `suggest()` catch; eval case 8 (both the strict and the offline branch) |
-| Works with no model installed (labelled offline fallback) | ✅ | `classifyOffline()` + `AI_OFFLINE_FALLBACK` (default on); `scripts/verify-ai-intake.mjs` |
+| Works with no key or model installed (labelled offline fallback) | ✅ | `classifyOffline()` + `AI_OFFLINE_FALLBACK` (default on); `scripts/verify-ai-intake.mjs` |
 | `POST /tickets/ai-suggest`, authenticated, read-only | ✅ | `ai-intake.controller.ts`; §2 contract |
 | Frontend: free text, AI Suggest, prefill, marking, fallback notice | ✅ | `RequesterView.tsx` + `styles.css` |
 | `AI_ENABLED`, `AI_TIMEOUT_MS`, `AI_OFFLINE_FALLBACK` (+ `AI_API_KEY`) | ✅ | §2 configuration |
@@ -433,7 +479,7 @@ $ node scripts/run-tests.mjs
 | Cases 1–5 real when a provider exists, skipped otherwise | ✅ | `providerAvailable` probe in `beforeAll`; `skip()` in the test body |
 | Cases 6–8 mocked and deterministic | ✅ | stubbed `globalThis.fetch`, no network |
 | `test:ai-eval` npm script | ✅ | `backend/package.json` |
-| The capability is demonstrable with or without a model | ✅ | `scripts/verify-ai-intake.mjs` — 10 checks, reports which source answered |
+| The capability is demonstrable with or without a key | ✅ | `scripts/verify-ai-intake.mjs` — 10 checks, reports which source answered |
 
 ### DELIVER
 

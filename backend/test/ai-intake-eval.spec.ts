@@ -4,12 +4,18 @@
  * Eight eval cases for the AI-assisted Request Intake capability, in two
  * groups with deliberately different guarantees:
  *
- *   Cases 1–5 — behaviour against a REAL provider. A paid provider is not
- *   required: if `AI_PROVIDER_URL` (default http://localhost:11434/v1, i.e.
- *   local Ollama) is not answering, these skip gracefully instead of failing.
- *   They assert what the product promises — the suggestion is always inside
- *   the domain enums and always usable — rather than exact wording from a
- *   specific model, which would be flaky and would pin the eval to one LLM.
+ *   Cases 1–5 — behaviour against a REAL provider. No local installation is
+ *   required: the default provider is Groq's free OpenAI-compatible API
+ *   (https://api.groq.com/openai/v1), which needs only a free `AI_API_KEY`
+ *   from console.groq.com. If no provider answers (no key, no network) these
+ *   cases skip gracefully instead of failing — a paid provider is never
+ *   required. When a provider *does* answer they also require the configured
+ *   `AI_MODEL` to actually reply (`source: "ai"`): a retired or misspelled
+ *   model name must not hide behind the offline fallback. They assert what the
+ *   product promises — the suggestion is always inside the domain enums and
+ *   always usable — rather than exact wording from a specific model, which
+ *   would be flaky and would pin the eval to one LLM. A local Ollama works
+ *   too: AI_PROVIDER_URL=http://localhost:11434/v1.
  *
  *   Cases 6–8 — the safety net, fully mocked and therefore deterministic and
  *   always run: whatever the model returns (garbage, wrong enums, wrong types)
@@ -30,8 +36,8 @@ import {
 
 const realFetch = globalThis.fetch.bind(globalThis);
 
-const PROVIDER_URL = (process.env.AI_PROVIDER_URL ?? 'http://localhost:11434/v1').replace(/\/+$/, '');
-const MODEL = process.env.AI_MODEL ?? 'llama3.2';
+const PROVIDER_URL = (process.env.AI_PROVIDER_URL ?? 'https://api.groq.com/openai/v1').replace(/\/+$/, '');
+const MODEL = process.env.AI_MODEL ?? 'openai/gpt-oss-20b';
 
 const service = new AiIntakeService();
 
@@ -39,13 +45,20 @@ const service = new AiIntakeService();
 let providerAvailable = false;
 
 beforeAll(async () => {
-  // Give a local model time to answer when one is actually there.
+  // Cloud APIs (Groq) and local models both get a little room to answer.
   process.env.AI_TIMEOUT_MS = process.env.AI_TIMEOUT_MS ?? '15000';
 
+  // Groq requires the key on every call — including this probe, otherwise it
+  // answers 401 and the real cases would always skip.
+  const apiKey = process.env.AI_API_KEY;
+
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 1500);
+  const timer = setTimeout(() => controller.abort(), 5000);
   try {
-    const probe = await realFetch(`${PROVIDER_URL}/models`, { signal: controller.signal });
+    const probe = await realFetch(`${PROVIDER_URL}/models`, {
+      headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+      signal: controller.signal,
+    });
     providerAvailable = probe.ok;
   } catch {
     providerAvailable = false;
@@ -56,31 +69,43 @@ beforeAll(async () => {
   if (!providerAvailable) {
     // eslint-disable-next-line no-console
     console.info(
-      `[ai-eval] No AI provider at ${PROVIDER_URL} — cases 1–5 will be skipped ` +
-        '(cases 6–8 are mocked and always run). Start Ollama to run them for real.',
+      `[ai-eval] No AI provider answered at ${PROVIDER_URL} — cases 1–5 will be skipped ` +
+        '(cases 6–8 are mocked and always run). Set AI_API_KEY with a free key from ' +
+        'console.groq.com, or point AI_PROVIDER_URL at a local Ollama ' +
+        '(http://localhost:11434/v1), to run them for real.',
     );
   }
 });
 
 afterEach(() => {
   globalThis.fetch = realFetch;
+  lastRequest = null;
 });
 
 afterAll(() => {
   globalThis.fetch = realFetch;
 });
 
+/** The last request the service made, so the provider contract can be asserted. */
+let lastRequest: { url: string; init?: RequestInit } | null = null;
+
 /** Replace fetch with a canned chat-completion response. */
 function stubProvider(content: string, ok = true, status = 200) {
-  globalThis.fetch = (async () => ({
-    ok,
-    status,
-    json: async () => ({ choices: [{ message: { content } }] }),
-  })) as unknown as typeof fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    lastRequest = {
+      url: typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url,
+      init,
+    };
+    return {
+      ok,
+      status,
+      json: async () => ({ choices: [{ message: { content } }] }),
+    } as unknown as Response;
+  }) as typeof fetch;
 }
 
 /** Replace fetch with a provider that cannot be reached. */
-function stubProviderDown(message = 'ECONNREFUSED 127.0.0.1:11434') {
+function stubProviderDown(message = 'ECONNREFUSED api.groq.com:443') {
   globalThis.fetch = (async () => {
     throw new Error(message);
   }) as unknown as typeof fetch;
@@ -106,10 +131,21 @@ function expectUsable(result: AiIntakeResult, label: string): NonNullable<AiInta
   return suggestion;
 }
 
+/**
+ * A real-provider answer: usable AND genuinely from the model. Without this, a
+ * retired or misspelled `AI_MODEL` falls back to the offline classifier and
+ * still "passes" — the exact silent failure this guards against.
+ */
+function expectModelAnswer(result: AiIntakeResult, label: string): NonNullable<AiIntakeResult['suggestion']> {
+  const suggestion = expectUsable(result, label);
+  expect(result.source, `${label}: the model must answer, not the offline fallback`).toBe('ai');
+  return suggestion;
+}
+
 describe('AI intake eval — real provider (skips when no provider is running)', () => {
   it('1. clear IT report -> IT, with a usable priority and title', async ({ skip }) => {
     if (!providerAvailable) skip();
-    const suggestion = expectUsable(
+    const suggestion = expectModelAnswer(
       await service.suggest('My monitor is broken and I need a replacement'),
       'clear IT',
     );
@@ -120,7 +156,7 @@ describe('AI intake eval — real provider (skips when no provider is running)',
 
   it('2. clear HR request -> HR', async ({ skip }) => {
     if (!providerAvailable) skip();
-    const suggestion = expectUsable(
+    const suggestion = expectModelAnswer(
       await service.suggest('I need to update my emergency contact information'),
       'clear HR',
     );
@@ -129,7 +165,7 @@ describe('AI intake eval — real provider (skips when no provider is running)',
 
   it('3. clear Maintenance report -> Maintenance', async ({ skip }) => {
     if (!providerAvailable) skip();
-    const suggestion = expectUsable(
+    const suggestion = expectModelAnswer(
       await service.suggest('The AC in conference room B is not working'),
       'clear Maintenance',
     );
@@ -138,13 +174,13 @@ describe('AI intake eval — real provider (skips when no provider is running)',
 
   it('4. thin input still yields a valid category and priority (low confidence is fine)', async ({ skip }) => {
     if (!providerAvailable) skip();
-    expectUsable(await service.suggest('help'), 'thin input');
-    expectUsable(await service.suggest('something is wrong'), 'thin input (second wording)');
+    expectModelAnswer(await service.suggest('help'), 'thin input');
+    expectModelAnswer(await service.suggest('something is wrong'), 'thin input (second wording)');
   });
 
   it('5. mixed signals resolve to exactly one valid category', async ({ skip }) => {
     if (!providerAvailable) skip();
-    const suggestion = expectUsable(
+    const suggestion = expectModelAnswer(
       await service.suggest(
         'The office door lock is broken and I also need HR to update my badge',
       ),
@@ -215,7 +251,7 @@ describe('AI intake eval — validation and failure handling (mocked, always run
     expect(classifyOffline('the office chair squeaks, no rush').priority).toBe('Low');
   });
 
-  it('7. invalid AI output (Finance / Urgent) is corrected, never passed through', async () => {
+  it('7. sends a Groq-shaped request, and invalid AI output is corrected, never passed through', async () => {
     stubProvider('{"category":"Finance","priority":"Urgent","title":"Printer jam","confidence":0.99}');
 
     const result = await service.suggest('The printer on floor 2 is jammed');
@@ -226,6 +262,27 @@ describe('AI intake eval — validation and failure handling (mocked, always run
     expect(suggestion.priority).toBe('Medium');
     // The parts that were usable are kept.
     expect(suggestion.title).toBe('Printer jam');
+    expect(result.source).toBe('ai');
+
+    // The request itself is OpenAI-compatible, i.e. Groq-compatible: the
+    // configured base URL + /chat/completions, the configured model, a
+    // deterministic temperature, and the bearer key when one is configured.
+    expect(lastRequest?.url).toBe(`${PROVIDER_URL}/chat/completions`);
+    const sent = JSON.parse(String(lastRequest?.init?.body)) as {
+      model?: string;
+      temperature?: number;
+      stream?: boolean;
+    };
+    expect(sent.model).toBe(MODEL);
+    expect(sent.temperature).toBe(0);
+    expect(sent.stream).toBe(false);
+
+    process.env.AI_API_KEY = 'test-key-not-a-real-secret';
+    stubProvider('{"category":"HR","priority":"Low","title":"Badge renewal","confidence":0.8}');
+    await service.suggest('I need my badge renewed');
+    const headers = (lastRequest?.init?.headers ?? {}) as Record<string, string>;
+    expect(headers.Authorization).toBe('Bearer test-key-not-a-real-secret');
+    delete process.env.AI_API_KEY;
   });
 
   it('8. provider failure is always graceful — strict error, or a labelled offline suggestion', async () => {
