@@ -433,12 +433,22 @@ function UsersTab() {
    * Admin. The backend refuses deleting your own account and the last active
    * Admin; an account with history is deactivated rather than destroyed so the
    * tickets/history stay intact. Either way it leaves this list immediately.
+   *
+   * The confirmation spells out both outcomes, because the **hard** delete is
+   * irreversible and frees the email address: the UI cannot know in advance
+   * whether tickets reference the account (only the DELETE response reports the
+   * mode), so the Admin is told exactly what each case means before confirming.
    */
   const handleDelete = async (user: User) => {
     if (
       !window.confirm(
         `Delete ${user.name} (${user.email})?\n\n` +
-          'The account will no longer be able to sign in. If it has tickets or history, they are kept for audit.',
+          'If the account has no tickets or history it is PERMANENTLY deleted, and ' +
+          `${user.email} can then be used to create a new account again.\n\n` +
+          'If it appears in any ticket or history entry, the records are kept for audit ' +
+          'instead: its login is revoked, it is hidden from the list, and the email stays ' +
+          'in use (a new account with the same email is refused).\n\n' +
+          'Either way the account can no longer sign in.',
       )
     ) {
       return;

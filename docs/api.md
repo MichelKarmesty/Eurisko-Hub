@@ -156,11 +156,15 @@ disappears from the Users list immediately and can no longer sign in
 ```
 
 * `mode: "deleted"` — the account had **no tickets and no history**, so the row
-  is really deleted.
+  is really deleted — and its **email becomes reusable**: an Admin can create a
+  new account with that address afterwards (a *different* user id).
 * `mode: "deactivated"` — the account appears in tickets/history, so the row is
   kept for audit and only deactivated (login revoked, hidden from the list).
+  The email therefore stays in use: `POST /users` with it returns `409`.
   This is the same "never destroy the audit trail" rule as ADR-003's soft
   `Cancelled`.
+* The Users tab's confirmation dialog states both outcomes before the Admin
+  confirms, because only the response reveals which one applies.
 * `400` — deleting **your own** account, or deleting the **last active Admin**
   (`"The last active Admin cannot be deleted — the hub would be locked out."`).
 * `404` — unknown account; non-Admin caller → `403`.
