@@ -102,33 +102,60 @@ describe('Account reactivation — PATCH /users/:id/active', () => {
     expect(await listEmails(true)).toContain(agent.email);
     expect((await request(http).post('/auth/login').send({ email: agent.email, password: PASSWORD })).status).toBe(401);
 
-    // Re-creating it is refused, and the message says what to do instead.
-    const duplicate = await request(http)
+    // Creating an account with that address **re-provisions the same row**:
+    // new name/role/password, switched back on, and the ticket it owns still
+    // points at the same id (which is the whole reason the address was reserved).
+    const revived = await request(http)
       .post('/users')
       .set(auth(adminToken))
-      .send({ name: 'Duplicate', email: agent.email, password: PASSWORD, role: 'Employee' });
-    expect(duplicate.status).toBe(409);
-    expect(String(duplicate.body.message)).toMatch(/deactivated account.*reactivate it/i);
-
-    // Reactivate: the same row (same id) comes back and can sign in again.
-    const reactivated = await request(http)
-      .patch(`/users/${agent.id}/active`)
-      .set(auth(adminToken))
-      .send({ active: true });
-    expect(reactivated.status).toBe(200);
-    expect(reactivated.body).toMatchObject({ id: agent.id, email: agent.email, isActive: true });
+      .send({ name: 'Reused Person', email: agent.email, password: 'brand-new-pass-456', role: 'HR_Agent' });
+    expect(revived.status).toBe(201);
+    expect(revived.body).toMatchObject({
+      id: agent.id, // same account id — history is preserved
+      email: agent.email,
+      name: 'Reused Person',
+      role: 'HR_Agent',
+      isActive: true,
+    });
     expect(await listEmails()).toContain(agent.email);
-    const relogin = await request(http).post('/auth/login').send({ email: agent.email, password: PASSWORD });
-    expect(relogin.status).toBe(200);
-    expect(relogin.body.user.id).toBe(agent.id); // history stays attached to the same account
 
-    // Its old link is still refused while the (now active) row owns the address.
+    // The new password is the one that works; the old one is gone.
+    expect((await request(http).post('/auth/login').send({ email: agent.email, password: PASSWORD })).status).toBe(401);
+    const relogin = await request(http)
+      .post('/auth/login')
+      .send({ email: agent.email, password: 'brand-new-pass-456' });
+    expect(relogin.status).toBe(200);
+    expect(relogin.body.user.id).toBe(agent.id);
+
+    // The ticket that reserved the address still belongs to the same account.
+    const history = await request(http).get(`/tickets/${ticket.body.id}`).set(auth(adminToken));
+    expect(history.status).toBe(200);
+    expect(history.body.requesterId).toBe(agent.id);
+
+    // While the row is ACTIVE, a second account with the same email is refused,
+    // with guidance instead of a dead end.
     const stillTaken = await request(http)
       .post('/users')
       .set(auth(adminToken))
       .send({ name: 'Duplicate', email: agent.email, password: PASSWORD, role: 'Employee' });
     expect(stillTaken.status).toBe(409);
-    expect(String(stillTaken.body.message)).toMatch(/already exists/i);
+    expect(String(stillTaken.body.message)).toMatch(/already exists and is active/i);
+
+    // Deactivating it and creating again revives it once more (the 409's advice).
+    expect(
+      (
+        await request(http)
+          .patch(`/users/${agent.id}/active`)
+          .set(auth(adminToken))
+          .send({ active: false })
+      ).status,
+    ).toBe(200);
+    const again = await request(http)
+      .post('/users')
+      .set(auth(adminToken))
+      .send({ name: 'Third Identity', email: agent.email, password: 'third-pass-7890', role: 'Employee' });
+    expect(again.status).toBe(201);
+    expect(again.body.id).toBe(agent.id);
   });
 
   it('deactivates an active account (login revoked at once) and is idempotent', async () => {

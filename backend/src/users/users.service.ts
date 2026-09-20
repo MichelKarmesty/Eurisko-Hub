@@ -61,6 +61,38 @@ export class UsersService {
   }
 
   /**
+   * Re-provision a **deactivated** account in place (ADR-004).
+   *
+   * A deactivated row still owns its email address, because tickets/history
+   * reference it. Rather than forcing the Admin to hunt for the old row, creating
+   * an account with that address **revives it**: the same row is renamed,
+   * re-roled, re-passwords and switched back on, so every historical reference
+   * (`requesterId`, `assignedToId`, `resolvedById`, event actors) still points at
+   * the same id instead of dangling.
+   *
+   * Only ever called for an account that is `isActive === false`; an **active**
+   * account keeps the plain 409 — someone still has access with that address, and
+   * silently taking it over would be wrong.
+   */
+  async revive(
+    id: number,
+    input: CreateUserInput,
+  ): Promise<User | null> {
+    const user = await this.findById(id);
+    if (!user) return null;
+
+    user.name = input.name;
+    user.role = input.role;
+    user.email = input.email.toLowerCase();
+    user.passwordHash = await bcrypt.hash(input.password, 10);
+    user.isActive = true;
+    // A revived account starts clean: any stale reset link dies with the switch.
+    user.passwordResetTokenHash = null;
+    user.passwordResetExpiresAt = null;
+    return this.users.save(user);
+  }
+
+  /**
    * Password recovery (ADR-007): store the SHA-256 hash of a fresh one-time
    * reset token with its expiry. Used by the Admin-issued link
    * (`POST /users/:id/reset-password`) and the offline `scripts/reset-password.mjs`

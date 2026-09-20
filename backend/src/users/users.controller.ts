@@ -84,12 +84,17 @@ export class UsersController {
   async create(@Body() dto: CreateUserDto) {
     const existing = await this.users.findByEmail(dto.email);
     if (existing) {
-      // A deactivated account still holds its address (its history references
-      // it), so re-creating it is refused — reactivating is the way back.
+      if (!existing.isActive) {
+        // A deactivated row still owns the address (tickets/history reference it).
+        // Creating the account again re-provisions **that** row, so history keeps
+        // pointing at the same id instead of the address being unusable forever.
+        const revived = await this.users.revive(existing.id, dto);
+        if (!revived) throw new NotFoundException(`User ${existing.id} not found.`);
+        return publicUser(revived);
+      }
+      // An active account genuinely holds the address — do not silently take it over.
       throw new ConflictException(
-        existing.isActive
-          ? 'A user with this email already exists.'
-          : 'That email belongs to a deactivated account kept for audit — reactivate it instead of creating a new one.',
+        'A user with this email already exists and is active — deactivate that account first (Users → Deactivate), then create it again, or sign in with it.',
       );
     }
     const user = await this.users.create(dto);

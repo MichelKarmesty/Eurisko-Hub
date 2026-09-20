@@ -142,11 +142,16 @@ real address** (`karim.haddad@gmail.com`, `karim@hotmail.com`,
 `k.haddad@acme-corp.com`…): no domain restriction is applied anywhere in the
 system (ADR-005).
 
-* `409` — the email is taken. The message distinguishes the two cases:
-  `"A user with this email already exists."` for a live account, and
-  `"That email belongs to a deactivated account kept for audit — reactivate it
-  instead of creating a new one."` when the row was deactivated (its history
-  references it, so the address stays with it — **reactivate, don't duplicate**).
+**If the address already belongs to a deactivated account, `POST /users`
+re-provisions that row** and answers `201`: the same account id is renamed,
+re-roled and given the new password, switched back on, and any stale reset link is
+cleared. Ticket history therefore keeps pointing at the same id instead of
+dangling — you do not have to find and reactivate the old row first.
+
+* `409` — the address belongs to an **active** account, i.e. somebody still has
+  access with it. The server does not take it over silently:
+  `"A user with this email already exists and is active — deactivate that account
+  first (Users → Deactivate), then create it again, or sign in with it."`
 * `400` — a malformed address, an invalid role, or an unknown body field;
   non-Admin caller → `403`.
 
