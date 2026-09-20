@@ -24,8 +24,9 @@
     `resolvedById` (both nullable, `ON DELETE SET NULL`) — and `createdAt` /
     `updatedAt` timestamps.
 *   **TicketEvent:** one row per thing that happened to a ticket — `ticketId`,
-    `actorId`, `action` (`CREATED` / `CLAIMED` / `ASSIGNED` / `RESOLVED` /
-    `ADMIN_OVERRIDE` / `CANCELLED`), optional `fromStatus` / `toStatus` / `note`,
+    `actorId`, `action` (`CREATED` / `CLAIMED` / `ASSIGNED` / `STATUS_CHANGED` /
+    `RESOLVED` / `ADMIN_OVERRIDE` / `CANCELLED`), optional `fromStatus` /
+    `toStatus` / `note`,
     and `createdAt`. It is the durable audit trail behind
     `GET /tickets/:id/history` and is never edited (`ON DELETE CASCADE` from the
     ticket, `RESTRICT` from the actor).

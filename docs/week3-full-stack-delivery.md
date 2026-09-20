@@ -389,12 +389,11 @@ $ cd backend && npm test
 > **Added after this record.** Several suites landed later — `ai-intake-eval.spec.ts`
 > (Week 4 AI intake, [`week4-production-ai.md`](week4-production-ai.md)),
 > `auth-password.spec.ts`, `admin-role-change.spec.ts`,
-> `admin-user-deletion.spec.ts`, and `admin-reset-password.spec.ts` (ADR-007) — so
-> `npm test` runs **9 spec files** (five AI-eval cases skip when no AI provider is
+> `admin-user-deletion.spec.ts`, `admin-reset-password.spec.ts` (ADR-007) and
+> `mail-smtp.spec.ts` (restored with the mail transports by ADR-008) — so
+> `npm test` runs **10 spec files** (five AI-eval cases skip when no AI provider is
 > running), and `npm run test:ai-eval` runs the AI evals on their own. The
-> `mail-smtp.spec.ts` suite that shipped with ADR-005 was removed together with the
-> mail subsystem (ADR-007). The Week 3 numbers above are kept as the record of that
-> delivery.
+> Week 3 numbers above are kept as the record of that delivery.
 
 $ node scripts/verify-slice.mjs full
  28/28 checks passed   (live HTTP definition of done, fresh database)

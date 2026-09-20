@@ -219,6 +219,18 @@ rules-based answer is never passed off as the model's. Set
 `AI_OFFLINE_FALLBACK=false` for the strict `{ suggestion: null, error }`
 behaviour. Nothing about running the app or the test suite requires a key.
 
+**Server and auth:**
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PORT` | `3000` | HTTP port |
+| `DB_FILE` | *(in-memory)* | SQLite file path — set it to keep data across restarts |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `admin@eurisko.com` / `Admin123!` | The one seeded Admin account (change both before any real deployment) |
+| `JWT_SECRET` | dev value | JWT signing secret — **set a strong one in production** |
+| `JWT_EXPIRES_IN` | `8h` | Session-token lifetime |
+
+**AI intake** (optional):
+
 | Variable | Default | Purpose |
 |---|---|---|
 | `AI_ENABLED` | `true` | `false` disables the feature (the endpoint answers with a clear disabled message) |
@@ -316,6 +328,7 @@ One command asks for one or two addresses + App Passwords, writes them into
 | `RESEND_API_KEY` / `MAIL_FROM` | *(unset)* | Optional Resend delivery |
 | `PASSWORD_RESET_RETURN_TOKEN` | `true` outside production | Return the one-time token in the API response (development only; **always off** when `NODE_ENV=production`) |
 | `PASSWORD_RESET_COOLDOWN_SECONDS` | `60` | At most one forgot-password email per address in this window (anti mail-bomb) |
+| `SMTP_ALT_SECURE`, `SMTP_FROM`, `SMTP_TIMEOUT_MS`, `SMTP_ALT_TIMEOUT_MS` | *(derived)* | Per-sender overrides (TLS flag, From address, timeouts) — the full list is in [`backend/README.md`](backend/README.md) |
 
 **Any real email address is accepted — `@eurisko.com` is only the development
 default.** Account creation, login, password reset and every example work
@@ -362,6 +375,9 @@ npm run test:ai-eval      # v0.4/v0.6: the 9 AI intake eval cases
 | Admin account deletion: contract, authorization, audit | `npm test` | `backend/test/admin-user-deletion.spec.ts` |
 | v0.4/v0.6: AI intake evals (5 real-or-skip + 4 mocked) | `npm run test:ai-eval` | `backend/test/ai-intake-eval.spec.ts` |
 | v0.5: password recovery/change + any-email rule | `npm test` | `backend/test/auth-password.spec.ts` |
+| ADR-007/ADR-009: Admin-issued reset link — contract + authorization | `npm test` | `backend/test/admin-reset-password.spec.ts` |
+| Role changes + the last-active-Admin guard | `npm test` | `backend/test/admin-role-change.spec.ts` |
+| Mail transports: real SMTP conversation, backup sender, console fallback | `npm test` | `backend/test/mail-smtp.spec.ts` |
 
 **UI E2E — two layers:**
 

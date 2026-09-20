@@ -52,9 +52,10 @@ A wrong email and a wrong password both return the same generic
 Recovery is **Admin-initiated** (ADR-007): an Admin mints a one-time link with
 `POST /users/:id/reset-password` (below) and hands it over, so no mail server is
 needed anywhere. This public, emailed path is **disabled unless**
-`PASSWORD_RESET_SELF_SERVICE=true`; while it is off the route answers
-`404 {"message":"Cannot POST /auth/forgot-password"}`, exactly as if it did not
-exist.
+`PASSWORD_RESET_SELF_SERVICE=true`; while it is off **any well-formed request**
+answers `404 {"message":"Cannot POST /auth/forgot-password"}`, exactly as if the
+route did not exist. (A malformed address or unknown body field still fails DTO
+validation with `400` first, as on every other endpoint.)
 
 With the switch on it is step 1 of self-service recovery. The answer is **always**
 the same generic message — the address being registered or not, active or not —
@@ -221,6 +222,10 @@ Durable event log (architecture §2: DB stores "ticket history"):
 Agent of the matching department claims an `Open`, unclaimed ticket from their
 queue. Sets `assignedToId` and moves status → `In Progress` (`CLAIMED` event).
 Already-claimed or non-Open tickets are rejected.
+* `403` — the caller is not an agent of the ticket's category, **or is the agent
+  who opened the ticket**: claiming your own request is refused (separation of
+  duties), so the person who reported a problem cannot resolve it unassigned-to.
+* `400` — the ticket is already claimed or not `Open`.
 
 ### PATCH /tickets/:id/status — assigned agent, or Admin override (ADR-002)
 Body: `{ "status": "In Progress" | "Resolved", "resolutionNote": "...", "overrideReason": "..." }`

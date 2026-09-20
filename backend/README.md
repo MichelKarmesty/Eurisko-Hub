@@ -104,6 +104,7 @@ test/
   admin-user-deletion.spec.ts           DELETE /users/:id: contract, audit rule,
                                         foreign-key enforcement
   auth-password.spec.ts                 v0.5 forgot/reset/change + any-email rule
+  admin-reset-password.spec.ts          ADR-007/ADR-009: Admin-issued reset link
   mail-smtp.spec.ts                     SMTP transport selection + console fallback
   ai-intake-eval.spec.ts                AI intake evals: five run for real when a
                                         provider answers (they skip otherwise),

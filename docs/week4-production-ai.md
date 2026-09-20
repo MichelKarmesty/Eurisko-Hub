@@ -539,6 +539,11 @@ $ node scripts/run-tests.mjs
   ALL TESTS PASSED
 ```
 
+*(Recorded at v0.6. The suite has grown since: ADR-007/ADR-008/ADR-009 added
+`admin-reset-password.spec.ts` and restored `mail-smtp.spec.ts`, so `npm test`
+now runs **10 spec files / 96 passing** — the transcript above is kept as the
+snapshot it was.)*
+
 ---
 
 ## 6. What "AI is advisory" means in practice

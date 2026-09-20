@@ -15,7 +15,10 @@ On an **empty** database the backend seeds exactly **one** account:
 **any real email address** — a personal provider (Gmail, Hotmail/Outlook, Yahoo)
 or a company domain. Every account email is validated with `@IsEmail()` and
 nothing else, so no domain is privileged or blocked (ADR-005). Use a deliverable
-address for people who must receive password-reset emails.
+address for the Admin, and for anyone who must receive reset emails **if** the
+opt-in self-service route is enabled (`PASSWORD_RESET_SELF_SERVICE=true`); by
+default the Admin hands the one-time link over directly, so no mailbox is needed
+(ADR-009).
 
 Everything else is created **from inside the app** by that Admin, on the
 **Users** tab (`POST /users`, Admin-only), with an explicit role and password.

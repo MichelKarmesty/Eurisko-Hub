@@ -19,9 +19,11 @@
  */
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { createHash } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
+import { UsersService } from '../src/users/users.service';
 
 // The reset token may only be echoed back outside production; the tests run
 // with NODE_ENV=test and rely on that development behaviour to complete the
@@ -412,5 +414,49 @@ describe('Password recovery and change over HTTP', () => {
       .post('/auth/reset-password')
       .send({ token, password: 'linked-pass-9999' });
     expect(reset.status).toBe(400);
+  });
+
+  it('rejects a token whose expiry has passed (400), leaving the password alone', async () => {
+    const email = `expired.${run}@gmail.com`;
+    const account = await provision(email);
+    expect(account.status).toBe(201);
+
+    // Plant a token that was valid yesterday: same storage the app uses, only
+    // the expiry differs — the case ADR-005 documents as "expiry rejection".
+    const token = 'e'.repeat(64);
+    const users = app.get(UsersService);
+    await users.setPasswordResetToken(
+      account.id,
+      createHash('sha256').update(token).digest('hex'),
+      Date.now() - 60_000,
+    );
+
+    const res = await request(http)
+      .post('/auth/reset-password')
+      .send({ token, password: NEW_PASSWORD });
+    expect(res.status).toBe(400);
+    expect(String(res.body.message)).toMatch(/invalid or has expired/i);
+
+    // Nothing changed: the old password still works, the new one does not.
+    expect((await login(email, PASSWORD)).status).toBe(200);
+    expect((await login(email, NEW_PASSWORD)).status).toBe(401);
+  });
+
+  it('honours PASSWORD_RESET_RETURN_TOKEN=false and echoes nothing', async () => {
+    const email = `noecho.${run}@gmail.com`;
+    expect((await provision(email)).status).toBe(201);
+
+    const previous = process.env.PASSWORD_RESET_RETURN_TOKEN;
+    process.env.PASSWORD_RESET_RETURN_TOKEN = 'false';
+    try {
+      const res = await request(http).post('/auth/forgot-password').send({ email });
+      expect(res.status).toBe(200);
+      expect(String(res.body.message)).toMatch(/if that email is registered/i);
+      expect(res.body.resetToken).toBeUndefined();
+      expect(res.body.resetUrl).toBeUndefined();
+      expect(res.body.delivery).toBeUndefined();
+    } finally {
+      process.env.PASSWORD_RESET_RETURN_TOKEN = previous;
+    }
   });
 });

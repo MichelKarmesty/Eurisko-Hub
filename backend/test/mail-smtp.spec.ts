@@ -6,6 +6,7 @@
  * (EHLO -> AUTH -> MAIL FROM -> RCPT TO -> DATA) and that a rejected provider
  * degrades to the console instead of breaking account recovery.
  */
+import http from 'node:http';
 import net from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 import { MailService } from '../src/mail/mail.service';
@@ -126,6 +127,9 @@ afterEach(() => {
     'SMTP_ALT_USER',
     'SMTP_ALT_PASS',
     'SMTP_ALT_FROM',
+    'MAIL_WEBHOOK_URL',
+    'MAIL_WEBHOOK_TOKEN',
+    'RESEND_API_KEY',
   ]) {
     delete process.env[key];
   }
@@ -247,5 +251,83 @@ describe('MailService over SMTP', () => {
     expect(backup.envelope).toContain('RCPT TO:<a@b.test>');
 
     await backup.close();
+  });
+
+  // --- The non-SMTP transports (ADR-008) ---------------------------------
+
+  it('delivers through MAIL_WEBHOOK_URL (with the optional bearer token)', async () => {
+    const received: Array<{ url?: string; auth?: string; body: any }> = [];
+    const server = http.createServer((req, res) => {
+      let raw = '';
+      req.on('data', (chunk) => (raw += chunk));
+      req.on('end', () => {
+        received.push({
+          url: req.url,
+          auth: req.headers.authorization,
+          body: JSON.parse(raw),
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end('{"ok":true}');
+      });
+    });
+    await new Promise<void>((done) => server.listen(0, '127.0.0.1', () => done()));
+    const { port } = server.address() as { port: number };
+
+    process.env.MAIL_WEBHOOK_URL = `http://127.0.0.1:${port}/relay`;
+    process.env.MAIL_WEBHOOK_TOKEN = 'relay-secret';
+    delete process.env.SMTP_HOST;
+
+    try {
+      const mail = new MailService();
+      const delivery = await mail.send({
+        to: 'employee@gmail.com',
+        subject: 'Reset your Eurisko Hub password',
+        text: 'link',
+      });
+
+      expect(delivery).toBe('webhook');
+      expect(received).toHaveLength(1);
+      expect(received[0].url).toBe('/relay');
+      expect(received[0].auth).toBe('Bearer relay-secret');
+      expect(received[0].body).toEqual({
+        to: 'employee@gmail.com',
+        subject: 'Reset your Eurisko Hub password',
+        text: 'link',
+      });
+    } finally {
+      await new Promise<void>((done) => server.close(() => done()));
+    }
+  });
+
+  it('delivers through the Resend HTTP API when RESEND_API_KEY is set', async () => {
+    const calls: Array<{ url: string; init: any }> = [];
+    const realFetch = global.fetch;
+    global.fetch = (async (url: any, init: any) => {
+      calls.push({ url: String(url), init });
+      return new Response('{"id":"test"}', { status: 200 });
+    }) as typeof fetch;
+
+    process.env.RESEND_API_KEY = 're_test_key';
+    process.env.MAIL_FROM = 'Eurisko Hub <onboarding@resend.dev>';
+    delete process.env.SMTP_HOST;
+    delete process.env.MAIL_WEBHOOK_URL;
+
+    try {
+      const mail = new MailService();
+      const delivery = await mail.send({ to: 'me@gmail.com', subject: 's', text: 't' });
+
+      expect(delivery).toBe('resend');
+      expect(calls).toHaveLength(1);
+      expect(calls[0].url).toBe('https://api.resend.com/emails');
+      expect(calls[0].init.headers.Authorization).toBe('Bearer re_test_key');
+      expect(JSON.parse(calls[0].init.body)).toMatchObject({
+        from: 'Eurisko Hub <onboarding@resend.dev>',
+        to: ['me@gmail.com'],
+        subject: 's',
+        text: 't',
+      });
+    } finally {
+      global.fetch = realFetch;
+    }
   });
 });

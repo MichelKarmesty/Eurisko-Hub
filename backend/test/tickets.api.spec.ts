@@ -75,6 +75,27 @@ describe('API contract — the resolve-ticket slice over HTTP', () => {
     expect(res.status).toBe(401);
   });
 
+  it('denies an agent claiming a ticket they opened themselves (403, separation of duties)', async () => {
+    const agent = await provision('IT_Agent', 'SelfClaim');
+    const opened = await request(http)
+      .post('/tickets')
+      .set(auth(agent.token))
+      .send({
+        title: 'My own laptop broke',
+        description: 'Reported by the agent who would otherwise claim it.',
+        category: 'IT',
+        priority: 'Medium',
+      });
+    expect(opened.status).toBe(201);
+    expect(opened.body.requesterId).toBe(agent.id);
+
+    const claim = await request(http)
+      .patch(`/tickets/${opened.body.id}/claim`)
+      .set(auth(agent.token));
+    expect(claim.status).toBe(403);
+    expect(String(claim.body.message)).toMatch(/submitted yourself/i);
+  });
+
   it('runs the whole slice: open -> claim -> resolve -> requester sees Resolved + note', async () => {
     const alice = await provision('Employee', 'Alice');
     const bob = await provision('IT_Agent', 'Bob');
