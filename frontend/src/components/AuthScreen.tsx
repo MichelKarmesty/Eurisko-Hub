@@ -25,11 +25,11 @@ function clearResetTokenFromUrl() {
  * other account (employees and agents) from the **Users** tab.
  *
  * Recovery is **Admin-initiated** (ADR-007, ADR-009): there is no self-service
- * "forgot password" on this screen. When someone forgets theirs, the Admin mints
- * a one-time link (**Users → Reset password**) and hands it over; that link opens
- * this screen's reset form via `?resetToken=…`, and a user who was given the raw
- * token instead can paste it through the **"I have a reset token"** button. The
- * Admin never sees or chooses the password.
+ * "forgot password" and **no reset-token box** on this screen — only the Admin
+ * can issue a link. When someone forgets theirs, the Admin mints a one-time link
+ * (**Users → Reset password**) and hands it over; opening that link lands here
+ * with `?resetToken=…` and shows the reset form, where the employee chooses their
+ * own password. The Admin never sees or chooses it.
  *
  * Any real email address is accepted here: a personal provider such as Gmail,
  * Hotmail/Outlook or Yahoo, or a company domain. The app never ties accounts to
@@ -131,18 +131,6 @@ export function AuthScreen({ onAuthed }: { onAuthed: (session: Session) => void 
             <div className="full">
               <button className="btn btn-primary" disabled={busy}>
                 {busy ? 'Please wait…' : 'Log in'}
-              </button>
-            </div>
-            <div className="full auth-links">
-              {/* ADR-007/ADR-009: recovery is Admin-initiated. An Admin issues a
-                  one-time link (Users → Reset password) that opens the form
-                  below; a raw token can be pasted by hand. */}
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => goTo('reset')}
-              >
-                I have a reset token
               </button>
             </div>
           </form>

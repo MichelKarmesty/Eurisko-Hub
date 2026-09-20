@@ -565,7 +565,11 @@ function UsersTab() {
       {/* Create user form */}
       <section className="card">
         <h2>Create account</h2>
-        <form className="stack" onSubmit={(e) => void handleCreate(e)}>
+        {/* autoComplete="off" + a "new-password" field keep the browser's password
+            manager from filling the Admin's own saved credentials into a form that
+            is meant to be typed fresh for somebody else. The form is also cleared
+            after every successful create (see handleCreate). */}
+        <form className="stack" autoComplete="off" onSubmit={(e) => void handleCreate(e)}>
           <div className="form-row">
             <label htmlFor="new-user-name">Name</label>
             <input
@@ -574,6 +578,7 @@ function UsersTab() {
               required
               minLength={2}
               placeholder="Full name"
+              autoComplete="off"
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             />
@@ -586,6 +591,7 @@ function UsersTab() {
               type="email"
               required
               placeholder="user@company.com"
+              autoComplete="off"
               value={form.email}
               onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
             />
@@ -599,6 +605,7 @@ function UsersTab() {
               required
               minLength={8}
               placeholder="Min. 8 characters"
+              autoComplete="new-password"
               value={form.password}
               onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
             />

@@ -137,9 +137,9 @@ sign in as the Admin (`admin@eurisko.com` / `Admin123!`), then open the
 **👥 Users** tab and use **Create account** to add people — for example an
 **Employee** (Requester), an **IT Agent**, an **HR Agent** and a
 **Maintenance Agent**. Only an Admin can create accounts, and only an Admin sees
-the Users tab; the login screen is sign-in plus an **I have a reset token** button
-(recovery links are issued by an Admin — ADR-007/ADR-009). Any real email address
-is accepted for the people you create.
+the Users tab; the login screen is a plain sign-in form — no self-service recovery
+and no token box, because only an Admin can issue a reset link (ADR-007/ADR-009).
+Any real email address is accepted for the people you create.
 
 To also run the live HTTP definition-of-done checks (these provision their own
 throwaway test accounts through the Admin API), with the backend running:

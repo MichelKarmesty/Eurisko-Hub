@@ -40,8 +40,8 @@ required to resolve) is enforced by the NestJS backend in `../backend/`.
    (`admin@eurisko.com` / `Admin123!`, override via `ADMIN_EMAIL` /
    `ADMIN_PASSWORD`). Sign in with it and create everyone else from the
    **👥 Users** tab. There is **no public registration** and no demo data
-   (ADR-004): the login screen is a sign-in form plus an **I have a reset token**
-   button — recovery links are issued by an Admin (ADR-007/ADR-009).
+   (ADR-004): the login screen is a plain sign-in form — no self-service recovery
+   and no reset-token box; only an Admin can issue a reset link (ADR-007/ADR-009).
    Accounts accept **any real email address** — Gmail, Hotmail/Outlook, Yahoo or
    a company domain; `@eurisko.com` is only the development default.
 
@@ -76,8 +76,8 @@ and is filled in by hand. Full detail:
 **Admin-initiated**: there is no "forgot password" on the sign-in screen. An Admin
 mints a one-time link from **Users → Reset password**
 (`POST /users/:id/reset-password`) and hands it over; the link opens the reset
-form (`POST /auth/reset-password`) via `?resetToken=…` in the address bar, and a
-raw token can be pasted through the **I have a reset token** button. A signed-in
+form (`POST /auth/reset-password`) via `?resetToken=…` in the address bar; there is
+no token box on the sign-in screen, so the link is the only way in. A signed-in
 user can rotate their password from **Change password** in the top bar
 (`POST /auth/change-password`, current password required). The public, emailed
 variant still exists in the backend but is off by default
