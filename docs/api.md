@@ -243,7 +243,8 @@ ticket.
 
 ```json
 { "suggestion": { "category": "IT", "priority": "High",
-                  "title": "Laptop screen flickering", "confidence": 0.92 },
+                  "title": "Laptop screen flickering", "confidence": 0.92,
+                  "relevant": true },
   "source": "ai" }
 ```
 
@@ -253,10 +254,30 @@ response says so — `source: "offline"` plus a `notice`:
 
 ```json
 { "suggestion": { "category": "IT", "priority": "Medium",
-                  "title": "Laptop will not charge", "confidence": 0.4 },
+                  "title": "Laptop will not charge", "confidence": 0.4,
+                  "relevant": true },
   "source": "offline",
   "notice": "AI provider unavailable — this suggestion comes from the offline keyword classifier…" }
 ```
+
+→ `200` when the text is **not a support request at all** (v0.6) — random
+characters, a greeting, a test message, something unrelated to work. The answer
+still carries a usable body, but says it could not read a request and why, so the
+UI pre-fills nothing:
+
+```json
+{ "suggestion": { "category": "IT", "priority": "Low",
+                  "title": "Not a support request", "confidence": 0.1,
+                  "relevant": false,
+                  "reason": "the text is random characters, not a request" },
+  "source": "ai",
+  "notice": "This does not look like a support request (the text is random characters, not a request) — add a few details about the problem, or fill in the fields by hand." }
+```
+
+`relevant` is a signal, not an error: the status stays `200` because the AI call
+succeeded — it is the *input* that could not be read as a request. A missing or
+wrong-typed `relevant` means `true`, so an older or sloppier provider can never
+make the form tell an employee their real request is nonsense.
 
 → `200` with the strict provider-only shape when `AI_OFFLINE_FALLBACK=false`:
 
@@ -268,6 +289,15 @@ The offline path never pretends to be the model: it is flagged in the payload
 (`source`, `notice`) and in the UI (the fields are tagged "Suggested (offline)")
 and its confidence is capped at 0.6. Nothing here is ever a `500`, so ticket
 creation is never blocked.
+
+The offline classifier can also return `relevant: false`, but only to report the
+weaker thing it can verify — *no service-desk keyword matched* — which it says in
+`reason` ("no service-desk keywords were found in the text") and in a
+correspondingly softer `notice` ("There is not enough here for the offline
+classifier to go on…"). A keyword miss is not a judgement that the employee wrote
+nonsense: the same classifier reports it for a perfectly good `"help"`. The
+model's own "this is not a support request" verdict is the stronger claim, and
+only the model path words it that way.
 
 * `400` — `text` missing or shorter than 3 characters (DTO validation).
 * `401` — no or invalid bearer token (any signed-in user may call it).
@@ -281,9 +311,10 @@ creation is never blocked.
   Ollama needs none.
 
 ### GET-free check script
-`node scripts/verify-ai-intake.mjs` drives five realistic descriptions through
-this endpoint against a running API and reports the category, priority, title,
-confidence and source of each — with or without a model installed.
+`node scripts/verify-ai-intake.mjs` drives six descriptions (five realistic ones
+plus deliberately meaningless text) through this endpoint against a running API
+and reports the category, priority, title, confidence, source and relevance of
+each — with or without a model installed.
 
 ## Admin dashboard
 

@@ -1,7 +1,7 @@
 /**
  * v0.4 — AI INTAKE EVAL (docs/week4-production-ai.md §"Eval results").
  *
- * Eight eval cases for the AI-assisted Request Intake capability, in two
+ * Nine eval cases for the AI-assisted Request Intake capability, in two
  * groups with deliberately different guarantees:
  *
  *   Cases 1–5 — behaviour against a REAL provider. No local installation is
@@ -17,10 +17,11 @@
  *   would be flaky and would pin the eval to one LLM. A local Ollama works
  *   too: AI_PROVIDER_URL=http://localhost:11434/v1.
  *
- *   Cases 6–8 — the safety net, fully mocked and therefore deterministic and
+ *   Cases 6–9 — the safety net, fully mocked and therefore deterministic and
  *   always run: whatever the model returns (garbage, wrong enums, wrong types)
- *   the validation layer emits valid values, and a dead provider produces a
- *   graceful fallback instead of an exception.
+ *   the validation layer emits valid values, a dead provider produces a graceful
+ *   fallback instead of an exception, and text that is not a support request is
+ *   reported (`relevant: false`) rather than guessed at.
  *
  * Run:  cd backend && npm run test:ai-eval
  */
@@ -72,7 +73,7 @@ beforeAll(async () => {
     // eslint-disable-next-line no-console
     console.info(
       `[ai-eval] No AI provider answered at ${PROVIDER_URL} — cases 1–5 will be skipped ` +
-        '(cases 6–8 are mocked and always run). Set AI_API_KEY with a free key from ' +
+        '(cases 6–9 are mocked and always run). Set AI_API_KEY with a free key from ' +
         'console.groq.com, or point AI_PROVIDER_URL at a local Ollama ' +
         '(http://localhost:11434/v1), to run them for real.',
     );
@@ -176,8 +177,12 @@ describe('AI intake eval — real provider (skips when no provider is running)',
 
   it('4. thin input still yields a valid category and priority (low confidence is fine)', async ({ skip }) => {
     if (!providerAvailable) skip();
-    expectModelAnswer(await service.suggest('help'), 'thin input');
+    const thin = expectModelAnswer(await service.suggest('help'), 'thin input');
     expectModelAnswer(await service.suggest('something is wrong'), 'thin input (second wording)');
+    // v0.6 — "wrote very little" must never be mistaken for "not a request". The
+    // prompt says so explicitly; this is the assertion that keeps the relevance
+    // signal from nagging the employees who write the least.
+    expect(thin.relevant, 'thin input must stay relevant').not.toBe(false);
   });
 
   it('5. mixed signals resolve to exactly one valid category', async ({ skip }) => {
@@ -260,6 +265,23 @@ describe('AI intake eval — validation and failure handling (mocked, always run
     expect(CATEGORIES).toContain(vague.category);
     expect(PRIORITIES).toContain(vague.priority);
     expect(vague.confidence).toBeLessThan(0.4);
+    // v0.6 — relevance is on this path too, and it means the weak, verifiable
+    // thing rules can mean: nothing matched. Real reports are never flagged.
+    expect(vague.relevant).toBe(false);
+    expect(vague.reason).toBeTruthy();
+    for (const [text] of offlineCases) {
+      expect(classifyOffline(text).relevant, `classifyOffline("${text}") must stay relevant`).toBe(true);
+    }
+    // The validator defaults to relevant: no field, or a wrong type, is not
+    // evidence that the employee's message is nonsense.
+    expect(coerceSuggestion(null, 'x').relevant).toBe(true);
+    expect(coerceSuggestion({ relevant: 'yes' }, 'x').relevant).toBe(true);
+    expect(coerceSuggestion({ relevant: 0 }, 'x').relevant).toBe(true);
+    // …but an explicit false is honoured, and a reason is always attached.
+    const flagged = coerceSuggestion({ relevant: false }, 'x');
+    expect(flagged.relevant).toBe(false);
+    expect(flagged.reason).toBeTruthy();
+    expect(coerceSuggestion({ relevant: 'false', reason: 'nonsense' }, 'x').relevant).toBe(false);
     // Urgency wording is honoured in both directions.
     expect(classifyOffline("my laptop is broken and I can't work").priority).toBe('High');
     expect(classifyOffline('the office chair squeaks, no rush').priority).toBe('Low');
@@ -379,5 +401,74 @@ describe('AI intake eval — validation and failure handling (mocked, always run
 
     // The model that is configured is the one we asked for.
     expect(MODEL.length).toBeGreaterThan(0);
+  });
+
+  it('9. text that is not a support request is reported, never guessed at (v0.6)', async () => {
+    // The model read the text and says it is not a request. The signal is
+    // carried through, and the caller is told what happened and why.
+    stubProvider(
+      '{"category":"IT","priority":"Low","title":"Random characters","confidence":0.1,' +
+        '"relevant":false,"reason":"the text looks like random characters, not a request"}',
+    );
+
+    const flagged = await service.suggest('asdfghjkl qwerty zxcvbn');
+    expectUsable(flagged, 'not a request (model)');
+    expect(flagged.source).toBe('ai');
+    expect(flagged.suggestion?.relevant).toBe(false);
+    expect(flagged.suggestion?.reason).toBe('the text looks like random characters, not a request');
+    expect(flagged.notice).toMatch(/does not look like a support request/i);
+    // The model's own reason is surfaced, so the employee is told *why*.
+    expect(flagged.notice).toMatch(/random characters/);
+
+    // A real request is never accused: a missing or wrong-typed `relevant` is
+    // not evidence, so it defaults to true and no notice is attached.
+    stubProvider('{"category":"IT","priority":"High","title":"Laptop dead","confidence":0.9}');
+    const real = await service.suggest('my laptop is dead and I cannot work');
+    expect(real.suggestion?.relevant).toBe(true);
+    expect(real.notice).toBeUndefined();
+
+    // Some providers send booleans as strings; an explicit "false" still counts.
+    stubProvider(
+      '{"category":"IT","priority":"Medium","title":"Help","confidence":0.4,"relevant":"false","reason":"too vague to act on"}',
+    );
+    const asString = await service.suggest('help');
+    expect(asString.suggestion?.relevant).toBe(false);
+    expect(asString.suggestion?.reason).toBe('too vague to act on');
+
+    // The offline classifier reports only what it can actually verify: real
+    // reports (including the Arabic and French ones above) stay relevant, text
+    // with no signal at all does not.
+    expect(classifyOffline('asdfghjkl qwerty zxcvbn').relevant).toBe(false);
+    expect(classifyOffline('asdfghjkl qwerty zxcvbn').reason).toBeTruthy();
+
+    // An offline answer for meaningless text carries both labels: irrelevant,
+    // and from the rules rather than from the model.
+    stubProviderDown();
+    const offlineJunk = await service.suggest('asdfghjkl qwerty zxcvbn');
+    expect(offlineJunk.source).toBe('offline');
+    expect(offlineJunk.suggestion?.relevant).toBe(false);
+    expect(offlineJunk.notice).toMatch(/offline/i);
+
+    // The two producers do not claim the same thing, so they do not say the
+    // same thing: a model judges "this is not a request", while the keyword
+    // classifier can only report that it found nothing to match — which is
+    // equally true of a short-but-real "help". The rules' notice must therefore
+    // be the weaker wording, never the model's.
+    expect(offlineJunk.notice).toMatch(/not enough here/i);
+    expect(offlineJunk.notice).not.toMatch(/does not look like a support request/i);
+    expect(offlineJunk.notice).toMatch(/no service-desk keywords/i);
+
+    // The model path keeps the stronger wording for the same input.
+    stubProvider('{"category":"IT","priority":"Low","title":"Junk","confidence":0.1,"relevant":false}');
+    const modelJunk = await service.suggest('asdfghjkl qwerty zxcvbn');
+    expect(modelJunk.notice).toMatch(/does not look like a support request/i);
+
+    // Relevance is still only a signal: no status code, no block, still a
+    // usable body, and the offline fallback is plainly labelled.
+    stubProviderDown();
+    const offlineReal = await service.suggest('The printer on floor 2 is jammed');
+    expect(offlineReal.suggestion?.relevant).toBe(true);
+    expect(offlineReal.notice).toMatch(/offline/i);
+    expect(offlineReal.notice).not.toMatch(/does not look like a support request/i);
   });
 });

@@ -47,7 +47,7 @@ it was resolved.
 | [`backend/`](backend/) | NestJS + TypeORM API (auth with password reset/change, RBAC, tickets with claim/status flow, durable history, advisory AI intake under `src/ai/`, console/HTTP mail under `src/mail/`) |
 | [`frontend/`](frontend/) | React + Vite web client (requester dashboard with AI Suggest, agent queue, admin view) |
 | [`docs/`](docs/) | Product spec, architecture, data model, ADRs (incl. [ADR-006](docs/decisions/ADR-006.md), the advisory-AI scope decision), API reference, Week 3 & Week 4 delivery records |
-| [`scripts/`](scripts/) | [`verify-slice.mjs`](scripts/verify-slice.mjs) live HTTP checks · [`run-tests.mjs`](scripts/run-tests.mjs) one-command test suite · [`verify-ai-intake.mjs`](scripts/verify-ai-intake.mjs) AI intake checks · [`ai-provider-doctor.mjs`](scripts/ai-provider-doctor.mjs) find a working AI provider |
+| [`scripts/`](scripts/) | [`verify-slice.mjs`](scripts/verify-slice.mjs) live HTTP checks · [`run-tests.mjs`](scripts/run-tests.mjs) one-command test suite · [`verify-ai-intake.mjs`](scripts/verify-ai-intake.mjs) AI intake checks · [`ai-provider-doctor.mjs`](scripts/ai-provider-doctor.mjs) find a working AI provider · [`mock-ai-provider.mjs`](scripts/mock-ai-provider.mjs) **test double** — exercises the model path with no key (never a real model) |
 | [`e2e/`](e2e/) | End-to-end tests: DOM-level (default) and real-browser (optional) |
 
 ## Requirements
@@ -170,7 +170,7 @@ node scripts/verify-slice.mjs full
 Requests the API refuses (e.g. an employee trying to change a status) surface as
 a visible notice instead of failing silently.
 
-## AI-assisted intake (v0.4)
+## AI-assisted intake (v0.4, extended in v0.6)
 
 On the **New request** form an employee can describe the problem in their own
 words and press **AI Suggest**. The AI returns a *suggestion* for Category,
@@ -178,6 +178,18 @@ Priority and Title; the fields are pre-filled and tagged **AI suggested**, the
 tag clears as soon as the employee edits a field, and **Open ticket** still calls
 the ordinary `POST /tickets`. The AI never creates a ticket and never writes to
 the database. Full detail: [`docs/week4-production-ai.md`](docs/week4-production-ai.md).
+
+**If the text is not a support request, the AI says so (v0.6).** Random
+characters, a greeting, a test message or something unrelated to work now come
+back as `relevant: false` with a short `reason` and a notice — nothing is
+pre-filled, the form keeps whatever the employee typed, and they can still open
+the ticket by hand. Before this, meaningless input was quietly answered with a
+plausible-looking `IT` / `Medium`. The status is still `200`: the AI call
+succeeded, it is only the *input* it could not read as a request, so this is a
+signal and never an error the form has to handle. A real request is never flagged
+by the model, however terse — `"help"` is a request. (The keyword fallback is
+blunter: it flags anything it has no keyword for, and says only that it found
+nothing — never that the message was nonsense.)
 
 **The default provider is Groq's free cloud API** — nothing to install, no
 credit card. Get a free key at <https://console.groq.com>, then start the
@@ -224,6 +236,16 @@ a key and says which source answered):
 ```bash
 node scripts/verify-ai-intake.mjs
 ```
+
+**No key, but need to test the *model* path?** The offline classifier is labelled
+`source: "offline"` and is a different code path, so it cannot cover the
+`source: "ai"` branch, the prompt that goes out, or the model-path notices.
+`scripts/mock-ai-provider.mjs` is an OpenAI-compatible **test double** for exactly
+that — a keyword table behind `/chat/completions`. It is test tooling, not a
+model, and pointing the app at it makes the API label rule-based answers
+`source: "ai"`, which is precisely what the product must never do in front of
+anyone. Use it to exercise the path; use a real key to judge the AI. Details:
+[`docs/week4-production-ai.md`](docs/week4-production-ai.md) §4.
 
 ## Password recovery & any email address (v0.5)
 
@@ -303,7 +325,7 @@ npm test                  # all suites
 npm run test:unit         # business rule: the ticket lifecycle
 npm run test:integration  # backend <-> real SQL database
 npm run test:api          # HTTP contract, authorization (allowed/denied), regression
-npm run test:ai-eval      # v0.4: the 8 AI intake eval cases
+npm run test:ai-eval      # v0.4/v0.6: the 9 AI intake eval cases
 ```
 
 | Requirement | Command | File |
@@ -313,7 +335,7 @@ npm run test:ai-eval      # v0.4: the 8 AI intake eval cases
 | HTTP contract + authorization + regression | `npm run test:api` | `backend/test/tickets.api.spec.ts` |
 | Admin seed can never lock a database out | `npm test` | `backend/test/admin-seed.spec.ts` |
 | Admin account deletion: contract, authorization, audit | `npm test` | `backend/test/admin-user-deletion.spec.ts` |
-| v0.4: AI intake evals (5 real-or-skip + 3 mocked) | `npm run test:ai-eval` | `backend/test/ai-intake-eval.spec.ts` |
+| v0.4/v0.6: AI intake evals (5 real-or-skip + 4 mocked) | `npm run test:ai-eval` | `backend/test/ai-intake-eval.spec.ts` |
 | v0.5: password recovery/change + any-email rule | `npm test` | `backend/test/auth-password.spec.ts` |
 
 **UI E2E — two layers:**
@@ -433,7 +455,13 @@ Read in this order:
   is shown in the UI too). Look for `No mail provider configured` in the backend
   output, or set `SMTP_HOST` (+ `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` — an **App
   Password** for Gmail/Outlook with 2FA), or `MAIL_WEBHOOK_URL` / `RESEND_API_KEY`,
-  for real delivery. A reset
+  for real delivery. Note that `SMTP_*` values are only read from the process
+  environment: the **▶ START HERE** task loads `backend/.env` (`node --env-file=.env`)
+  and fails outright when that file is missing, while the plain `backend: dev` task
+  does **not** read it at all. Once the Gmail block is filled in, confirm real
+  delivery before relying on it — this sends a test message through the same SMTP
+  client the backend uses and explains the common failures:
+  `node scripts/verify-mail.mjs you@gmail.com`. A reset
   link is valid for 30 minutes (`PASSWORD_RESET_TTL_MINUTES`) and can be used once;
   the API always answers `200` with the same generic message even for an unknown
   email (that is deliberate — it prevents account discovery).

@@ -21,6 +21,11 @@ const NO_AI: Record<AiFlag, boolean> = { title: false, category: false, priority
  * as soon as the employee types, and "Open ticket" still calls the unchanged
  * POST /tickets with the ordinary CreateTicketDto. If the AI is unavailable the
  * form simply carries on by hand.
+ *
+ * v0.6: if the text does not read as a support request at all, the answer says
+ * so (`relevant: false` + a notice) and **nothing is pre-filled** — a guess the
+ * AI itself flagged as meaningless is not worth showing. The form is untouched
+ * and the employee opens the ticket by hand.
  */
 export function RequesterView() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -69,6 +74,28 @@ export function RequesterView() {
         return;
       }
       const suggestion = result.suggestion;
+
+      // v0.6 — the model (or the offline classifier) could not find a support
+      // request in the text. Nothing is pre-filled: a guess dressed up as a
+      // suggestion is worse than none. The employee is told why and carries on.
+      //
+      // The severity follows the claim being made. A model saying "this is not a
+      // request" is an error worth red; the keyword classifier reporting only
+      // "I found nothing to match" is the softer, weaker statement — it says
+      // that about a perfectly good "help" too — so it stays informational.
+      if (suggestion.relevant === false) {
+        const fromRules = result.source === 'offline';
+        setAiSuggested(NO_AI);
+        setAiSource(fromRules ? 'offline' : 'ai');
+        setNotice({
+          kind: fromRules ? 'info' : 'error',
+          text:
+            result.notice ??
+            'This does not look like a support request — add a few details about the problem, or fill in the fields by hand.',
+        });
+        return;
+      }
+
       setTitle(suggestion.title);
       setCategory(suggestion.category);
       setPriority(suggestion.priority);

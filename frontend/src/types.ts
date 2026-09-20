@@ -94,6 +94,18 @@ export interface AiIntakeSuggestion {
   priority: Priority;
   title: string;
   confidence: number;
+  /**
+   * v0.6 — `false` when the text did not read as a support request at all
+   * (random characters, a greeting, a test, something unrelated to work). The
+   * UI then shows the companion `notice` and pre-fills nothing.
+   *
+   * Optional on purpose: an answer that does not carry the field at all means
+   * "relevant", so an older backend can never make the form accuse the
+   * employee's message of being nonsense.
+   */
+  relevant?: boolean;
+  /** Short explanation of `relevant: false`, supplied by the backend. */
+  reason?: string;
 }
 
 export interface AiIntakeResult {
@@ -101,6 +113,9 @@ export interface AiIntakeResult {
   error?: string;
   /** `'ai'` when the configured model answered, `'offline'` for the keyword fallback. */
   source?: 'ai' | 'offline';
-  /** Explanation shown to the employee when the offline fallback was used. */
+  /**
+   * Explanation shown to the employee when the offline fallback was used, or
+   * when the suggestion is not relevant.
+   */
   notice?: string;
 }

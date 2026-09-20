@@ -8,7 +8,7 @@ import { CATEGORIES, Category, PRIORITIES, Priority } from '../common/domain';
  * *suggests* the structured fields the New Request form needs: category,
  * priority, a cleaned-up title, and its own confidence (0–1).
  *
- * Three rules shape this service:
+ * Five rules shape this service:
  *
  *  1. **Advisory only.** It returns a candidate. It never creates a ticket and
  *     never writes to the database — the employee accepts, edits or ignores the
@@ -28,6 +28,13 @@ import { CATEGORIES, Category, PRIORITIES, Priority } from '../common/domain';
  *     "Suggested (offline)". Rules are never passed off as the model's work.
  *     Set `AI_OFFLINE_FALLBACK=false` for the strict `{ suggestion: null,
  *     error }` contract.
+ *  5. **"I could not find a request here" is an answer, not an error.** v0.6:
+ *     when the text is not a support request at all (random characters, a
+ *     greeting, a test, something unrelated to work) the answer says so —
+ *     `relevant: false` plus a short `reason` and a `notice`. It is still an
+ *     HTTP 200 with a usable body: the call succeeded, the *input* could not be
+ *     read as a request. Nothing is blocked and the employee can still open the
+ *     ticket by hand, which is exactly why this is a signal rather than a 4xx.
  *
  * Configuration (all optional, read per call so operators and tests can change
  * them without a rebuild):
@@ -47,6 +54,23 @@ export interface AiIntakeSuggestion {
   priority: Priority;
   title: string;
   confidence: number;
+  /**
+   * v0.6 — could a support request be found in the text at all?
+   *
+   * `false` means "I could not find a request here": random characters, a
+   * greeting, a test message, something unrelated to work. Advisory like every
+   * other field — the endpoint still answers `200`, the employee still opens
+   * the ticket by hand, and the UI simply does not prefill from a guess it was
+   * told is meaningless.
+   *
+   * The two producers mean slightly different things by it, and `reason` says
+   * which: the model judges it semantically ("this is a greeting"), while the
+   * offline classifier can only report the weaker "no service-desk keyword
+   * matched" — it has no way to understand a vague-but-real request.
+   */
+  relevant: boolean;
+  /** Short, neutral explanation of `relevant: false`; absent when relevant. */
+  reason?: string;
 }
 
 export interface AiIntakeResult {
@@ -54,7 +78,11 @@ export interface AiIntakeResult {
   error?: string;
   /** Where a suggestion came from: the configured model, or the offline rules. */
   source?: 'ai' | 'offline';
-  /** Human-readable explanation, set whenever the offline fallback was used. */
+  /**
+   * Human-readable explanation, set whenever the offline fallback was used and
+   * whenever `suggestion.relevant` is false, so the employee is told what
+   * happened instead of being handed a plausible-looking guess.
+   */
   notice?: string;
 }
 
@@ -94,7 +122,7 @@ export const SYSTEM_PROMPT = [
   'You classify internal support requests for an IT / HR / Maintenance service desk of a company in Lebanon.',
   'The employee may write in English, Arabic (including Lebanese dialect), French, or a mix of them.',
   'Answer with ONLY one JSON object — no prose, no markdown, no code fences:',
-  '{"category":"IT"|"HR"|"Maintenance","priority":"Low"|"Medium"|"High","title":"short summary","confidence":0.0}',
+  '{"category":"IT"|"HR"|"Maintenance","priority":"Low"|"Medium"|"High","title":"short summary","confidence":0.0,"relevant":true,"reason":""}',
   'Rules:',
   '- category is exactly one of: IT, HR, Maintenance.',
   '  IT: computers, laptops, screens, phones, printers, wifi/network, email, accounts, passwords, access, software, servers.',
@@ -107,6 +135,14 @@ export const SYSTEM_PROMPT = [
   '- title is a NEW, short, neutral summary of the problem — rewrite it in 3 to 8 words;',
   '  never copy the sentence word-for-word. Keep the SAME language the employee used (Arabic stays Arabic, French stays French).',
   '- confidence is your certainty in the category, a number between 0 and 1.',
+  '- relevant is true when the text describes a problem, request or question the service desk could act on.',
+  '  VERY SHORT OR VAGUE TEXT IS STILL RELEVANT: "help", "something is wrong", "it is broken" are all relevant=true.',
+  '  Set relevant to false ONLY when the text is clearly not a support request: random characters or gibberish,',
+  '  a greeting or small talk, a test message, or something unrelated to work (a joke, a recipe, a maths question).',
+  '  When you are unsure, answer relevant=true — never accuse a real request of being nonsense.',
+  '- reason is a short, neutral explanation, used ONLY when relevant is false (e.g. "the text looks like random',
+  '  characters"). Use an empty string when relevant is true.',
+  '- Always fill in category, priority, title and confidence, even when relevant is false.',
   'Examples:',
   '{"category":"IT","priority":"High","title":"Laptop will not turn on","confidence":0.95}',
   '{"category":"HR","priority":"Low","title":"Contract copy request","confidence":0.9}',
@@ -116,6 +152,8 @@ export const SYSTEM_PROMPT = [
   '{"category":"Maintenance","priority":"Medium","title":"المكيف ما عم يبرّد","confidence":0.85}',
   '{"category":"IT","priority":"High","title":"Ordinateur ne s\'allume plus","confidence":0.9}',
   '{"category":"Maintenance","priority":"Medium","title":"Climatisation en panne","confidence":0.9}',
+  '{"category":"IT","priority":"Medium","title":"Help needed","confidence":0.4,"relevant":true,"reason":""}',
+  '{"category":"IT","priority":"Low","title":"Not a support request","confidence":0.1,"relevant":false,"reason":"the text is random characters, not a request"}',
 ].join('\n');
 
 const isCategory = (value: unknown): value is Category =>
@@ -147,12 +185,41 @@ function coerceConfidence(value: unknown): number {
 }
 
 /**
+ * v0.6 — `relevant` is the one field where the safe default is **true**.
+ *
+ * `coerceSuggestion` is total, so a missing, misspelled or wrong-typed field
+ * must still produce an answer. For every other field a bad value costs a
+ * slightly worse guess; here it would mean telling an employee their real
+ * request is nonsense. So only an explicit `false` counts — boolean, or the
+ * string a provider may send instead — and everything else means "relevant",
+ * which is exactly what the prompt asks the model to do when unsure.
+ */
+export function coerceRelevant(value: unknown): boolean {
+  if (value === false) return false;
+  return !(typeof value === 'string' && value.trim().toLowerCase() === 'false');
+}
+
+/** A short, neutral reason; long model prose is trimmed, never passed through. */
+export function coerceReason(value: unknown): string {
+  if (typeof value === 'string') {
+    const cleaned = value.replace(/\s+/g, ' ').trim().replace(/[.;,]+$/, '');
+    if (cleaned.length >= 3) return cleaned.slice(0, 160);
+  }
+  return 'the text does not look like a support request';
+}
+
+/**
  * THE VALIDATION LAYER (docs/week4-production-ai.md §"Why a validation layer").
  *
  * Pure and total: whatever the model returned — `null`, a string, a missing
  * field, `{ "category": "Finance", "priority": "Urgent" }`, a wrong type — this
  * function returns a well-formed suggestion whose category and priority are
  * guaranteed members of the domain enums (common/domain.ts).
+ *
+ * v0.6 adds the one field that is not a guess: `relevant`, which is carried
+ * through unchanged (defaulting to `true`, see `coerceRelevant`) because it is
+ * the model's report about the *input*, not a value the validator should
+ * second-guess. `reason` is kept only while it is irrelevant.
  */
 export function coerceSuggestion(value: unknown, sourceText: string): AiIntakeSuggestion {
   const record: Record<string, unknown> =
@@ -160,11 +227,15 @@ export function coerceSuggestion(value: unknown, sourceText: string): AiIntakeSu
       ? (value as Record<string, unknown>)
       : {};
 
+  const relevant = coerceRelevant(record.relevant);
+
   return {
     category: isCategory(record.category) ? record.category : FALLBACK_CATEGORY,
     priority: isPriority(record.priority) ? record.priority : FALLBACK_PRIORITY,
     title: coerceTitle(record.title, sourceText),
     confidence: coerceConfidence(record.confidence),
+    relevant,
+    ...(relevant ? {} : { reason: coerceReason(record.reason) }),
   };
 }
 
@@ -293,6 +364,9 @@ function countHits(haystack: string, words: readonly string[]): number {
  * only emit values from the domain enums — an unknown text simply falls back to
  * `IT`/`Medium` with a low confidence.
  *
+ * It also reports `relevant: false` when it matched nothing at all, which is
+ * the only sense in which rules can tell that a text is not a request.
+ *
  * Multilingual on purpose (English / Arabic / French, accents stripped): the
  * fallback must stay useful in the languages the employees actually write in.
  */
@@ -322,7 +396,23 @@ export function classifyOffline(text: string): AiIntakeSuggestion {
   // Rules are less certain than a model, and the ceiling says so out loud.
   const confidence = best.score > 0 ? Math.min(0.6, 0.4 + 0.1 * (best.score - 1)) : 0.25;
 
-  return { category, priority, title: titleFromText(text), confidence };
+  // v0.6 — the honest half of the relevance signal. A keyword classifier cannot
+  // understand a vague-but-real request the way a model can, so it reports the
+  // weaker, verifiable claim: "no service-desk keyword matched". One category
+  // keyword ("wifi", "salary", "leak") or one urgency phrase is enough to count
+  // as a request; only text it can find nothing in at all is flagged, and
+  // `reason` says exactly that rather than calling the employee's message wrong.
+  const relevant = best.score > 0 || high > 0 || low > 0;
+
+  const suggestion: AiIntakeSuggestion = {
+    category,
+    priority,
+    title: titleFromText(text),
+    confidence,
+    relevant,
+  };
+  if (!relevant) suggestion.reason = 'no service-desk keywords were found in the text';
+  return suggestion;
 }
 
 @Injectable()
@@ -380,7 +470,16 @@ export class AiIntakeService implements OnModuleInit {
         );
       }
 
-      return { suggestion: coerceSuggestion(parsed, source), source: 'ai' };
+      const suggestion = coerceSuggestion(parsed, source);
+
+      // v0.6 — the provider answered perfectly well; it is the *text* it could
+      // not read as a request. That is a successful call, so this stays a 200
+      // with a usable body and a notice, never an error status.
+      if (!suggestion.relevant) {
+        return { suggestion, source: 'ai', notice: this.relevanceNotice(suggestion.reason, false) };
+      }
+
+      return { suggestion, source: 'ai' };
     } catch (err) {
       // Provider unreachable, timed out, or answered with an HTTP error. The
       // ticket form must keep working, so this is reported, never thrown.
@@ -415,12 +514,46 @@ export class AiIntakeService implements OnModuleInit {
   }
 
   /**
+   * v0.6 — what the employee reads when the text did not come back as a
+   * support request. Phrased as "I could not find a request here", never as
+   * "your message is wrong": the assistant is reporting its own failure to
+   * understand, and the employee may still open the ticket by hand.
+   *
+   * `fromRules` picks the honest lead-in, because the two producers are not
+   * claiming the same thing (§3.6). A model can judge that "hello, nice
+   * weather" is not a request; the keyword classifier can only report that it
+   * found nothing to match — which is equally true of a perfectly good but very
+   * short request like "help". "Not enough to go on" is accurate there; "this
+   * does not look like a support request" would not be.
+   */
+  private relevanceNotice(reason: string | undefined, fromRules: boolean): string {
+    const cleaned = reason?.replace(/[.;,\s]+$/, '');
+    const lead = fromRules
+      ? 'There is not enough here for the offline classifier to go on'
+      : 'This does not look like a support request';
+    return (
+      `${lead}${cleaned ? ` (${cleaned})` : ''}` +
+      ' — add a few details about the problem, or fill in the fields by hand.'
+    );
+  }
+
+  /**
    * A rules-based suggestion, always labelled: `source: 'offline'` plus a
    * `notice` the client displays, so an offline answer is never mistaken for
-   * the model's work.
+   * the model's work. When the rules matched nothing at all, the relevance
+   * caveat is stated first — the employee needs to know the answer is a guess
+   * from an empty signal before they read why it is not from a model.
    */
   private offlineResult(source: string, notice: string): AiIntakeResult {
-    return { suggestion: classifyOffline(source), source: 'offline', notice };
+    const suggestion = classifyOffline(source);
+
+    return suggestion.relevant
+      ? { suggestion, source: 'offline', notice }
+      : {
+          suggestion,
+          source: 'offline',
+          notice: `${this.relevanceNotice(suggestion.reason, true)} ${notice}`,
+        };
   }
 
   /**

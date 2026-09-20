@@ -14,6 +14,13 @@
  * OpenAI-compatible provider, the same checks run against real classifications
  * and report `source: "ai"`.
  *
+ * v0.6 — one of the descriptions is deliberately meaningless ("asdfghjkl…").
+ * The AI must report that it could not find a support request there
+ * (`relevant: false` + a `notice`) instead of inventing a plausible-looking
+ * Category/Priority. That answer is still an HTTP 200 with a usable body: the
+ * call succeeded, it is the *input* the assistant could not read, so nothing is
+ * blocked and the employee can always fill the form by hand.
+ *
  * Environment:
  *   BASE_URL        default http://localhost:3000
  *   ADMIN_EMAIL     default admin@eurisko.com
@@ -53,13 +60,18 @@ async function req(method, path, { token, body } = {}) {
   return { status: res.status, data };
 }
 
-/** text, expected category (or null = any valid one) */
+/**
+ * text, expected category (null = any valid one), expected relevance
+ * (null = any — the offline classifier cannot judge a vague-but-real "help" the
+ * way a model can, so that one is reported but not asserted).
+ */
 const CASES = [
-  ["My laptop screen is flickering and I can't work", 'IT'],
-  ['I need to update my emergency contact information', 'HR'],
-  ['The AC in conference room B is not working', 'Maintenance'],
-  ['help', null],
-  ['The office door lock is broken and I also need HR to update my badge', null],
+  ["My laptop screen is flickering and I can't work", 'IT', true],
+  ['I need to update my emergency contact information', 'HR', true],
+  ['The AC in conference room B is not working', 'Maintenance', true],
+  ['help', null, null],
+  ['The office door lock is broken and I also need HR to update my badge', null, true],
+  ['asdfghjkl qwerty zxcvbn', null, false],
 ];
 
 async function main() {
@@ -84,7 +96,7 @@ async function main() {
   const countBefore = Array.isArray(before.data) ? before.data.length : -1;
 
   const sources = new Set();
-  for (const [text, expected] of CASES) {
+  for (const [text, expected, expectedRelevant] of CASES) {
     const res = await req('POST', '/tickets/ai-suggest', { token, body: { text } });
     const suggestion = res.data?.suggestion;
 
@@ -97,7 +109,8 @@ async function main() {
     const label = res.data.source === 'offline' ? 'offline' : 'ai';
     const detail =
       `${suggestion.category} / ${suggestion.priority} / "${suggestion.title}" ` +
-      `(confidence ${suggestion.confidence}, source ${label})`;
+      `(confidence ${suggestion.confidence}, source ${label}, relevant ${suggestion.relevant})` +
+      (suggestion.relevant === false && res.data.notice ? `\n      notice: ${res.data.notice}` : '');
 
     const ok =
       CATEGORIES.includes(suggestion.category) &&
@@ -107,9 +120,16 @@ async function main() {
       typeof suggestion.confidence === 'number' &&
       suggestion.confidence >= 0 &&
       suggestion.confidence <= 1 &&
-      (expected === null || suggestion.category === expected);
+      typeof suggestion.relevant === 'boolean' &&
+      (expected === null || suggestion.category === expected) &&
+      (expectedRelevant === null || suggestion.relevant === expectedRelevant);
 
-    check(`"${text}"${expected ? `  [expect ${expected}]` : ''}`, ok, detail);
+    check(
+      `"${text}"${expected ? `  [expect ${expected}]` : ''}` +
+        `${expectedRelevant === null ? '' : `  [expect relevant=${expectedRelevant}]`}`,
+      ok,
+      detail,
+    );
   }
 
   // The advisory promise: asking for suggestions must never create a ticket.
@@ -148,6 +168,12 @@ async function main() {
         'or disable the fallback with AI_OFFLINE_FALLBACK=false.',
     );
   }
+
+  console.log(
+    '\nv0.6 relevance signal: text that is not a support request comes back as `relevant: false`\n' +
+      'with a notice, and the form pre-fills nothing from it. The status is still 200 — the call\n' +
+      'succeeded; it is only the input that could not be read as a request.',
+  );
 
   const failed = results.filter((r) => !r.ok);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
