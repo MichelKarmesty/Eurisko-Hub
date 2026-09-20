@@ -8,6 +8,12 @@
 This is the Week 4 delivery record. Like the Week 3 record, every claim here maps
 to a file in this repository and to a command you can run.
 
+> **Decision record:** the scope decision that lets this capability exist at all —
+> the MVP spec originally excluded AI — is [ADR-006](decisions/ADR-006.md)
+> (*Advisory AI Request Intake*). It narrows the product-spec non-goal to
+> "no autonomous AI" and records why the model is advisory-only, validated, and
+> backed by a labelled offline fallback.
+
 ---
 
 ## 1. The capability

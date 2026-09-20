@@ -14,6 +14,7 @@ Employees currently ask for IT, HR, or Maintenance help through WhatsApp and sca
 **What must the product do?**
 * **Authentication & Authorization:** Only the **Admin** account is seeded; the Admin creates every other account (employees and IT/HR/Maintenance agents) from inside the app ([ADR-004](decisions/ADR-004.md)) — there is **no public registration**. Accounts use **any real email address** (Gmail, Hotmail/Outlook, Yahoo, a company domain) and a password. A user who forgets their password can **reset** it from a one-time emailed link, and a signed-in user can **change** it by confirming the current one ([ADR-005](decisions/ADR-005.md)). Role-Based Access Control (RBAC) ensures employees, agents, and admins only see the views and tickets they are allowed to access.
 * **Ticket Submission:** Employees can create a ticket with a Title, Category (Fixed list: IT, HR, Maintenance), Priority (Low, Medium, High), and Description.
+* **AI-Assisted Intake (advisory, [ADR-006](decisions/ADR-006.md) / [week4-production-ai.md](week4-production-ai.md)):** On the New Request form an employee may describe the problem in their own words and ask the AI to **suggest** a Category, Priority and Title. The suggestion only pre-fills editable fields; the employee decides, and the unchanged `POST /tickets` is the only way a ticket is created. The AI never creates or changes a ticket, never writes to the database, and its output is validated against the domain enums. When no model is configured or reachable, a clearly-labelled offline classifier answers instead.
 * **Ticket Dashboard (Requester):** Employees can see a list of their own tickets and their current status.
 * **Agent Queue:** Agents can view open tickets for their department.
 * **Status Updates & Notes:** Agents can claim a ticket, change its status (`Open` -> `In Progress` -> `Resolved`), and add a simple text "Resolution Note" when closing it.
@@ -39,7 +40,11 @@ Employees currently ask for IT, HR, or Maintenance help through WhatsApp and sca
 * No automated email/SMS notifications about tickets (the only transactional
   email is the password-reset link of ADR-005).
 * No complex SLA breach background timers.
-* No AI, Chatbots, or external enterprise integrations.
+* **No autonomous AI.** The only AI is the *advisory* Request Intake of
+  [ADR-006](decisions/ADR-006.md) / [week4-production-ai.md](week4-production-ai.md):
+  it suggests form fields for a human to accept or edit, never creates or changes
+  a ticket, and has no database access. No chatbots, no autonomous agents or
+  workflow automation, and no external enterprise integrations (ERP/CRM).
 * No complex Single Sign-On (SSO).
 
 ## 8. Acceptance Criteria (Scenarios)
@@ -56,3 +61,6 @@ Employees currently ask for IT, HR, or Maintenance help through WhatsApp and sca
 * **Scenario 4: Recovering a Forgotten Password**
   * *Action:* An employee who cannot remember their password opens **Forgot password?**, enters the email on their account (for example `rana@gmail.com`), and follows the one-time link to choose a new password. A signed-in user instead uses **Change password**.
   * *Result:* The new password works immediately and the old one stops working; the one-time link cannot be reused, the same generic confirmation is shown whether or not the address is registered, and no password is ever displayed or emailed in readable form.
+* **Scenario 5: AI-Assisted Intake (advisory)**
+  * *Action:* On the New Request form the employee types "my laptop screen flickers and I can't work" and presses **AI Suggest**.
+  * *Result:* Category, Priority and Title are pre-filled and tagged **AI suggested**; every field stays editable, the tag clears when edited, and **Open ticket** still calls the unchanged `POST /tickets`. If no model answers, the fields come from the clearly-labelled offline classifier instead, and the form still works by hand.

@@ -14,15 +14,16 @@ This document turns the product specification into a practical system design. Th
   * **Requester (Employee):** Submits tickets and checks their status.
   * **Support Agent:** Works from a department-specific queue and updates ticket status.
   * **Admin/Manager:** Views all tickets across all departments and manages user accounts. May also **assign** an unclaimed ticket to a matching agent, **cancel** a request softly (audited, never deleted), or change a ticket's status only as a recorded **override** with a reason ([ADR-002](decisions/ADR-002.md) / [ADR-003](decisions/ADR-003.md)).
-  * **External dependencies:** None required for the Phase 1 MVP. There is no SSO or ERP integration. Password-reset email is **optional**: with nothing configured the Auth Module prints the link to the server console, and an operator may later plug in an HTTP mail provider ([ADR-005](decisions/ADR-005.md)) without changing the application code.
+  * **External dependencies:** None required for the Phase 1 MVP. There is no SSO or ERP integration. Password-reset email is **optional**: with nothing configured the Auth Module prints the link to the server console, and an operator may later plug in an HTTP mail provider ([ADR-005](decisions/ADR-005.md)) without changing the application code. The AI-assisted intake's model provider is likewise **optional**: with no key or provider configured the service answers from a local keyword classifier and labels the result `source: "offline"`, so a cloud model (the default is Groq's free OpenAI-compatible API) is never required to run the app ([ADR-006](decisions/ADR-006.md)).
 
 ## 2. Structure & Flow
 ### Components & Responsibilities
 To keep the system easy to understand and operate, the first version is a modular monolith with three main parts:
 1. **Web Client (Frontend App):** Renders the submission forms, requester dashboard, agent queue, and admin view. It presents data but does not enforce business rules.
-2. **Backend API (Core Server):** Enforces the rules and exposes the application operations. It contains two main modules:
+2. **Backend API (Core Server):** Enforces the rules and exposes the application operations. It contains three main modules:
   * **Auth Module:** Handles login, identifies each user's role, and provides password recovery/change (one-time reset links and an authenticated change, [ADR-005](decisions/ADR-005.md)). There is no public registration (ADR-004); accounts are provisioned by an Admin through the Users API. A small `MailModule` delivers the reset link — console-first, with an optional HTTP provider, so no external service is required to run the app.
   * **Ticket Module:** Handles ticket operations, limits agents to their department, and processes status changes.
+  * **AI Intake Module (advisory):** Classifies a free-form problem description into a suggested Category/Priority/Title through an OpenAI-compatible provider. It has **no database access**, returns a candidate only, and validates every value against the domain enums; the Ticket Module remains the only writer ([ADR-006](decisions/ADR-006.md)).
 3. **Primary Database:** The source of truth for user credentials, tickets, and ticket history.
 
 ### Important Data Flows (Traceability to Spec):
@@ -34,6 +35,7 @@ To keep the system easy to understand and operate, the first version is a modula
 * **Client vs. Server:** The Web Client cannot be trusted to enforce permissions. Every authorization check, such as preventing an IT agent from reading HR tickets, must happen at the Backend API boundary.
 * **Role-Based Access Control (RBAC):** The Auth Module applies permissions using the user's role from the database.
 * **Admin actions are governed, not unlimited:** assignment is checked against the ticket's department, cancellation is soft (the row and history survive), and any status change on a ticket the Admin is not assigned to is an explicit override that requires a recorded reason. All three are enforced in the Ticket Module, never in the client.
+* **AI output is untrusted input:** the model's answer is treated like a request body from the internet — parsed defensively and then coerced to the domain enums before it is ever returned — and it can never reach the database because the AI Intake Module has no repository. The employee accepts, edits or ignores the suggestion ([ADR-006](decisions/ADR-006.md)).
 
 ### Failure Scenarios (Component & In-Between Network Level):
 * **Web Client failure:** If the browser tab freezes or crashes, the user can refresh the page. Unsaved form data will be lost, but saved tickets remain safe.

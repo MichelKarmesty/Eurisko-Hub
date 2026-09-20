@@ -11,10 +11,11 @@ This folder contains the decisions and working notes behind the Internal Operati
 6. [decisions/ADR-003.md](decisions/ADR-003.md) - explains Admin assignment and soft cancellation: give urgent tickets an owner, retire junk requests, never hard-delete.
 7. [decisions/ADR-004.md](decisions/ADR-004.md) - explains why there is no public registration: only the Admin is seeded and the Admin creates every account.
 8. [decisions/ADR-005.md](decisions/ADR-005.md) - explains password recovery and password change: one-time emailed reset links (hashed, expiring, single-use), an authenticated change, and why any real email address is accepted.
-9. [api.md](api.md) - documents the NestJS backend API (in `../backend/`) that implements this design.
-10. [security.md](security.md) - the seeded Admin, the no-public-registration rule, the authorization model, and the password-recovery lifecycle.
-11. [week3-full-stack-delivery.md](week3-full-stack-delivery.md) - the Week 3 delivery record: the integrated slice, its API contract, the authorization rule and its allowed/denied cases, and the automated tests that protect the behaviour.
-12. [week4-production-ai.md](week4-production-ai.md) - the Week 4 delivery record: the AI-assisted Request Intake capability, why it is advisory-only, the validation layer, the graceful fallback, how to run it, and the eval results.
+9. [decisions/ADR-006.md](decisions/ADR-006.md) - explains why the AI-assisted intake is **advisory only**: it suggests form fields, never creates or changes a ticket, validates model output, and falls back to a labelled offline classifier — the decision that scopes the MVP's original "no AI" non-goal.
+10. [api.md](api.md) - documents the NestJS backend API (in `../backend/`) that implements this design.
+11. [security.md](security.md) - the seeded Admin, the no-public-registration rule, the authorization model, and the password-recovery lifecycle.
+12. [week3-full-stack-delivery.md](week3-full-stack-delivery.md) - the Week 3 delivery record: the integrated slice, its API contract, the authorization rule and its allowed/denied cases, and the automated tests that protect the behaviour.
+13. [week4-production-ai.md](week4-production-ai.md) - the Week 4 delivery record: the AI-assisted Request Intake capability, why it is advisory-only, the validation layer, the graceful fallback, how to run it, and the eval results.
 
 ## Purpose of these documents
 They are the living record of the delivered product, not a pre-build plan: the product specification, the architecture, the data model, and the decisions behind them, kept in step with the code in `../backend/` and `../frontend/`. Each document states what was decided, why, and where it is implemented.

@@ -385,11 +385,12 @@ $ cd backend && npm test
  ✓ test/admin-user-deletion.spec.ts           ( 6 tests)  account deletion + audit
  Test Files  5 passed (5)   Tests  48 passed (48)
 
-> **v0.4 note (Week 4).** `backend/test/ai-intake-eval.spec.ts` was added after
-> this record, so `npm test` now reports **6 files / 56 tests** (five of them skip
-> when no AI provider is running) and `npm run test:ai-eval` runs the AI evals on
-> their own. The Week 3 numbers above are kept as the record of that delivery —
-> see [`week4-production-ai.md`](week4-production-ai.md).
+> **Added after this record.** Two suites landed later — `backend/test/ai-intake-eval.spec.ts`
+> (Week 4 AI intake, [`week4-production-ai.md`](week4-production-ai.md)) and
+> `backend/test/auth-password.spec.ts` (ADR-005 password recovery) — so `npm test`
+> now reports **8 files / 72 tests** (five of them skip when no AI provider is
+> running), and `npm run test:ai-eval` runs the AI evals on their own. The Week 3
+> numbers above are kept as the record of that delivery.
 
 $ node scripts/verify-slice.mjs full
  28/28 checks passed   (live HTTP definition of done, fresh database)
