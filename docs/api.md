@@ -442,8 +442,10 @@ cd backend
 npm install
 mkdir -p .data                                             # DB_FILE's folder (absent in a fresh clone)
 npm run build && DB_FILE="$PWD/.data/hub.sqlite" npm start  # http://localhost:3000
-npm run start:dev                 # watch mode (ts-node)
 ```
+`npm start` runs the **compiled** build (`node dist/main.js`) and loads
+`backend/.env` by itself (`src/env.ts`), so re-run `npm run build` after changing
+anything in `backend/src` — a running server keeps the code it started with.
 
 Wait for `Eurisko Hub API listening on http://localhost:3000`; the web client
 (`cd ../frontend && npm run dev`) runs in a second terminal.

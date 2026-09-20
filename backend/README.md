@@ -28,9 +28,8 @@ NestJS + TypeORM implementation of the Internal Operations Service Hub
 ## Commands
 ```bash
 npm install
-npm run build        # tsc -> dist/
-npm start            # run compiled build
-npm run start:dev    # ts-node watch
+npm run build        # tsc -> dist/   (re-run after changing src: npm start runs dist)
+npm start            # run the compiled build, loads backend/.env via src/env.ts
 npm run typecheck    # tsc --noEmit (src)
 npm run typecheck:test # tsc -p tsconfig.spec.json (src + tests)
 ```

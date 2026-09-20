@@ -32,9 +32,9 @@
     },
     {
       "label": "backend: dev",
-      "detail": "NestJS on :3000 with auto-reload. AI uses $env:AI_API_KEY from your environment (set it before launching VS Code, or use the .env task).",
+      "detail": "NestJS on :3000 via `npm run start` (the compiled build). After changing backend/src, re-run the build (this task does it for you). backend/.env is loaded automatically (src/env.ts).",
       "type": "shell",
-      "command": "npm run start:dev",
+      "command": "npm run start",
       "options": {
         "cwd": "${workspaceFolder}/backend",
         "env": {
@@ -43,16 +43,16 @@
           "AI_FALLBACK_MODEL": "qwen/qwen3.8-27b"
         }
       },
-      "dependsOn": ["backend: prepare data"],
+      "dependsOn": ["backend: prepare data", "backend: build"],
       "isBackground": true,
       "problemMatcher": [],
       "presentation": { "panel": "dedicated", "group": "dev" }
     },
     {
       "label": "backend: dev (.env)",
-      "detail": "Same, but reads backend/.env (copy it from .env.example). Builds first, then runs the compiled server.",
+      "detail": "Same as `backend: dev` (npm run start) but relying only on backend/.env, which src/env.ts loads by itself — copy it from .env.example. Builds first, then runs the compiled server.",
       "type": "shell",
-      "command": "node --env-file=.env dist/main.js",
+      "command": "npm run start",
       "options": { "cwd": "${workspaceFolder}/backend" },
       "dependsOn": ["backend: prepare data", "backend: build"],
       "isBackground": true,
