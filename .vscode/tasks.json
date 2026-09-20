@@ -1,0 +1,80 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "backend: prepare data",
+      "detail": "Create backend/.data so DB_FILE has a folder to live in",
+      "type": "shell",
+      "command": "node -e \"require('fs').mkdirSync('.data',{recursive:true})\"",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "problemMatcher": []
+    },
+    {
+      "label": "backend: install",
+      "type": "shell",
+      "command": "npm install",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "problemMatcher": []
+    },
+    {
+      "label": "backend: build",
+      "type": "shell",
+      "command": "npm run build",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "problemMatcher": []
+    },
+    {
+      "label": "backend: dev",
+      "detail": "NestJS on :3000 with auto-reload, persisting to backend/.data/hub.sqlite",
+      "type": "shell",
+      "command": "npm run start:dev",
+      "options": {
+        "cwd": "${workspaceFolder}/backend",
+        "env": { "DB_FILE": "${workspaceFolder}/backend/.data/hub.sqlite" }
+      },
+      "dependsOn": ["backend: prepare data"],
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated", "group": "dev" }
+    },
+    {
+      "label": "frontend: install",
+      "type": "shell",
+      "command": "npm install",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "problemMatcher": []
+    },
+    {
+      "label": "frontend: dev",
+      "detail": "Vite dev server on :5173 (proxies /api to the backend on :3000)",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated", "group": "dev" }
+    },
+    {
+      "label": "dev: backend + frontend",
+      "detail": "Start both processes in parallel — the normal way to run the app",
+      "dependsOrder": "parallel",
+      "dependsOn": ["backend: dev", "frontend: dev"],
+      "problemMatcher": []
+    },
+    {
+      "label": "test: backend",
+      "type": "shell",
+      "command": "npm test",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "problemMatcher": []
+    },
+    {
+      "label": "test: all (backend + live + UI + browser)",
+      "detail": "Self-contained: builds, runs every suite, starts its own isolated API, tears down",
+      "type": "shell",
+      "command": "node scripts/run-tests.mjs",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    }
+  ]
+}

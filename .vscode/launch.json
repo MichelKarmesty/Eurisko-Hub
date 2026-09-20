@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug backend (compiled dist)",
+      "detail": "Builds first, then runs dist/main.js with the debugger attached",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/dist/main.js",
+      "cwd": "${workspaceFolder}/backend",
+      "env": { "DB_FILE": "${workspaceFolder}/backend/.data/hub.sqlite" },
+      "preLaunchTask": "backend: build",
+      "console": "integratedTerminal",
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Debug frontend (Chrome)",
+      "detail": "Attach to the Vite app on :5173 — run 'frontend: dev' first",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/frontend/src"
+    }
+  ]
+}
