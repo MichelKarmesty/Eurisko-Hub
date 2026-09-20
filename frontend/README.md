@@ -40,9 +40,8 @@ required to resolve) is enforced by the NestJS backend in `../backend/`.
    (`admin@eurisko.com` / `Admin123!`, override via `ADMIN_EMAIL` /
    `ADMIN_PASSWORD`). Sign in with it and create everyone else from the
    **👥 Users** tab. There is **no public registration** and no demo data
-   (ADR-004): the login screen is a sign-in form plus **Forgot password?**
-   (mails a one-time link — ADR-008); an Admin can also issue a reset link
-   for a colleague (ADR-007).
+   (ADR-004): the login screen is a sign-in form plus an **I have a reset token**
+   button — recovery links are issued by an Admin (ADR-007/ADR-009).
    Accounts accept **any real email address** — Gmail, Hotmail/Outlook, Yahoo or
    a company domain; `@eurisko.com` is only the development default.
 
@@ -73,18 +72,19 @@ suggested”, so a rules-based answer is never passed off as the model's — unl
 and is filled in by hand. Full detail:
 [`../docs/week4-production-ai.md`](../docs/week4-production-ai.md).
 
-**Password recovery (v0.5, revised by ADR-007/ADR-008).** Recovery is
-self-service: **Forgot password?** on the sign-in screen mails a one-time link to
-the account's address (`POST /auth/forgot-password`), and the link opens the reset
-form (`POST /auth/reset-password`) via `?resetToken=…` in the address bar; with no
-mail provider configured the backend returns the link instead and the screen
-carries it straight into the reset form, so the flow stays demonstrable in one
-browser. An Admin can still mint a one-time link from **Users → Reset password**
-(`POST /users/:id/reset-password`) and hand it over. A signed-in user can rotate their
-password from **Change password** in the top bar (`POST /auth/change-password`,
-current password required). Design records:
+**Password recovery (v0.5, revised by ADR-007/ADR-008/ADR-009).** Recovery is
+**Admin-initiated**: there is no "forgot password" on the sign-in screen. An Admin
+mints a one-time link from **Users → Reset password**
+(`POST /users/:id/reset-password`) and hands it over; the link opens the reset
+form (`POST /auth/reset-password`) via `?resetToken=…` in the address bar, and a
+raw token can be pasted through the **I have a reset token** button. A signed-in
+user can rotate their password from **Change password** in the top bar
+(`POST /auth/change-password`, current password required). The public, emailed
+variant still exists in the backend but is off by default
+(`PASSWORD_RESET_SELF_SERVICE=true`), which is why the screen offers no link to
+it. Design records:
 [`../docs/decisions/ADR-007.md`](../docs/decisions/ADR-007.md) and
-[`../docs/decisions/ADR-008.md`](../docs/decisions/ADR-008.md).
+[`../docs/decisions/ADR-009.md`](../docs/decisions/ADR-009.md).
 
 The "React action" lives in
 [`src/components/ResolveControl.tsx`](src/components/ResolveControl.tsx): it

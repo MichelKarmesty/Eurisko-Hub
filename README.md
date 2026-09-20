@@ -28,19 +28,21 @@ it was resolved.
 > Full delivery record:
 > [`docs/week4-production-ai.md`](docs/week4-production-ai.md).
 
-> **v0.5 status — password recovery + any real email address (revised by ADR-007, ADR-008).**
+> **v0.5 status — password recovery + any real email address (revised by ADR-007/ADR-008/ADR-009).**
 > A password can be **reset** (never "retrieved": passwords are bcrypt-hashed) or
 > **changed** by a signed-in user with the current one. Recovery is
-> **self-service**: **Log in → Forgot password?** mails a one-time link
-> (SMTP / webhook / Resend; the link is printed to the console when no provider
-> is configured). An Admin can still mint a link for a colleague (**Users →
-> Reset password**) without any mail server, and a locked-out lone Admin uses the
-> offline `scripts/reset-password.mjs` break-glass. Accounts accept
+> **Admin-initiated**: an Admin mints a one-time link (**Users → Reset password**)
+> and hands it over, and a locked-out lone Admin uses the offline
+> `scripts/reset-password.mjs` break-glass — **no mail server involved**. The
+> public, emailed variant is off by default (it answers `404`; ADR-009) and can be
+> switched on with `PASSWORD_RESET_SELF_SERVICE=true` plus a transport
+> (SMTP / webhook / Resend). Accounts accept
 > **any valid email address** — Gmail, Hotmail/Outlook, Yahoo or a company domain
 > — not just `@eurisko.com`. Design records:
 > [`docs/decisions/ADR-005.md`](docs/decisions/ADR-005.md),
-> [`docs/decisions/ADR-007.md`](docs/decisions/ADR-007.md) and
-> [`docs/decisions/ADR-008.md`](docs/decisions/ADR-008.md).
+> [`docs/decisions/ADR-007.md`](docs/decisions/ADR-007.md),
+> [`docs/decisions/ADR-008.md`](docs/decisions/ADR-008.md) and
+> [`docs/decisions/ADR-009.md`](docs/decisions/ADR-009.md).
 
 ## Repository layout
 
@@ -87,9 +89,10 @@ reach the API, sign-in fails with `Request failed with status 500` (see
 >
 > Or press **F5** and choose **“▶ Full app (backend + frontend)”**.
 > `backend/.env` is optional: without it the AI uses the labelled offline
-> classifier. Password recovery needs no configuration at all (the reset link is
-> printed to the console); set `SMTP_HOST` (or `MAIL_WEBHOOK_URL` /
-> `RESEND_API_KEY`) to have **Forgot password?** email it (ADR-008).
+> classifier. Password recovery needs no configuration at all: the Admin issues
+> the one-time link from the Users tab (ADR-007). The optional public/emailed
+> path stays off unless you set `PASSWORD_RESET_SELF_SERVICE=true` and a
+> transport (`SMTP_HOST`, `MAIL_WEBHOOK_URL` or `RESEND_API_KEY`).
 
 **1. Backend API** — http://localhost:3000
 
@@ -134,9 +137,9 @@ sign in as the Admin (`admin@eurisko.com` / `Admin123!`), then open the
 **👥 Users** tab and use **Create account** to add people — for example an
 **Employee** (Requester), an **IT Agent**, an **HR Agent** and a
 **Maintenance Agent**. Only an Admin can create accounts, and only an Admin sees
-the Users tab; the login screen is sign-in plus **Forgot password?**, which
-mails a one-time link (ADR-008) — or an Admin can issue a reset link instead
-(ADR-007). Any real email address is accepted for the people you create.
+the Users tab; the login screen is sign-in plus an **I have a reset token** button
+(recovery links are issued by an Admin — ADR-007/ADR-009). Any real email address
+is accepted for the people you create.
 
 To also run the live HTTP definition-of-done checks (these provision their own
 throwaway test accounts through the Admin API), with the backend running:
@@ -251,7 +254,7 @@ model, and pointing the app at it makes the API label rule-based answers
 anyone. Use it to exercise the path; use a real key to judge the AI. Details:
 [`docs/week4-production-ai.md`](docs/week4-production-ai.md) §4.
 
-## Password recovery & any email address (v0.5, revised by ADR-007/ADR-008)
+## Password recovery & any email address (v0.5, revised by ADR-007/ADR-008/ADR-009)
 
 **Passwords are bcrypt-hashed, so they can never be *retrieved*** — the capability
 is to **reset** one, or to **change** it from inside the app. All of it accepts any
@@ -259,18 +262,20 @@ real email address.
 
 | I want to… | Where | What happens |
 |---|---|---|
-| Reset **my own** forgotten password | **Log in → Forgot password?** (or `POST /auth/forgot-password`) | A one-time, 30-minute link is sent to the account's email; the same generic answer is returned whether or not the address exists, so the form cannot be used to discover accounts (ADR-008). |
-| Reset **someone's** forgotten password | **Admin → Users → Reset password** (or `POST /users/:id/reset-password`) | The Admin gets a one-time link to hand over; the employee sets their own password, and the Admin never sees or chooses it. **No mail server involved** (ADR-007). |
+| Reset **someone's** forgotten password | **Admin → Users → Reset password** (or `POST /users/:id/reset-password`) | The Admin gets a one-time link to hand over; the employee sets their own password, and the Admin never sees or chooses it. Works out of the box — **no mail server involved** (ADR-007/ADR-009). |
+| Reset **my own** forgotten password | Ask an Admin (or, only if enabled, `POST /auth/forgot-password`) | Recovery is Admin-initiated. The public, emailed variant is **off by default** (it answers `404`) and comes back with `PASSWORD_RESET_SELF_SERVICE=true` (ADR-008/ADR-009). |
 | Finish a reset | The link opens **Set a new password** (or `POST /auth/reset-password`) | The token is accepted once, expires after 30 minutes, and the old password stops working. |
 | Change my own password while signed in | **Change password** in the top bar (or `POST /auth/change-password`) | The current password is required; a session token alone cannot take the account over. |
 | Recover from the terminal (a lone Admin locked out) | `node scripts/reset-password.mjs you@eurisko.com` | Prints a one-time reset link straight from the database file. **Stop the backend first** so it cannot overwrite the change. |
 
-**It works with no mail server.** By default the backend has no provider
-configured, so the reset message (including the link) is printed to the backend
-console, and outside production the one-time token is also returned to the UI so
-the whole flow is demonstrable in one browser. For real email — Gmail,
-Outlook/Hotmail, a company server or any SMTP provider — set the SMTP variables
-and restart the backend (the SMTP client is built in; no package to install):
+**No mail server is needed at all by default.** The Admin-issued link is the
+recovery route, and the offline script covers a locked-out lone Admin. The
+optional public/emailed path (ADR-008) is off unless you opt in — set
+`PASSWORD_RESET_SELF_SERVICE=true` **and** configure a transport below; with no
+provider the message would only be printed to the backend console. For real email
+— Gmail, Outlook/Hotmail, a company server or any SMTP provider — set the SMTP
+variables and restart the backend (the SMTP client is built in; no package to
+install):
 
 ```bash
 # option A — any standard mail server (Gmail / Outlook / company SMTP)
@@ -303,6 +308,7 @@ One command asks for one or two addresses + App Passwords, writes them into
 |---|---|---|
 | `APP_BASE_URL` | `http://localhost:5173` | Front of the reset link (`…/?resetToken=…`) |
 | `PASSWORD_RESET_TTL_MINUTES` | `30` | How long a reset link stays valid |
+| `PASSWORD_RESET_SELF_SERVICE` | `false` | Serve the public, emailed `POST /auth/forgot-password`; while off it answers `404` (ADR-009) |
 | `SMTP_HOST` / `SMTP_PORT` | *(unset)* / `587` | Standard SMTP server (Gmail, Outlook, company); `SMTP_SECURE=true` for port 465 |
 | `SMTP_ALT_HOST` / `SMTP_ALT_PORT` | *(unset)* / `587` | Optional **second** sender, tried when the first fails (ADR-008) |
 | `SMTP_USER` / `SMTP_PASS` | *(unset)* | SMTP login — use an **App Password** when 2FA is on |
@@ -409,7 +415,7 @@ Base URL `http://localhost:3000`; authenticated calls send
 | Method & path | Who | Purpose |
 |---|---|---|
 | `POST /auth/login` | public | sign in (no registration; any valid email domain) |
-| `POST /auth/forgot-password` | public | email a one-time reset link to the account's address; always the same generic answer, so it cannot enumerate accounts (ADR-008) |
+| `POST /auth/forgot-password` | public, **off by default** | the optional self-service path: emails a one-time link, always with the same generic answer (ADR-008); answers `404` unless `PASSWORD_RESET_SELF_SERVICE=true` (ADR-009) |
 | `POST /auth/reset-password` | public | set a new password with the one-time token from an emailed or **Admin-issued** link (single use, 30 min) |
 | `POST /auth/change-password` | authenticated | change your own password (current password required) |
 | `POST /users/:id/reset-password` | Admin | mint a one-time reset link for an account and hand it over — no mail server required; single-use, 30 min (ADR-007) |
@@ -458,10 +464,11 @@ Read in this order:
 9. [`docs/decisions/ADR-006.md`](docs/decisions/ADR-006.md) — advisory-only AI request intake
 10. [`docs/decisions/ADR-007.md`](docs/decisions/ADR-007.md) — Admin-initiated password reset (one-time link, no mail server)
 11. [`docs/decisions/ADR-008.md`](docs/decisions/ADR-008.md) — self-service forgot password restored, backed by the built-in mail transports
-12. [`docs/api.md`](docs/api.md)
-13. [`docs/security.md`](docs/security.md) — the seeded Admin, no public registration, the authorization model, and password recovery
-14. [`docs/week3-full-stack-delivery.md`](docs/week3-full-stack-delivery.md) — the Week 3 delivery record
-15. [`docs/week4-production-ai.md`](docs/week4-production-ai.md) — the Week 4 AI-assisted intake record
+12. [`docs/decisions/ADR-009.md`](docs/decisions/ADR-009.md) — recovery is Admin-initiated; the public self-service reset is off by default
+13. [`docs/api.md`](docs/api.md)
+14. [`docs/security.md`](docs/security.md) — the seeded Admin, no public registration, the authorization model, and password recovery
+15. [`docs/week3-full-stack-delivery.md`](docs/week3-full-stack-delivery.md) — the Week 3 delivery record
+16. [`docs/week4-production-ai.md`](docs/week4-production-ai.md) — the Week 4 AI-assisted intake record
 
 ## Troubleshooting
 
@@ -473,18 +480,17 @@ Read in this order:
   `Unable to connect to the database. Retrying…`, the `DB_FILE` folder is missing
   or not writable: `mkdir -p .data` (or point `DB_FILE` at a writable path) and
   restart. A wrong password is `401`, never `500`.
-- **You cannot get a password reset link:** on the sign-in screen use
-  **Forgot password?** — with no mail provider configured the backend prints the
-  link to its console and (outside production) the screen carries it straight
-  into the reset form, so this is expected behaviour, not an error. To have it
-  emailed, set `SMTP_HOST` (Gmail/Outlook/company) or `MAIL_WEBHOOK_URL` /
-  `RESEND_API_KEY` and restart. Without mail, an **Admin** issues one from
-  **Users → Reset password** and hands it over (ADR-007). If the locked-out
-  person *is* the only Admin, run the offline break-glass — stop the backend
-  first so it cannot overwrite the database, then
-  `node scripts/reset-password.mjs that-admin@eurisko.com`, and start the
-  backend again. A reset link is valid for 30 minutes
-  (`PASSWORD_RESET_TTL_MINUTES`) and can be used once.
+- **You cannot get a password reset link:** that is by design — recovery is
+  **Admin-initiated** (ADR-007/ADR-009). An Admin opens **Users → Reset password**
+  and hands the one-time link over; the employee chooses their own new password,
+  and no mail server is involved. If the locked-out person *is* the only Admin,
+  run the offline break-glass — stop the backend first so it cannot overwrite the
+  database, then `node scripts/reset-password.mjs that-admin@eurisko.com`, and
+  start the backend again. A reset link is valid for 30 minutes
+  (`PASSWORD_RESET_TTL_MINUTES`) and can be used once. (There *is* an optional
+  public/emailed path, but it is off unless you set
+  `PASSWORD_RESET_SELF_SERVICE=true` **and** configure `SMTP_HOST` /
+  `MAIL_WEBHOOK_URL` / `RESEND_API_KEY`.)
 - **Port 3000 is busy:** start the API with `PORT=3001 npm start`. The Vite dev
   proxy targets 3000, so either free port 3000 or point the client at the new
   port with `VITE_API_BASE=http://localhost:3001`.
@@ -510,6 +516,6 @@ wires that workflow end-to-end for the **"assigned agent resolves a ticket"**
 slice, with durable SQLite persistence across restarts and an automated
 test suite covering the business rule, the database integration, the HTTP
 boundaries, regression, and the UI E2E. On top of that: advisory AI intake
-(v0.4) and **password recovery/change** — self-service emailed one-time links
-with an Admin-issued fallback and an offline break-glass, accepting any real
-email address (v0.5, ADR-007/ADR-008).
+(v0.4) and **password recovery/change** — Admin-issued one-time links with an
+offline break-glass, accepting any real email address (v0.5,
+ADR-007/ADR-008/ADR-009).

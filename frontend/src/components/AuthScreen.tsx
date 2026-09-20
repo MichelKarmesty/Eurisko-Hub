@@ -1,11 +1,11 @@
 import { useState, type FormEvent } from 'react';
-import { apiForgotPassword, apiLogin, apiResetPassword } from '../api';
+import { apiLogin, apiResetPassword } from '../api';
 import type { Session } from '../types';
 import { Notice } from './ui';
 
-type Mode = 'login' | 'forgot' | 'reset';
+type Mode = 'login' | 'reset';
 
-/** Read a `?resetToken=…` from the URL so an emailed reset link lands on the form. */
+/** Read a `?resetToken=…` from the URL so an Admin-issued reset link lands on the form. */
 function resetTokenFromUrl(): string {
   if (typeof window === 'undefined') return '';
   return new URLSearchParams(window.location.search).get('resetToken') ?? '';
@@ -18,15 +18,18 @@ function clearResetTokenFromUrl() {
 }
 
 /**
- * Sign in, and the password-recovery paths.
+ * Sign in, and the reset form an Admin-issued link opens.
  *
  * This is an internal tool, so there is **no public registration** (ADR-004):
  * the backend seeds exactly one Admin account, and that Admin creates every
- * other account (employees and agents) from the **Users** tab. Recovery is
- * **self-service** (ADR-008): **"Forgot password?"** mails a one-time link to
- * the account's address, and that link opens this screen's reset form. An
- * Admin can additionally mint a one-time link for a colleague (**Users →
- * Reset password**, ADR-007) and hand the link over.
+ * other account (employees and agents) from the **Users** tab.
+ *
+ * Recovery is **Admin-initiated** (ADR-007, ADR-009): there is no self-service
+ * "forgot password" on this screen. When someone forgets theirs, the Admin mints
+ * a one-time link (**Users → Reset password**) and hands it over; that link opens
+ * this screen's reset form via `?resetToken=…`, and a user who was given the raw
+ * token instead can paste it through the **"I have a reset token"** button. The
+ * Admin never sees or chooses the password.
  *
  * Any real email address is accepted here: a personal provider such as Gmail,
  * Hotmail/Outlook or Yahoo, or a company domain. The app never ties accounts to
@@ -39,7 +42,6 @@ export function AuthScreen({ onAuthed }: { onAuthed: (session: Session) => void 
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [forgotEmail, setForgotEmail] = useState('');
   const [resetToken, setResetToken] = useState(() => resetTokenFromUrl());
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -62,33 +64,6 @@ export function AuthScreen({ onAuthed }: { onAuthed: (session: Session) => void 
       onAuthed(await apiLogin(email.trim(), password));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Authentication failed.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const submitForgot = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-    try {
-      const res = await apiForgotPassword(forgotEmail.trim());
-      if (res.resetToken && res.delivery === 'console') {
-        // No mail reached an inbox (no provider configured, or every provider
-        // failed): carry the one-time link straight into the reset form instead
-        // of pretending it was emailed. A real deployment delivers it by email
-        // and this branch never runs.
-        setResetToken(res.resetToken);
-        setNotice(
-          `${res.message} No mail was actually sent, so here is your one-time link: ${res.resetUrl} — choose a new password below.`,
-        );
-        setMode('reset');
-      } else {
-        setNotice(res.message);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not start the reset.');
     } finally {
       setBusy(false);
     }
@@ -159,48 +134,15 @@ export function AuthScreen({ onAuthed }: { onAuthed: (session: Session) => void 
               </button>
             </div>
             <div className="full auth-links">
+              {/* ADR-007/ADR-009: recovery is Admin-initiated. An Admin issues a
+                  one-time link (Users → Reset password) that opens the form
+                  below; a raw token can be pasted by hand. */}
               <button
                 type="button"
                 className="btn btn-ghost"
-                onClick={() => {
-                  setForgotEmail(email);
-                  goTo('forgot');
-                }}
+                onClick={() => goTo('reset')}
               >
-                Forgot password?
-              </button>
-            </div>
-          </form>
-        )}
-
-        {mode === 'forgot' && (
-          <form className="grid-form" onSubmit={submitForgot}>
-            <label className="full">
-              Email
-              <input
-                type="email"
-                value={forgotEmail}
-                onChange={(e) => setForgotEmail(e.target.value)}
-                required
-                autoComplete="email"
-                placeholder="you@gmail.com"
-              />
-            </label>
-            <p className="muted small full">
-              Enter the email on your account — Gmail, Hotmail/Outlook, Yahoo or
-              your company address. We will send a one-time link to choose a new
-              password.
-            </p>
-            <div className="full auth-actions">
-              <button className="btn btn-primary" disabled={busy}>
-                {busy ? 'Please wait…' : 'Send reset link'}
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => goTo('login')}
-              >
-                Back to sign in
+                I have a reset token
               </button>
             </div>
           </form>
@@ -257,7 +199,8 @@ export function AuthScreen({ onAuthed }: { onAuthed: (session: Session) => void 
 
         <p className="muted small auth-footnote">
           No public sign-up. Accounts are created by an Admin from the
-          <strong> Users</strong> tab after signing in.
+          <strong> Users</strong> tab after signing in. Forgotten password? Ask an
+          <strong> Admin</strong> for a one-time reset link.
         </p>
       </div>
     </div>

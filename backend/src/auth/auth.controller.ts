@@ -1,4 +1,12 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  NotFoundException,
+  Post,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
   ChangePasswordDto,
@@ -15,12 +23,13 @@ import { AuthUser, CurrentUser, Public } from '../common/auth.decorators';
  * Outlook, Yahoo, a company domain…); the app never restricts accounts to one
  * domain.
  *
- * Public routes: `POST /auth/login`, `POST /auth/forgot-password` (step 1 of
- * recovery, ADR-008) and `POST /auth/reset-password` (step 2). Recovery is
- * therefore **self-service**: the reset link is emailed through MailService.
- * An Admin can additionally mint a one-time link for a colleague
- * (ADR-007, `POST /users/:id/reset-password`) that completes through the same
- * `POST /auth/reset-password`. Changing a password while signed in
+ * Public routes: `POST /auth/login` and `POST /auth/reset-password` (which
+ * completes a reset). **Recovery is Admin-initiated** (ADR-007/ADR-009): the
+ * Admin mints a one-time link with `POST /users/:id/reset-password` and hands it
+ * over, so the employee sets their own password and the Admin never sees it.
+ * `POST /auth/forgot-password` (the self-service, emailed path of ADR-008) is
+ * **off by default** and only answers when the operator sets
+ * `PASSWORD_RESET_SELF_SERVICE=true`. Changing a password while signed in
  * (`POST /auth/change-password`) requires a bearer token.
  */
 @Controller('auth')
@@ -36,14 +45,23 @@ export class AuthController {
   }
 
   /**
-   * POST /auth/forgot-password — public, step 1. Always answers the same
-   * generic message so it cannot enumerate accounts; when the account exists,
-   * the reset link is emailed (see MailService for the transports).
+   * POST /auth/forgot-password — **off by default** (ADR-009).
+   *
+   * Recovery is Admin-initiated: an Admin mints a one-time link
+   * (`POST /users/:id/reset-password`) and hands it over. The public, emailed
+   * path exists but is disabled unless the operator sets
+   * `PASSWORD_RESET_SELF_SERVICE=true`; while it is off the route answers `404`,
+   * exactly as if it did not exist. When enabled it always answers the same
+   * generic message so it cannot enumerate accounts, and the reset link is
+   * emailed (see MailService for the transports).
    */
   @Public()
   @HttpCode(HttpStatus.OK)
   @Post('forgot-password')
   forgotPassword(@Body() dto: ForgotPasswordDto) {
+    if (!this.auth.selfServiceResetEnabled) {
+      throw new NotFoundException('Cannot POST /auth/forgot-password');
+    }
     return this.auth.forgotPassword(dto);
   }
 

@@ -262,6 +262,19 @@ export class AuthService {
   }
 
   /**
+   * Self-service "forgot password" (ADR-008) is **off by default** (ADR-009):
+   * recovery is Admin-initiated (ADR-007) and the Admin hands over the one-time
+   * link. An operator who wants the public, emailed path back switches it on with
+   * `PASSWORD_RESET_SELF_SERVICE=true`; the route then answers 404→200 as usual
+   * and MailService delivers the link (see `docs/security.md`).
+   */
+  get selfServiceResetEnabled(): boolean {
+    return (
+      (process.env.PASSWORD_RESET_SELF_SERVICE ?? 'false').toLowerCase() === 'true'
+    );
+  }
+
+  /**
    * Returning a live reset token in the HTTP response is a development
    * convenience, **never** a production behaviour: `NODE_ENV=production` always
    * suppresses it, and outside production it can be switched off explicitly

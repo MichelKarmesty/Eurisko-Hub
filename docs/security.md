@@ -41,11 +41,11 @@ See [ADR-004](decisions/ADR-004.md).
 **Before any real deployment:** set a strong `ADMIN_PASSWORD` and a real
 `JWT_SECRET` (the default is a development value), give the Admin a deliverable
 email address, and preferably change the seeded Admin password after first login.
-Password recovery works with **no** mail provider (ADR-007): an Admin issues
-one-time links from the app, and `scripts/reset-password.mjs` covers a locked-out
-lone Admin. With a provider configured (`SMTP_HOST` / `MAIL_WEBHOOK_URL` /
-`RESEND_API_KEY`), the self-service **Forgot password?** path emails the link
-instead (ADR-008).
+Password recovery works with **no** mail provider (ADR-007/ADR-009): an Admin
+issues one-time links from the app, and `scripts/reset-password.mjs` covers a
+locked-out lone Admin. The public, self-service path stays **off** unless you set
+`PASSWORD_RESET_SELF_SERVICE=true` and a provider (`SMTP_HOST` /
+`MAIL_WEBHOOK_URL` / `RESEND_API_KEY`).
 
 ## Authorization model
 
@@ -92,30 +92,33 @@ guards are `JwtAuthGuard` (a valid bearer token is required unless a route is
   reads its query from a plain object, so unknown query parameters there are
   ignored rather than rejected.
 
-## Password reset and change (ADR-005, ADR-007, ADR-008)
+## Password reset and change (ADR-005, ADR-007, ADR-008, ADR-009)
 
 * **A password is never "retrieved".** bcrypt is one-way; the capability is to
   **reset** a password (forgot it) or **change** it (signed in).
-* **Recovery is self-service first (ADR-008).** `POST /auth/forgot-password`
-  mails a one-time link to the account's address and **always answers the same
-  generic message** — registered or not, active or not — so it cannot be used to
-  enumerate accounts. A per-address cooldown (`PASSWORD_RESET_COOLDOWN_SECONDS`,
-  default 60 s) stops it being used to mail-bomb a victim: a repeat request
-  inside the window gets the generic answer but mints and sends nothing.
-* **Delivery never breaks recovery.** `MailService` tries the first configured
-  transport that works — built-in SMTP (`SMTP_HOST`…), then the **backup SMTP
-  server** (`SMTP_ALT_HOST`…, e.g. Gmail primary and Outlook backup),
-  `MAIL_WEBHOOK_URL`, `RESEND_API_KEY` — and finally prints the message to the
-  backend console, so a missing or misconfigured provider can never silently
-  swallow a reset. Outside production the one-time token is additionally
+* **Recovery is Admin-initiated (ADR-007/ADR-009).** An Admin mints a one-time
+  link with `POST /users/:id/reset-password` and hands it over; the employee
+  completes it at `POST /auth/reset-password`. For a **lone Admin who has locked
+  themselves out**, the offline `scripts/reset-password.mjs` mints the same token
+  straight into the database (run it with the backend stopped, so the API cannot
+  overwrite the change).
+* **The public, self-service path is off by default (ADR-009).**
+  `POST /auth/forgot-password` answers `404 Cannot POST /auth/forgot-password`
+  unless `PASSWORD_RESET_SELF_SERVICE=true`, so an unauthenticated caller cannot
+  make the hub send mail at all. With the switch on, it mails a one-time link to
+  the account's address and **always answers the same generic message** —
+  registered or not, active or not — so it cannot be used to enumerate accounts;
+  a per-address cooldown (`PASSWORD_RESET_COOLDOWN_SECONDS`, default 60 s) stops
+  it being used to mail-bomb a victim: a repeat request inside the window gets the
+  generic answer but mints and sends nothing.
+* **Delivery never breaks recovery when that switch is on.** `MailService` tries
+  the first configured transport that works — built-in SMTP (`SMTP_HOST`…), then
+  the **backup SMTP server** (`SMTP_ALT_HOST`…, e.g. Gmail primary and Outlook
+  backup), `MAIL_WEBHOOK_URL`, `RESEND_API_KEY` — and finally prints the message
+  to the backend console, so a missing or misconfigured provider can never
+  silently swallow a reset. Outside production the one-time token is additionally
   returned in the response (`PASSWORD_RESET_RETURN_TOKEN`; `NODE_ENV=production`
   always suppresses it).
-* **Admin-initiated as a fallback (ADR-007).** An Admin mints a one-time link
-  with `POST /users/:id/reset-password` and hands it over; the employee completes
-  it at `POST /auth/reset-password`. For a **lone Admin who has locked
-  themselves out**, the offline `scripts/reset-password.mjs` mints the same
-  token straight into the database (run it with the backend stopped, so the API
-  cannot overwrite the change).
 * A reset token is `randomBytes(32)`. The database stores **only its SHA-256
   hash** (both reset fields are `@Exclude()`d and never appear in a response —
   pinned by a regression test in `backend/test/auth-password.spec.ts`, because a

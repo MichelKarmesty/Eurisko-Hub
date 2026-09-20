@@ -11,12 +11,13 @@ NestJS + TypeORM implementation of the Internal Operations Service Hub
   history recorded durably in a `ticket_events` table
 - **No public registration** (ADR-004): the backend seeds only the Admin; the
   Admin creates every other account via the Admin-only Users API
-- **Password recovery & change** (v0.5, ADR-005/007/008): one-time emailed reset
-  links (stored only as an expiring SHA-256 hash) plus an authenticated change
-  that requires the current password. Mail is console-first (`src/mail/`) — no
-  dependency — with **SMTP** (`SMTP_HOST`, for Gmail / Outlook / any mail server),
-  `MAIL_WEBHOOK_URL` or `RESEND_API_KEY` for real delivery; an Admin-issued
-  one-time link (`POST /users/:id/reset-password`) covers no-mail deployments
+- **Password recovery & change** (v0.5, ADR-005/007/008/009): **Admin-initiated**
+  recovery — the Admin mints a one-time link (`POST /users/:id/reset-password`)
+  and hands it over, so nothing external is needed — plus an authenticated change
+  that requires the current password. The public, emailed self-service route is
+  **off by default** (`PASSWORD_RESET_SELF_SERVICE=true` turns it back on; the
+  link then goes through `src/mail/`: built-in SMTP, backup SMTP, webhook, Resend
+  or the console)
 - **Any real email address is accepted** (Gmail, Hotmail/Outlook, Yahoo, a
   company domain); `@eurisko.com` is only the development default for the Admin
 - **AI-assisted intake** (v0.4, docs/week4-production-ai.md): an advisory
@@ -58,6 +59,7 @@ npm run test:watch       # watch mode
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `admin@eurisko.com` / `Admin123!` | The one seeded Admin account (any valid email domain works) |
 | `APP_BASE_URL` | `http://localhost:5173` | Front of the password-reset link (`…/?resetToken=…`) |
 | `PASSWORD_RESET_TTL_MINUTES` | `30` | How long a reset link stays valid |
+| `PASSWORD_RESET_SELF_SERVICE` | `false` | Serve the public, emailed `POST /auth/forgot-password`; while off it answers `404` (ADR-009) |
 | `PASSWORD_RESET_RETURN_TOKEN` | `true` outside production | Return the one-time token in the response (development; **always off** when `NODE_ENV=production`) |
 | `PASSWORD_RESET_COOLDOWN_SECONDS` | `60` | At most one forgot-password email per address in this window (anti mail-bomb) |
 | `SMTP_HOST` / `SMTP_PORT` | *(unset)* / `587` | Standard SMTP (Gmail, Outlook/Hotmail, company); `SMTP_SECURE=true` for port 465 |

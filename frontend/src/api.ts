@@ -105,10 +105,13 @@ export interface ForgotPasswordResult {
 }
 
 /**
- * "I forgot my password" — step 1 (ADR-008): emails a one-time reset link to
- * the account's address. The answer is always the same generic message so the
- * endpoint cannot enumerate accounts; with no mail provider configured (or as a
- * dev convenience) the token is returned so the flow stays demonstrable.
+ * "I forgot my password" — the self-service, emailed reset (ADR-008).
+ *
+ * **Off by default** (ADR-009): recovery is Admin-initiated
+ * (`apiAdminResetPassword`), and the backend answers `404` for this route unless
+ * the operator sets `PASSWORD_RESET_SELF_SERVICE=true`. Kept here so a
+ * deployment that switches the public path back on has the client ready — the
+ * sign-in screen deliberately offers no link to it.
  */
 export function apiForgotPassword(email: string): Promise<ForgotPasswordResult> {
   return request<ForgotPasswordResult>('POST', '/auth/forgot-password', { email });

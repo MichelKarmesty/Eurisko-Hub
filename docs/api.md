@@ -47,10 +47,18 @@ Admin; a malformed address is the only thing rejected (`400`).
 A wrong email and a wrong password both return the same generic
 `401 Invalid credentials.`, so the endpoint cannot be used to discover accounts.
 
-### POST /auth/forgot-password  — public (ADR-008)
-Step 1 of self-service recovery. The answer is **always** the same generic
-message — the address being registered or not, active or not — so the endpoint
-cannot be used to enumerate accounts:
+### POST /auth/forgot-password  — public, **off by default** (ADR-008, ADR-009)
+
+Recovery is **Admin-initiated** (ADR-007): an Admin mints a one-time link with
+`POST /users/:id/reset-password` (below) and hands it over, so no mail server is
+needed anywhere. This public, emailed path is **disabled unless**
+`PASSWORD_RESET_SELF_SERVICE=true`; while it is off the route answers
+`404 {"message":"Cannot POST /auth/forgot-password"}`, exactly as if it did not
+exist.
+
+With the switch on it is step 1 of self-service recovery. The answer is **always**
+the same generic message — the address being registered or not, active or not —
+so the endpoint cannot be used to enumerate accounts:
 
 ```json
 { "email": "someone@gmail.com" }
@@ -78,10 +86,10 @@ the token so the flow is demonstrable with no mail server
   and sends nothing (anti mail-bomb).
 
 ### POST /auth/reset-password  — public
-Complete a reset with the one-time token from an **emailed** link (ADR-008,
-`POST /auth/forgot-password`) or an **Admin-issued** one (ADR-007,
+Complete a reset with the one-time token from an **Admin-issued** link (ADR-007,
 `POST /users/:id/reset-password` below — or, for a locked-out lone Admin, the
-offline `scripts/reset-password.mjs`).
+offline `scripts/reset-password.mjs`) or from an **emailed** one when the optional
+self-service path is enabled (ADR-008, `POST /auth/forgot-password`).
 
 ```json
 { "token": "64-char hex token from the reset link", "password": "new-password-8+" }

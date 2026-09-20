@@ -29,6 +29,10 @@ import { configureApp } from '../src/app.setup';
 // the anti mail-bomb cooldown off so each test can mint freely.
 process.env.PASSWORD_RESET_RETURN_TOKEN = 'true';
 process.env.PASSWORD_RESET_COOLDOWN_SECONDS = '0';
+// The public, self-service route is off by default (ADR-009); this suite covers
+// both states, so it switches it on here and flips it off in the test that pins
+// the default.
+process.env.PASSWORD_RESET_SELF_SERVICE = 'true';
 
 const PASSWORD = 'password123';
 const NEW_PASSWORD = 'brand-new-pass-456';
@@ -124,6 +128,26 @@ describe('Password recovery and change over HTTP', () => {
   });
 
   // --- Forgot password: step 1 (self-service, ADR-008) --------------------
+
+  it('is hidden while the self-service switch is off (ADR-009 default)', async () => {
+    const previous = process.env.PASSWORD_RESET_SELF_SERVICE;
+    process.env.PASSWORD_RESET_SELF_SERVICE = 'false';
+    try {
+      const hidden = await request(http)
+        .post('/auth/forgot-password')
+        .send({ email: `hidden.${run}@gmail.com` });
+      expect(hidden.status).toBe(404);
+      expect(String(hidden.body.message)).toMatch(/Cannot POST \/auth\/forgot-password/);
+
+      // Completing an Admin-issued link still works — that is the supported route.
+      const reset = await request(http)
+        .post('/auth/reset-password')
+        .send({ token: 'a'.repeat(64), password: NEW_PASSWORD });
+      expect(reset.status).toBe(400); // unknown token, but the route is live
+    } finally {
+      process.env.PASSWORD_RESET_SELF_SERVICE = previous;
+    }
+  });
 
   it('answers generically for an unknown email and never leaks a token', async () => {
     const res = await request(http)
