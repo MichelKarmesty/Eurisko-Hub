@@ -13,7 +13,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 import { UsersService } from './users.service';
 import { publicUser } from './user.entity';
 import { AuthUser, CurrentUser, Roles } from '../common/auth.decorators';
@@ -46,6 +46,21 @@ class ListUsersQuery {
   @IsOptional()
   @IsIn(ROLES)
   role?: Role;
+
+  /**
+   * `?includeInactive=true` — the Users tab asks for every row, so an account
+   * that was deactivated (because ticket history references it) stays visible
+   * and can be **reactivated** instead of blocking its email address forever.
+   */
+  @IsOptional()
+  @IsIn(['true', 'false'])
+  includeInactive?: string;
+}
+
+class SetUserActiveDto {
+  /** `true` reactivates a deactivated account; `false` revokes the login. */
+  @IsBoolean()
+  active: boolean;
 }
 
 /** Admin-only user management (RBAC: agents/admin are provisioned by Admin). */
@@ -56,8 +71,12 @@ export class UsersController {
 
   @Get()
   async list(@Query() query: ListUsersQuery) {
-    // Removed/deactivated accounts are hidden from the Admin's Users list.
-    const all = await this.users.findActive();
+    // The Admin's Users tab asks for everything, so deactivated accounts stay
+    // visible and can be reactivated (default: active accounts only).
+    const all =
+      query.includeInactive === 'true'
+        ? await this.users.findAll()
+        : await this.users.findActive();
     return query.role ? all.filter((u) => u.role === query.role) : all;
   }
 
@@ -65,9 +84,34 @@ export class UsersController {
   async create(@Body() dto: CreateUserDto) {
     const existing = await this.users.findByEmail(dto.email);
     if (existing) {
-      throw new ConflictException('A user with this email already exists.');
+      // A deactivated account still holds its address (its history references
+      // it), so re-creating it is refused — reactivating is the way back.
+      throw new ConflictException(
+        existing.isActive
+          ? 'A user with this email already exists.'
+          : 'That email belongs to a deactivated account kept for audit — reactivate it instead of creating a new one.',
+      );
     }
     const user = await this.users.create(dto);
+    return publicUser(user);
+  }
+
+  /**
+   * `PATCH /users/:id/active` — Admin reactivates or deactivates an account.
+   *
+   * Reactivating restores a deactivated account (the supported way to bring an
+   * address back, because the row keeps the email). Deactivating revokes the
+   * login at once; like deletion and demotion it refuses your own account (400)
+   * and the last active Admin (400) — see UsersService.setActive.
+   */
+  @Patch(':id/active')
+  async setActive(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SetUserActiveDto,
+    @CurrentUser() actor: AuthUser,
+  ) {
+    const user = await this.users.setActive(id, dto.active, actor.id);
+    if (!user) throw new NotFoundException(`User ${id} not found.`);
     return publicUser(user);
   }
 

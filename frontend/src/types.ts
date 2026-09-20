@@ -32,6 +32,13 @@ export interface User {
   name: string;
   email: string;
   role: Role;
+  /**
+   * `false` = a **deactivated** account: the login is revoked and it is hidden
+   * everywhere, but the row (and therefore the email) was kept because ticket
+   * history references it. The Users tab shows it so an Admin can reactivate it.
+   */
+  isActive?: boolean;
+  createdAt?: string;
 }
 
 export interface Session {

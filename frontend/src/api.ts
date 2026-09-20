@@ -230,8 +230,23 @@ export function apiCancelTicket(id: number, reason: string): Promise<Ticket> {
 
 // --- User management (Admin only) -----------------------------------------
 
-export function apiListUsers(): Promise<User[]> {
-  return request<User[]>('GET', '/users');
+/**
+ * List accounts. The Users tab passes `includeInactive = true` so a
+ * **deactivated** account stays visible — its row holds the email address, so
+ * reactivating it is the only way that address can be used again (creating a
+ * duplicate is refused with `409`).
+ */
+export function apiListUsers(includeInactive = false): Promise<User[]> {
+  return request<User[]>('GET', `/users${includeInactive ? '?includeInactive=true' : ''}`);
+}
+
+/**
+ * Reactivate a deactivated account, or deactivate an active one. Deactivating
+ * revokes the login at once and keeps the history; reactivating restores it.
+ * Your own account (400) and the last active Admin (400) cannot be deactivated.
+ */
+export function apiSetUserActive(id: number, active: boolean): Promise<User> {
+  return request<User>('PATCH', `/users/${id}/active`, { active });
 }
 
 export function apiCreateUser(input: {

@@ -11,6 +11,7 @@ import {
   apiAssignTicket,
   apiCancelTicket,
   apiDeleteTicket,
+  apiSetUserActive,
 } from '../api';
 import type { AdminStats, Category, Ticket, User } from '../types';
 import { ROLES, type Role } from '../types';
@@ -203,7 +204,9 @@ function TicketsTab() {
     try {
       const [ticketList, userList] = await Promise.all([apiListTickets(), apiListUsers()]);
       setTickets(ticketList);
-      setAgents(userList.filter((u) => AGENT_DEPARTMENT[u.role]));
+      // Only active agents can be assigned; a deactivated row must never be
+      // offered as an assignee (defensive: the list is active-only already).
+      setAgents(userList.filter((u) => AGENT_DEPARTMENT[u.role] && u.isActive !== false));
       setNotice(null);
     } catch (err) {
       setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Could not load tickets.' });
@@ -437,7 +440,7 @@ function UsersTab() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [list, me] = await Promise.all([apiListUsers(), apiMe()]);
+      const [list, me] = await Promise.all([apiListUsers(true), apiMe()]);
       setUsers(list);
       setCurrentUserId(me.id);
     } catch (err) {
@@ -461,6 +464,33 @@ function UsersTab() {
       setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Could not create user.' });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  /**
+   * Account lifecycle (ADR-004): reactivate a deactivated account, or revoke an
+   * active one. Reactivating is the supported way to bring an address back —
+   * the deactivated row kept the email, so creating a second account with it is
+   * refused (409) and this is what unblocks that message.
+   */
+  const setActive = async (u: User, active: boolean) => {
+    setPatchingId(u.id);
+    try {
+      const updated = await apiSetUserActive(u.id, active);
+      setUsers((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+      setNotice({
+        kind: 'success',
+        text: active
+          ? `${updated.email} reactivated — that address can sign in again.`
+          : `${updated.email} deactivated — the login is revoked, the history is kept.`,
+      });
+    } catch (err) {
+      setNotice({
+        kind: 'error',
+        text: err instanceof Error ? err.message : 'Could not update the account.',
+      });
+    } finally {
+      setPatchingId(null);
     }
   };
 
@@ -693,6 +723,7 @@ function UsersTab() {
                 <th>Name</th>
                 <th>Email</th>
                 <th>Role</th>
+                <th>Status</th>
                 <th>Change role</th>
                 <th>Actions</th>
               </tr>
@@ -705,6 +736,15 @@ function UsersTab() {
                   <td className="small">{u.email}</td>
                   <td>
                     <span className="role-chip">{ROLE_LABELS[u.role]}</span>
+                  </td>
+                  <td>
+                    {u.isActive === false ? (
+                      <span className="role-chip" title="Deactivated: ticket history references this account, so the row (and its email) were kept.">
+                        Deactivated
+                      </span>
+                    ) : (
+                      <span className="muted small">Active</span>
+                    )}
                   </td>
                   <td>
                     <select
@@ -725,11 +765,34 @@ function UsersTab() {
                       <button
                         type="button"
                         className="btn btn-ghost"
-                        disabled={resettingId === u.id}
+                        disabled={resettingId === u.id || u.isActive === false}
                         onClick={() => void handleResetPassword(u)}
                       >
                         {resettingId === u.id ? 'Creating…' : 'Reset password'}
                       </button>
+                      {/* ADR-004: a deactivated row keeps its email, so this is
+                          the way that address comes back into use. */}
+                      {u.isActive === false ? (
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          disabled={patchingId === u.id}
+                          onClick={() => void setActive(u, true)}
+                        >
+                          {patchingId === u.id ? 'Reactivating…' : 'Reactivate'}
+                        </button>
+                      ) : (
+                        u.id !== currentUserId && (
+                          <button
+                            type="button"
+                            className="btn btn-ghost"
+                            disabled={patchingId === u.id}
+                            onClick={() => void setActive(u, false)}
+                          >
+                            {patchingId === u.id ? 'Deactivating…' : 'Deactivate'}
+                          </button>
+                        )
+                      )}
                       {/* Deleting your own account is refused by the backend
                           (400) — hide the control for your own row instead. */}
                       {u.id === currentUserId ? (

@@ -211,4 +211,49 @@ export class UsersService {
     await this.users.save(user);
     return { id: user.id, email: user.email, mode: 'deactivated' };
   }
+
+  /**
+   * Admin action: activate or deactivate an account
+   * (`PATCH /users/:id/active`).
+   *
+   * **Reactivating is how an address comes back into use.** A deactivated row
+   * keeps its email — its tickets/history still reference it — so `POST /users`
+   * rightly refuses the duplicate. Instead of a second row, the Admin restores
+   * *that* account (Users → **Reactivate**), which keeps every historical
+   * reference pointing at the same person.
+   *
+   * Deactivating is the revoke half of the same switch and follows the
+   * "a database can never be locked out" rule (ADR-004):
+   *  - an Admin can never deactivate their **own** account (400) — that is how a
+   *    session would revoke itself mid-request;
+   *  - the last remaining active Admin can never be deactivated (400).
+   *
+   * The call is idempotent: setting the state an account already has is a no-op
+   * that returns the account.
+   */
+  async setActive(
+    id: number,
+    active: boolean,
+    actingUserId: number,
+  ): Promise<User | null> {
+    const user = await this.findById(id);
+    if (!user) return null;
+
+    if (!active && user.isActive) {
+      if (user.id === actingUserId) {
+        throw new BadRequestException('You cannot deactivate your own account.');
+      }
+      if (user.role === 'Admin' && (await this.countActiveAdmins()) <= 1) {
+        throw new BadRequestException(
+          'The last active Admin cannot be deactivated — the hub would be locked out.',
+        );
+      }
+    }
+
+    if (user.isActive !== active) {
+      user.isActive = active;
+      await this.users.save(user);
+    }
+    return user;
+  }
 }

@@ -125,16 +125,31 @@ Change **your own** password while signed in (`Authorization: Bearer …`).
 
 ## User management (Admin only) — the only way to create accounts
 
-### GET /users · POST /users · PATCH /users/:id/role
+### GET /users · POST /users · PATCH /users/:id/role · PATCH /users/:id/active
+
+`GET /users` lists the **active** accounts. Add `?includeInactive=true` for every
+row, including **deactivated** ones (see below) — the Users tab asks for that, so
+a deactivated account stays visible and can be reactivated. Each user carries
+`isActive`, and `?role=IT_Agent` still filters as before.
+
 `POST /users` creates an account with an explicit role and password:
 
 ```json
 { "name": "Karim Haddad", "email": "karim.haddad@eurisko.com", "password": "password123", "role": "IT_Agent" }
 ```
-→ `201` with the created user (never its password hash). A duplicate email →
-`409`; a non-Admin caller → `403`. `email` may be **any real address**
-(`karim.haddad@gmail.com`, `karim@hotmail.com`, `k.haddad@acme-corp.com`…): no
-domain restriction is applied anywhere in the system (ADR-005).
+→ `201` with the created user (never its password hash). `email` may be **any
+real address** (`karim.haddad@gmail.com`, `karim@hotmail.com`,
+`k.haddad@acme-corp.com`…): no domain restriction is applied anywhere in the
+system (ADR-005).
+
+* `409` — the email is taken. The message distinguishes the two cases:
+  `"A user with this email already exists."` for a live account, and
+  `"That email belongs to a deactivated account kept for audit — reactivate it
+  instead of creating a new one."` when the row was deactivated (its history
+  references it, so the address stays with it — **reactivate, don't duplicate**).
+* `400` — a malformed address, an invalid role, or an unknown body field;
+  non-Admin caller → `403`.
+
 `PATCH /users/3/role` body: `{ "role": "HR_Agent" }` → `200` with the updated
 user.
 * `400` — an invalid role; changing **your own** Admin role
@@ -144,11 +159,21 @@ user.
   deletion (ADR-004).
 * `404` — unknown account; non-Admin caller → `403`.
 
+`PATCH /users/4/active` body: `{ "active": true }` → `200` with the updated user.
+**This is the account lifecycle switch**: `false` revokes the login immediately
+and keeps the history, `true` restores a deactivated account (same id, so every
+ticket and event still points at the same person). Repeating the state an account
+already has is a no-op that still answers `200`.
+* `400` — deactivating **your own** account (`"You cannot deactivate your own
+  account."`); a non-boolean `active`; or, defensively, the last active Admin —
+  which the own-account rule already covers, since an Admin acting on somebody
+  else implies at least two active Admins.
+* `404` — unknown account; non-Admin caller → `403`.
+
 ### DELETE /users/:id — Admin deletes an account
 Deletes **any** account — an Employee, an IT/HR/Maintenance agent, or another
-Admin. `GET /users` only ever lists active accounts, so a removed account
-disappears from the Users list immediately and can no longer sign in
-(`POST /auth/login` → `401`).
+Admin. A removed account disappears from the default `GET /users` list
+immediately and can no longer sign in (`POST /auth/login` → `401`).
 
 ```json
 // 200 response
@@ -159,8 +184,11 @@ disappears from the Users list immediately and can no longer sign in
   is really deleted — and its **email becomes reusable**: an Admin can create a
   new account with that address afterwards (a *different* user id).
 * `mode: "deactivated"` — the account appears in tickets/history, so the row is
-  kept for audit and only deactivated (login revoked, hidden from the list).
-  The email therefore stays in use: `POST /users` with it returns `409`.
+  kept for audit and only deactivated (login revoked, hidden from the default
+  list but visible with `?includeInactive=true`).
+  The email therefore stays in use: `POST /users` with it returns `409` naming
+  reactivation as the way forward (`PATCH /users/:id/active`), which restores the
+  *same* account id.
   This is the same "never destroy the audit trail" rule as ADR-003's soft
   `Cancelled`.
 * The Users tab's confirmation dialog states both outcomes before the Admin

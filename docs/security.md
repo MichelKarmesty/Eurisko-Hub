@@ -76,6 +76,17 @@ guards are `JwtAuthGuard` (a valid bearer token is required unless a route is
   guard-rails protect the hub itself: an Admin cannot delete **their own**
   account, and the **last active Admin** can never be deleted (400), so a
   database can never be locked out (ADR-004).
+* **A deactivated account keeps its email — reactivate it instead of duplicating
+  it** (`PATCH /users/:id/active`, ADR-004). Deactivation revokes the login at
+  once and is *not* a removal: the row stays because tickets/history reference
+  it, so `POST /users` with that address is refused (`409`, and the message says
+  to reactivate). Reactivation restores the **same account id**, which is what
+  keeps every historical reference pointing at the same person. The Users tab
+  lists deactivated rows (badge + **Reactivate**/**Deactivate** controls,
+  `GET /users?includeInactive=true`) rather than hiding them, and only active
+  agents are ever offered as ticket assignees. Deactivating is guarded exactly
+  like deletion: your own account (400), and — as in every path that could empty
+  the Admin seat — the guard-rails above.
 * **The same guard-rails cover role changes** (`PATCH /users/:id/role`), because
   a demotion can empty the Admin seat just as effectively as a delete: an Admin
   cannot change **their own Admin role** (400), and the **last active Admin**

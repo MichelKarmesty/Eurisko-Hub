@@ -59,7 +59,7 @@ required to resolve) is enforced by the NestJS backend in `../backend/`.
 |---|---|---|
 | Requester (`Employee`) | `RequesterView` | describes the problem and presses **AI Suggest** (v0.4), opens a ticket, watches its status (cannot change it — RBAC) |
 | Support Agent | `AgentView` | claims from the department queue (→ `In Progress`), then **resolves** with a note |
-| Admin | `AdminView` | every ticket + stats + user management; **assigns** unclaimed tickets, **cancels** requests softly, **deletes a `Resolved` ticket** outright (ADR-010, with an explicit warning), or resolves as a recorded **override** |
+| Admin | `AdminView` | every ticket + stats + user management; **assigns** unclaimed tickets, **cancels** requests softly, **deletes a `Resolved` ticket** outright (ADR-010, with an explicit warning), **deactivates / reactivates** accounts (ADR-004 — deactivated rows are listed with a badge so the address can be brought back), or resolves as a recorded **override** |
 
 **AI Suggest (v0.4).** The free-text box + button call
 `POST /tickets/ai-suggest` and pre-fill Title, Category and Priority, each tagged
