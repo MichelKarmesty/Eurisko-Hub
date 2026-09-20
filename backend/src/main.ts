@@ -1,3 +1,4 @@
+import './env'; // must stay first: loads backend/.env before any module reads it
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { configureApp } from './app.setup';

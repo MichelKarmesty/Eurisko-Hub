@@ -37,6 +37,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;         /* never clip "Change password" / "Switch account" */
+  gap: 0.5rem 1rem;
   padding: 0.7rem 1.4rem;
   background: #0f172a;
   color: #fff;
@@ -51,6 +53,7 @@ body {
 .who {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.8rem;
 }
 .role-chip {
