@@ -47,7 +47,7 @@ it was resolved.
 | [`backend/`](backend/) | NestJS + TypeORM API (auth with password reset/change, RBAC, tickets with claim/status flow, durable history, advisory AI intake under `src/ai/`, console/HTTP mail under `src/mail/`) |
 | [`frontend/`](frontend/) | React + Vite web client (requester dashboard with AI Suggest, agent queue, admin view) |
 | [`docs/`](docs/) | Product spec, architecture, data model, ADRs (incl. [ADR-006](docs/decisions/ADR-006.md), the advisory-AI scope decision), API reference, Week 3 & Week 4 delivery records |
-| [`scripts/`](scripts/) | [`verify-slice.mjs`](scripts/verify-slice.mjs) live HTTP checks · [`run-tests.mjs`](scripts/run-tests.mjs) one-command test suite · [`verify-ai-intake.mjs`](scripts/verify-ai-intake.mjs) AI intake checks · [`ai-provider-doctor.mjs`](scripts/ai-provider-doctor.mjs) find a working AI provider · [`mock-ai-provider.mjs`](scripts/mock-ai-provider.mjs) **test double** — exercises the model path with no key (never a real model) |
+| [`scripts/`](scripts/) | [`verify-slice.mjs`](scripts/verify-slice.mjs) live HTTP checks · [`run-tests.mjs`](scripts/run-tests.mjs) one-command test suite · [`verify-ai-intake.mjs`](scripts/verify-ai-intake.mjs) AI intake checks · [`ai-provider-doctor.mjs`](scripts/ai-provider-doctor.mjs) find a working AI provider · [`mock-ai-provider.mjs`](scripts/mock-ai-provider.mjs) **test double** — exercises the model path with no key (never a real model) · [`setup-mail.mjs`](scripts/setup-mail.mjs) one-time Gmail App-Password setup · [`verify-mail.mjs`](scripts/verify-mail.mjs) “will a real email leave this machine?” |
 | [`e2e/`](e2e/) | End-to-end tests: DOM-level (default) and real-browser (optional) |
 
 ## Requirements
