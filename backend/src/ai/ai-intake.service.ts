@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { CATEGORIES, Category, PRIORITIES, Priority } from '../common/domain';
 
 /**
@@ -326,8 +326,37 @@ export function classifyOffline(text: string): AiIntakeSuggestion {
 }
 
 @Injectable()
-export class AiIntakeService {
+export class AiIntakeService implements OnModuleInit {
   private readonly logger = new Logger('AiIntake');
+
+  /**
+   * Say once, at boot, how the AI is configured — so a missing key shows up in
+   * the startup log instead of only as a 401 after the first "AI Suggest".
+   * The key value itself is never logged.
+   */
+  onModuleInit(): void {
+    if (!this.enabled()) {
+      this.logger.log('AI intake: disabled (AI_ENABLED=false).');
+      return;
+    }
+
+    const keySet = Boolean(process.env.AI_API_KEY);
+    const fallbacks = this.fallbackModels();
+    this.logger.log(
+      `AI intake: provider=${this.providerUrl()} model=${this.model()} ` +
+        `key=${keySet ? 'set' : 'MISSING'}` +
+        (fallbacks.length > 0 ? ` fallback=${fallbacks.join(',')}` : '') +
+        ` offlineFallback=${this.offlineFallbackEnabled() ? 'on' : 'off'}`,
+    );
+
+    if (!keySet && /groq\.(com|cloud)/i.test(this.providerUrl())) {
+      this.logger.warn(
+        'AI intake: the provider is Groq but AI_API_KEY is empty — every call will ' +
+          'return HTTP 401 and fall back to the offline classifier. Set AI_API_KEY ' +
+          '(a free key from console.groq.com) in THIS process and restart.',
+      );
+    }
+  }
 
   /** The advisory endpoint itself: always resolves, never throws. */
   async suggest(text: string): Promise<AiIntakeResult> {
