@@ -61,3 +61,25 @@ export class User {
   @CreateDateColumn()
   createdAt: Date;
 }
+
+/**
+ * The fields of a `User` that may leave the API.
+ *
+ * Built explicitly, never by spreading the entity: a spread produces a plain
+ * object, which bypasses `@Exclude()` and serialises `passwordResetTokenHash`
+ * and `passwordResetExpiresAt` whenever a reset is pending — the exact leak
+ * docs/security.md §"password recovery" promises cannot happen. Returning the
+ * entity itself is also safe (the global serializer honours `@Exclude`), but an
+ * explicit shape keeps the contract readable and impossible to widen by
+ * accident.
+ */
+export function publicUser(user: User) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    isActive: user.isActive,
+    createdAt: user.createdAt,
+  };
+}

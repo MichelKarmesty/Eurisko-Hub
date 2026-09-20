@@ -7,6 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes } from 'node:crypto';
 import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
+import { publicUser, User } from '../users/user.entity';
 import { MailService } from '../mail/mail.service';
 import {
   ChangePasswordDto,
@@ -112,6 +113,7 @@ export class AuthService {
     );
     if (
       !user ||
+      !user.isActive ||
       !user.passwordResetExpiresAt ||
       user.passwordResetExpiresAt < Date.now()
     ) {
@@ -147,19 +149,20 @@ export class AuthService {
     return { message: 'Your password has been changed.' };
   }
 
-  private buildSession(user: {
-    id: number;
-    email: string;
-    name: string;
-    role: string;
-  }) {
-    const { passwordHash: _ph, ...safe } = user as any;
+  /**
+   * `POST /auth/login` — the token plus the public view of the account.
+   *
+   * The body is built by `publicUser()`, not by spreading the entity: a spread
+   * drops `@Exclude()`, so a pending password reset would put its token hash and
+   * expiry into the login response (docs/security.md says it never appears).
+   */
+  private buildSession(user: User) {
     const accessToken = this.jwt.sign({
       sub: user.id,
       email: user.email,
       role: user.role,
     });
-    return { accessToken, user: safe };
+    return { accessToken, user: publicUser(user) };
   }
 
   private static hashToken(token: string): string {

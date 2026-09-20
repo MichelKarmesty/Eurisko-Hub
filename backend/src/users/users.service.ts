@@ -163,6 +163,11 @@ export class UsersService {
    *  - an account with no tickets and no history is hard-deleted;
    *  - an account that is referenced by tickets/history is deactivated instead,
    *    so the audit trail stays intact (returns `mode: 'deactivated'`).
+   *
+   * "Referenced by tickets" includes being the **assignee** (`assignedToId`) or
+   * the **resolver** (`resolvedById`), not only the requester or the actor of an
+   * event: an Admin-assigned agent may own no event of their own, and deleting
+   * them would leave the live ticket pointing at a row that no longer exists.
    */
   async deleteAccount(
     id: number,
@@ -174,18 +179,28 @@ export class UsersService {
     if (user.id === actingUserId) {
       throw new BadRequestException('You cannot delete your own account.');
     }
-    if (user.role === 'Admin' && (await this.countActiveAdmins()) <= 1) {
+    if (
+      user.role === 'Admin' &&
+      user.isActive &&
+      (await this.countActiveAdmins()) <= 1
+    ) {
       throw new BadRequestException(
         'The last active Admin cannot be deleted — the hub would be locked out.',
       );
     }
 
-    const [openedTickets, historyEvents] = await Promise.all([
-      this.tickets.count({ where: { requesterId: id } }),
-      this.events.count({ where: { actorId: id } }),
-    ]);
+    const [openedTickets, assignedTickets, resolvedTickets, historyEvents] =
+      await Promise.all([
+        this.tickets.count({ where: { requesterId: id } }),
+        this.tickets.count({ where: { assignedToId: id } }),
+        this.tickets.count({ where: { resolvedById: id } }),
+        this.events.count({ where: { actorId: id } }),
+      ]);
 
-    if (openedTickets === 0 && historyEvents === 0) {
+    if (
+      openedTickets + assignedTickets + resolvedTickets + historyEvents ===
+      0
+    ) {
       await this.users.delete(id);
       return { id: user.id, email: user.email, mode: 'deleted' };
     }

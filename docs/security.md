@@ -26,8 +26,10 @@ See [ADR-004](decisions/ADR-004.md).
 * **There is no public registration.** `POST /auth/register` does not exist
   (it returns `404`), so someone with network access cannot create an account.
 * **There is no demo seeding and no demo-account endpoint**
-  (`GET /demo/accounts` is gone). Nothing with a well-known password ships in
-  the application.
+  (`GET /demo/accounts` is gone). No demo *accounts* ship: the only account the
+  application ever creates by itself is the bootstrap Admin, whose password comes
+  from `ADMIN_PASSWORD` — the `Admin123!` development default is a placeholder to
+  be replaced before any real deployment, not a shipped credential.
 * The seed can never lock a database out. It creates the Admin when the
   configured `ADMIN_EMAIL` does not exist and the database has **no Admin at
   all** — that is an empty database (the normal bootstrap) or a database that
@@ -61,7 +63,11 @@ guards are `JwtAuthGuard` (a valid bearer token is required unless a route is
   agent, or another Admin (`DELETE /users/:id`). A deleted account disappears
   from the Users list and can no longer sign in. An account with **no tickets
   and no history** is really deleted; an account that appears in tickets or
-  history is **deactivated** instead, so the audit trail stays intact. Two
+  history is **deactivated** instead, so the audit trail stays intact — "appears"
+  covers every way an account can be attached to a ticket: the requester, the
+  **assignee**, the **resolver**, or the actor of a history event (`assignedToId`
+  / `resolvedById` are counted too, so an Admin-assigned agent is never deleted
+  out from under a live ticket). Two
   guard-rails protect the hub itself: an Admin cannot delete **their own**
   account, and the **last active Admin** can never be deleted (400), so a
   database can never be locked out (ADR-004).
@@ -75,12 +81,14 @@ guards are `JwtAuthGuard` (a valid bearer token is required unless a route is
 
 ## Credentials and data
 
-* Passwords are bcrypt-hashed and never returned by the API
+* Passwords are bcrypt-hashed (`bcryptjs`, cost 10) and never returned by the API
   (`@Exclude()` on `passwordHash` plus a global serializer).
 * Login failures are generic (`401 Invalid credentials.`) for both a wrong email
   and a wrong password, so the endpoint cannot be used to enumerate accounts.
 * The request contract is closed: the global `ValidationPipe` rejects unknown
-  fields (`forbidNonWhitelisted`).
+  fields (`forbidNonWhitelisted`). That covers request **bodies**; `GET /tickets`
+  reads its query from a plain object, so unknown query parameters there are
+  ignored rather than rejected.
 
 ## Password recovery and change (ADR-005)
 
@@ -88,9 +96,18 @@ guards are `JwtAuthGuard` (a valid bearer token is required unless a route is
   **reset** a password (forgot it) or **change** it (signed in).
 * `POST /auth/forgot-password` answers with the **same generic message for every
   address**, registered or not, active or not — like login, it cannot be used to
-  discover accounts.
+  discover accounts. The **response shape** is only identical in production,
+  though: outside production the deliberate development convenience returns the
+  one-time token (`resetToken` / `resetUrl`) when — and only when — the address is
+  registered and active, so the flow is demonstrable with no mail server. Set
+  `PASSWORD_RESET_RETURN_TOKEN=false` (or run with `NODE_ENV=production`, which
+  forces it off) if the endpoint is reachable by people who should not be able to
+  probe for accounts.
 * A reset token is `randomBytes(32)`. The database stores **only its SHA-256
-  hash** (both reset fields are `@Exclude()`d and never appear in a response)
+  hash** (both reset fields are `@Exclude()`d and never appear in a response —
+  pinned by a regression test in `backend/test/auth-password.spec.ts`, because a
+  plain object spread used to defeat `@Exclude()` on the login, user-create and
+  role-change responses)
   plus a **30-minute expiry** (`PASSWORD_RESET_TTL_MINUTES`).
 * **Single use:** `POST /auth/reset-password` consumes the token; a second
   attempt with the same link is a generic `400`. Changing the password through

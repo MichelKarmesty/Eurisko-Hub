@@ -61,7 +61,8 @@ npm run test:watch       # watch mode
 | `SMTP_HOST` / `SMTP_PORT` | *(unset)* / `587` | Standard SMTP (Gmail, Outlook/Hotmail, company); `SMTP_SECURE=true` for port 465 |
 | `SMTP_USER` / `SMTP_PASS` | *(unset)* | SMTP login — use an **App Password** when 2FA is on |
 | `MAIL_WEBHOOK_URL` / `MAIL_WEBHOOK_TOKEN` | *(unset)* | Optional: POST `{ to, subject, text }` to an HTTPS mail relay |
-| `RESEND_API_KEY` / `MAIL_FROM` | *(unset)* | Optional: real delivery through Resend's HTTP API |
+| `RESEND_API_KEY` | *(unset)* | Optional: real delivery through Resend's HTTP API |
+| `MAIL_FROM` | `Eurisko Hub <no-reply@eurisko.local>` | From address on outgoing mail |
 | `AI_ENABLED` | `true` | `false` switches the AI intake feature off |
 | `AI_PROVIDER_URL` | `https://api.groq.com/openai/v1` | OpenAI-compatible base URL (Groq's free cloud API by default; a local Ollama is `http://localhost:11434/v1`) |
 | `AI_MODEL` | `openai/gpt-oss-20b` | Model name sent to the provider (Groq's free model names change; list them at `/openai/v1/models`) |
@@ -94,7 +95,13 @@ test/
   tickets.database.integration.spec.ts  backend <-> database integration test
   tickets.api.spec.ts                   HTTP contract/authorization/regression test
   admin-seed.spec.ts                    Admin-seed recovery (a DB is never locked out)
+  admin-role-change.spec.ts             role changes + the last-active-Admin guard
+  admin-user-deletion.spec.ts           DELETE /users/:id: contract, audit rule,
+                                        foreign-key enforcement
   auth-password.spec.ts                 v0.5 forgot/reset/change + any-email rule
+  mail-smtp.spec.ts                     SMTP transport selection + console fallback
+  ai-intake-eval.spec.ts                v0.4/v0.6 AI intake evals (5 real-or-skip,
+                                        4 mocked)
 ```
 
 ## Security

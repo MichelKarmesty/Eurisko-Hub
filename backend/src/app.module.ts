@@ -1,5 +1,6 @@
 import { Logger, Module, OnApplicationBootstrap } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './common/jwt-auth.guard';
 import { RolesGuard } from './common/roles.guard';
@@ -59,7 +60,30 @@ const DEFAULT_ADMIN_PASSWORD = 'Admin123!';
 export class AppModule implements OnApplicationBootstrap {
   private readonly logger = new Logger('Seed');
 
-  constructor(private readonly users: UsersService) {}
+  constructor(
+    private readonly users: UsersService,
+    private readonly dataSource: DataSource,
+  ) {}
+
+  /**
+   * SQLite enforces foreign keys only while `PRAGMA foreign_keys = ON`, and
+   * TypeORM's `sqljs` driver never sets it. Without this, every `onDelete` rule
+   * declared on the entities (`RESTRICT`, `CASCADE`, `SET NULL`) is decorative:
+   * a deleted account leaves `assignedToId` / `requesterId` pointing at a row
+   * that no longer exists, and a ticket can be written for a user that is gone.
+   *
+   * The statement has to go through the driver's own connection: on `sqljs`,
+   * `dataSource.query()` does not persist a PRAGMA (the connection still reports
+   * `0` right after), while `databaseConnection.run()` does — and the setting
+   * then survives ordinary repository traffic. `admin-user-deletion.spec.ts`
+   * pins both facts.
+   */
+  private enforceForeignKeys(): void {
+    const driver = this.dataSource.driver as unknown as {
+      databaseConnection?: { run(sql: string): unknown };
+    };
+    driver.databaseConnection?.run('PRAGMA foreign_keys = ON');
+  }
 
   /**
    * Guarantee the database has an Admin, so it can never be locked out.
@@ -79,6 +103,8 @@ export class AppModule implements OnApplicationBootstrap {
    *     Admin login returned 401 "Invalid credentials").
    */
   async onApplicationBootstrap() {
+    this.enforceForeignKeys();
+
     const email = (process.env.ADMIN_EMAIL ?? DEFAULT_ADMIN_EMAIL).toLowerCase();
     const password = process.env.ADMIN_PASSWORD ?? DEFAULT_ADMIN_PASSWORD;
 

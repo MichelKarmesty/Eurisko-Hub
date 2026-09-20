@@ -387,10 +387,11 @@ $ cd backend && npm test
 
 > **Added after this record.** Two suites landed later — `backend/test/ai-intake-eval.spec.ts`
 > (Week 4 AI intake, [`week4-production-ai.md`](week4-production-ai.md)) and
-> `backend/test/auth-password.spec.ts` (ADR-005 password recovery) — so `npm test`
-> now reports **8 files / 72 tests** (five of them skip when no AI provider is
-> running), and `npm run test:ai-eval` runs the AI evals on their own. The Week 3
-> numbers above are kept as the record of that delivery.
+> `backend/test/auth-password.spec.ts` (ADR-005 password recovery) — and three more
+> since (`admin-role-change.spec.ts`, `admin-user-deletion.spec.ts`, `mail-smtp.spec.ts`),
+> so `npm test` now runs **9 spec files** (five AI-eval cases skip when no AI
+> provider is running), and `npm run test:ai-eval` runs the AI evals on their own.
+> The Week 3 numbers above are kept as the record of that delivery.
 
 $ node scripts/verify-slice.mjs full
  28/28 checks passed   (live HTTP definition of done, fresh database)

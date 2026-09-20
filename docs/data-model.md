@@ -14,11 +14,30 @@
         a one-time token — the raw token is never stored) and
         `passwordResetExpiresAt` (epoch ms, default +30 minutes). Both are cleared
         whenever the password changes, and both are excluded from API responses.
-*   **Ticket:** A request for help. It contains a title, description, category, priority, status, and resolution note.
+    *   `isActive` (boolean, default `true`) is the soft-removal flag: an account
+        that appears on any ticket or history row is **deactivated** instead of
+        deleted, so the audit trail survives (`DELETE /users/:id`, ADR-004).
+    *   `createdAt` records when the account was created.
+*   **Ticket:** A request for help. It contains a title, description, category,
+    priority, status, and resolution note, plus the three user references —
+    `requesterId` (required, `ON DELETE RESTRICT`), `assignedToId` and
+    `resolvedById` (both nullable, `ON DELETE SET NULL`) — and `createdAt` /
+    `updatedAt` timestamps.
+*   **TicketEvent:** one row per thing that happened to a ticket — `ticketId`,
+    `actorId`, `action` (`CREATED` / `CLAIMED` / `ASSIGNED` / `RESOLVED` /
+    `ADMIN_OVERRIDE` / `CANCELLED`), optional `fromStatus` / `toStatus` / `note`,
+    and `createdAt`. It is the durable audit trail behind
+    `GET /tickets/:id/history` and is never edited (`ON DELETE CASCADE` from the
+    ticket, `RESTRICT` from the actor).
 *   **Relationships:**
     *   A requester can own many tickets (1-to-M).
     *   Each ticket belongs to exactly one requester.
     *   A ticket can be claimed by zero or one agent.
+    *   A ticket has zero-to-many history events; each event has exactly one actor.
+
+    These `ON DELETE` actions are real, not decorative: SQLite honours them only
+    while `PRAGMA foreign_keys` is ON, which `AppModule` sets on its connection at
+    bootstrap (`backend/test/admin-user-deletion.spec.ts` pins it).
 
 ## 2. Lifecycle & Rules
 *   **Status flow:** A ticket moves from `Open` to `In Progress` to `Resolved`.
@@ -41,4 +60,6 @@
     *   *Requester Pattern:* `SELECT * FROM Tickets WHERE requester_id = [Current User]`
     *   *Agent Pattern:* `SELECT * FROM Tickets WHERE category = [Agent's Category] AND status = 'Open'`
     *   *Admin Pattern:* `SELECT * FROM Tickets` (Global view)
-*   **Indexes:** An index is justified on the `category` and `status` columns, as these are the primary filters used by Agents to constantly refresh their queues.
+*   **Indexes:** A single composite index on `(category, status)` backs the agent
+    queue — the list agents refresh most often. Being composite, it does not serve
+    a filter on `status` alone; nothing queries that way today.

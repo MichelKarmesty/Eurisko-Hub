@@ -64,8 +64,11 @@ required to resolve) is enforced by the NestJS backend in `../backend/`.
 `POST /tickets/ai-suggest` and pre-fill Title, Category and Priority, each tagged
 **AI suggested**; the tag and highlight clear as soon as the field is edited.
 Nothing is auto-submitted and `Open ticket` still calls the unchanged
-`POST /tickets`. When the AI is unavailable the form shows a non-blocking notice
-and works by hand. Full detail:
+`POST /tickets`. When no model answers, the built-in **offline keyword classifier**
+still pre-fills the fields, tagged **“Suggested (offline)”** instead of “AI
+suggested”, so a rules-based answer is never passed off as the model's — unless
+`AI_OFFLINE_FALLBACK=false`, in which case the form shows a non-blocking notice
+and is filled in by hand. Full detail:
 [`../docs/week4-production-ai.md`](../docs/week4-production-ai.md).
 
 **Password recovery (v0.5).** The sign-in card carries **Forgot password?**,

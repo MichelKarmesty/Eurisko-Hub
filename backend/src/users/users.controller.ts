@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 import { UsersService } from './users.service';
+import { publicUser } from './user.entity';
 import { AuthUser, CurrentUser, Roles } from '../common/auth.decorators';
 import { ROLES, Role } from '../common/domain';
 
@@ -67,8 +68,7 @@ export class UsersController {
       throw new ConflictException('A user with this email already exists.');
     }
     const user = await this.users.create(dto);
-    const { passwordHash: _ph, ...safe } = user;
-    return safe;
+    return publicUser(user);
   }
 
   /**
@@ -86,8 +86,7 @@ export class UsersController {
   ) {
     const user = await this.users.updateRole(id, dto.role, actor.id);
     if (!user) throw new NotFoundException(`User ${id} not found.`);
-    const { passwordHash: _ph, ...safe } = user;
-    return safe;
+    return publicUser(user);
   }
 
   /**

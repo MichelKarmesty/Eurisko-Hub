@@ -25,6 +25,7 @@ import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
 import { Role } from '../src/common/domain';
 import { User } from '../src/users/user.entity';
+import { UsersService } from '../src/users/users.service';
 
 const PASSWORD = 'password123';
 const run = Date.now().toString(36);
@@ -168,7 +169,7 @@ describe('Admin role changes — PATCH /users/:id/role', () => {
     expect(await roleInDb(adminId)).toBe('Admin');
   });
 
-  it('refuses demoting the last active Admin, even from a still-valid token (400)', async () => {
+  it('refuses demoting the last active Admin, and a deactivated Admin session is already dead', async () => {
     // Make the seeded Admin the only ACTIVE Admin, whatever earlier tests left
     // behind, so the lockout edge is the one under test.
     const others = (await users.find()).filter(
@@ -176,18 +177,22 @@ describe('Admin role changes — PATCH /users/:id/role', () => {
     );
     for (const other of others) await users.update(other.id, { isActive: false });
 
-    // A second Admin, deactivated behind their back while their JWT stays valid.
+    // A second Admin, deactivated behind their back.
     const doomed = await provision('Admin', 'Hadi');
-    const staleToken = doomed.token; // still accepted (JWT is not DB-checked)
+    const staleToken = doomed.token;
     await users.update(doomed.id, { isActive: false });
 
-    const res = await request(http)
-      .patch(`/users/${adminId}/role`)
-      .set(auth(staleToken))
-      .send({ role: 'Employee' });
+    // The guard re-reads the account, so that session is dead at once.
+    const me = await request(http).get('/auth/me').set(auth(staleToken));
+    expect(me.status).toBe(401);
 
-    expect(res.status).toBe(400);
-    expect(String(res.body.message)).toContain('last active Admin');
+    // The API can therefore no longer reach the service guard with a dead
+    // session, so the rule is exercised directly — this is what actually
+    // protects the Admin seat.
+    const service = app.get(UsersService);
+    await expect(service.updateRole(adminId, 'Employee', doomed.id)).rejects.toThrow(
+      /last active Admin/i,
+    );
     expect(await roleInDb(adminId)).toBe('Admin');
   });
 

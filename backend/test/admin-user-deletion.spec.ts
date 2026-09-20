@@ -22,6 +22,8 @@ import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
 import { Role } from '../src/common/domain';
 import { User } from '../src/users/user.entity';
+import { UsersService } from '../src/users/users.service';
+import { Ticket } from '../src/tickets/ticket.entity';
 
 const PASSWORD = 'password123';
 const run = Date.now().toString(36);
@@ -148,26 +150,100 @@ describe('Admin account deletion — DELETE /users/:id', () => {
     expect(history.body.map((e: any) => e.action)).toContain('CLAIMED');
   });
 
+  it('deactivates an assignee who owns no event of their own — the ticket must not lose its owner', async () => {
+    const requester = await provision('Employee', 'Rami');
+    const agent = await provision('IT_Agent', 'Dana');
+
+    // The Admin assigns the ticket, so the ASSIGNED event is the Admin's: this
+    // agent owns no ticket and no event of their own.
+    const opened = await request(http)
+      .post('/tickets')
+      .set(auth(requester.token))
+      .send({ title: 'Assignee deletion check', description: 'The screen is black', category: 'IT', priority: 'High' });
+    expect(opened.status).toBe(201);
+    const ticketId = opened.body.id as number;
+
+    const assigned = await request(http)
+      .patch(`/tickets/${ticketId}/assign`)
+      .set(auth(adminToken))
+      .send({ assigneeId: agent.id });
+    expect(assigned.status).toBe(200);
+
+    const res = await request(http).delete(`/users/${agent.id}`).set(auth(adminToken));
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ id: agent.id, mode: 'deactivated' });
+
+    const row = await users.findOne({ where: { id: agent.id } });
+    expect(row).not.toBeNull();
+    expect(row!.isActive).toBe(false);
+
+    // The live ticket still points at a row that exists, instead of dangling.
+    const ticket = await request(http).get(`/tickets/${ticketId}`).set(auth(adminToken));
+    expect(ticket.status).toBe(200);
+    expect(ticket.body.assignedToId).toBe(agent.id);
+  });
+
+  it('enforces the declared foreign keys — a ticket cannot reference a user that does not exist', async () => {
+    // The entities declare RESTRICT / SET NULL / CASCADE, but SQLite only
+    // honours them while `PRAGMA foreign_keys` is ON; AppModule turns it on at
+    // bootstrap (through the driver's own connection — `dataSource.query()`
+    // does not persist a PRAGMA on sqljs). Without it these are decorative.
+    const tickets = app.get<Repository<Ticket>>(getRepositoryToken(Ticket));
+
+    await expect(
+      tickets.insert({
+        title: 'Ghost ticket',
+        description: 'requester does not exist',
+        category: 'IT',
+        priority: 'Low',
+        status: 'Open',
+        requesterId: 999_999,
+      }),
+    ).rejects.toThrow(/FOREIGN KEY/i);
+  });
+
   it('refuses an Admin deleting their own account (400)', async () => {
     const res = await request(http).delete(`/users/${adminId}`).set(auth(adminToken));
     expect(res.status).toBe(400);
     expect(String(res.body.message)).toContain('your own account');
   });
 
-  it('refuses deleting the last active Admin, even with a still-valid token (400)', async () => {
-    // A second Admin, whose account we then deactivate behind their back while
-    // their JWT is still valid — the lockout edge the rule exists for.
+  it('revokes the session at once when an account is deactivated or removed', async () => {
+    // A JWT is only proof that a session *was* issued: the guard re-reads the
+    // account on every request, so a dead account cannot keep working until the
+    // token expires (README: "the login is revoked at once").
+    const deactivated = await provision('IT_Agent', 'Sami');
+    await users.update(deactivated.id, { isActive: false });
+
+    const me = await request(http).get('/auth/me').set(auth(deactivated.token));
+    expect(me.status).toBe(401);
+
+    const open = await request(http)
+      .post('/tickets')
+      .set(auth(deactivated.token))
+      .send({ title: 'Ghost ticket', description: 'opened by a removed account', category: 'IT', priority: 'Low' });
+    expect(open.status).toBe(401);
+
+    const removed = await provision('HR_Agent', 'Nada');
+    const gone = await request(http).delete(`/users/${removed.id}`).set(auth(adminToken));
+    expect(gone.body.mode).toBe('deleted');
+    expect((await request(http).get('/auth/me').set(auth(removed.token))).status).toBe(401);
+  });
+
+  it('refuses deleting the last active Admin (service guard)', async () => {
+    // Two other Admins, both since deactivated, so the seeded one is the only
+    // ACTIVE Admin left — the lockout the rule exists for.
     const other = await provision('Admin', 'Hadi');
     await users.update(other.id, { isActive: false });
-
     const doomedAdmin = await provision('Admin', 'Walid');
-    const staleToken = doomedAdmin.token; // still valid (JWT is not DB-checked)
     await users.update(doomedAdmin.id, { isActive: false });
 
-    // Only `other`... is inactive too, so the only ACTIVE admin is the seeded
-    // one; deleting the seeded Admin from a stale session must be refused.
-    const res = await request(http).delete(`/users/${adminId}`).set(auth(staleToken));
-    expect(res.status).toBe(400);
-    expect(String(res.body.message)).toContain('last active Admin');
+    // The guard is exercised on the service directly: now that a deactivated
+    // account's token is rejected with 401, the API can no longer reach this
+    // branch at all, but it still protects the state it was written for.
+    const service = app.get(UsersService);
+    await expect(service.deleteAccount(adminId, doomedAdmin.id)).rejects.toThrow(
+      /last active Admin/i,
+    );
   });
 });

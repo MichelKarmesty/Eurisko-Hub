@@ -106,6 +106,47 @@ describe('Password recovery and change over HTTP', () => {
     expect(res.body.resetToken).toBeUndefined();
   });
 
+  // --- The stored reset secret never rides along on a user payload --------
+
+  it('never exposes the stored reset hash/expiry on login or on any user payload', async () => {
+    const email = `leak.check.${run}@gmail.com`;
+    const created = await provision(email);
+    expect(created.status).toBe(201);
+
+    // Put a live reset token on the account, so both fields are non-null...
+    const forgot = await request(http).post('/auth/forgot-password').send({ email });
+    expect(forgot.status).toBe(200);
+
+    // ...then check every endpoint that returns a user object.
+    const signIn = await login(email, PASSWORD);
+    expect(signIn.status).toBe(200);
+    expect(Object.keys(signIn.body.user)).not.toContain('passwordResetTokenHash');
+    expect(Object.keys(signIn.body.user)).not.toContain('passwordResetExpiresAt');
+
+    const listed = await request(http).get('/users').set(auth(adminToken));
+    expect(listed.status).toBe(200);
+    for (const row of listed.body) {
+      expect(Object.keys(row)).not.toContain('passwordResetTokenHash');
+      expect(Object.keys(row)).not.toContain('passwordResetExpiresAt');
+      expect(Object.keys(row)).not.toContain('passwordHash');
+    }
+
+    const fresh = await provision(`leak.check.2.${run}@gmail.com`);
+    expect(fresh.status).toBe(201);
+    expect(Object.keys(fresh.body)).not.toContain('passwordResetTokenHash');
+    expect(Object.keys(fresh.body)).not.toContain('passwordHash');
+
+    const target = listed.body.find((u: any) => u.email === email);
+    const role = await request(http)
+      .patch(`/users/${target.id}/role`)
+      .set(auth(adminToken))
+      .send({ role: 'IT_Agent' });
+    expect(role.status).toBe(200);
+    expect(Object.keys(role.body)).not.toContain('passwordResetTokenHash');
+    expect(Object.keys(role.body)).not.toContain('passwordResetExpiresAt');
+    expect(Object.keys(role.body)).not.toContain('passwordHash');
+  });
+
   // --- Full recovery: forgot -> reset -> sign in --------------------------
 
   it('resets a forgotten password with the one-time token, then consumes the token', async () => {
