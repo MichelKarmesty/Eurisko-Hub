@@ -100,8 +100,9 @@ test/
                                         foreign-key enforcement
   auth-password.spec.ts                 v0.5 forgot/reset/change + any-email rule
   mail-smtp.spec.ts                     SMTP transport selection + console fallback
-  ai-intake-eval.spec.ts                v0.4/v0.6 AI intake evals (5 real-or-skip,
-                                        4 mocked)
+  ai-intake-eval.spec.ts                AI intake evals: five run for real when a
+                                        provider answers (they skip otherwise),
+                                        the rest are mocked and always run
 ```
 
 ## Security
