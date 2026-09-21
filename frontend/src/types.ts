@@ -1,8 +1,8 @@
 /**
- * Eurisko Hub — domain types.
+ * Eurisko Hub - domain types.
  * Mirrors backend/src/common/domain.ts and docs/data-model.md so the client
  * and the API speak the same vocabulary (the server remains the source of
- * truth for rules — the client only mirrors valid values for the UI).
+ * truth for rules - the client only mirrors valid values for the UI).
  */
 
 export const CATEGORIES = ['IT', 'HR', 'Maintenance'] as const;
@@ -12,7 +12,7 @@ export const PRIORITIES = ['Low', 'Medium', 'High'] as const;
 export type Priority = (typeof PRIORITIES)[number];
 
 /**
- * docs/data-model.md §2: Open -> In Progress -> Resolved, plus `Cancelled` —
+ * docs/data-model.md §2: Open -> In Progress -> Resolved, plus `Cancelled` -
  * a terminal state an Admin can set (ADR-003). Kept out of the linear flow.
  */
 export const STATUSES = ['Open', 'In Progress', 'Resolved', 'Cancelled'] as const;
@@ -92,7 +92,7 @@ export interface AdminStats {
 }
 
 /**
- * ADR-007 — an Admin mints a one-time password reset link for someone who forgot
+ * ADR-007 - an Admin mints a one-time password reset link for someone who forgot
  * theirs. Deliberately available with no mail server: the Admin hands the link
  * over, the employee sets their own password, and the Admin never sees it.
  */
@@ -106,7 +106,7 @@ export interface AdminResetResult {
 }
 
 /**
- * v0.4 — AI-assisted intake (docs/week4-production-ai.md).
+ * v0.4 - AI-assisted intake (docs/week4-production-ai.md).
  * Mirrors backend/src/ai/ai-intake.service.ts. The AI only *suggests*: the
  * employee can change every field, and POST /tickets stays authoritative.
  */
@@ -116,7 +116,7 @@ export interface AiIntakeSuggestion {
   title: string;
   confidence: number;
   /**
-   * v0.6 — `false` when the text did not read as a support request at all
+   * v0.6 - `false` when the text did not read as a support request at all
    * (random characters, a greeting, a test, something unrelated to work). The
    * UI then shows the companion `notice` and pre-fills nothing.
    *

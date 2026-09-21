@@ -1,5 +1,5 @@
 // ============================================================================
-// Eurisko Hub — Shared domain vocabulary.
+// Eurisko Hub - Shared domain vocabulary.
 // Mirrors docs/data-model.md (categories, priority, status) and the README
 // role list (Employee, IT_Agent, HR_Agent, Maintenance_Agent, Admin).
 // ============================================================================
@@ -11,7 +11,7 @@ export const PRIORITIES = ['Low', 'Medium', 'High'] as const;
 export type Priority = (typeof PRIORITIES)[number];
 
 /**
- * docs/data-model.md §2 / docs/api.md — lifecycle: Open -> In Progress -> Resolved.
+ * docs/data-model.md §2 / docs/api.md - lifecycle: Open -> In Progress -> Resolved.
  * `Cancelled` is a terminal state an Admin can set directly (ADR-003); it is
  * deliberately NOT part of the linear STATUS_ORDER so `statusCanTransition`
  * never allows it as a normal step.

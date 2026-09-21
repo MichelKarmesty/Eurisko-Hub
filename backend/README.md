@@ -1,10 +1,10 @@
-# Eurisko Hub — Backend API
+# Eurisko Hub - Backend API
 
 NestJS + TypeORM implementation of the Internal Operations Service Hub
 (see the [API reference](../docs/api.md) and the design docs in `../docs/`).
 
 ## Stack
-- **NestJS 12** (modular monolith — architecture.md §2: Auth Module + Ticket Module)
+- **NestJS 12** (modular monolith - architecture.md §2: Auth Module + Ticket Module)
 - **TypeORM** over SQLite (data-model.md: one relational DB; sqljs driver = zero setup)
 - **JWT** auth + **RBAC** roles: Employee, IT_Agent, HR_Agent, Maintenance_Agent, Admin
 - **class-validator** DTO validation; passwords hashed with bcryptjs; ticket
@@ -12,8 +12,8 @@ NestJS + TypeORM implementation of the Internal Operations Service Hub
 - **No public registration** (ADR-004): the backend seeds only the Admin; the
   Admin creates every other account via the Admin-only Users API
 - **Password recovery & change** (v0.5, ADR-005/007/008/009): **Admin-initiated**
-  recovery — the Admin mints a one-time link (`POST /users/:id/reset-password`)
-  and hands it over, so nothing external is needed — plus an authenticated change
+  recovery - the Admin mints a one-time link (`POST /users/:id/reset-password`)
+  and hands it over, so nothing external is needed - plus an authenticated change
   that requires the current password. The public, emailed self-service route is
   **off by default** (`PASSWORD_RESET_SELF_SERVICE=true` turns it back on; the
   link then goes through `src/mail/`: built-in SMTP, backup SMTP, webhook, Resend
@@ -36,7 +36,7 @@ npm run typecheck:test # tsc -p tsconfig.spec.json (src + tests)
 
 ## Tests
 Vitest + SWC (NestJS 12 is ESM-only and DI needs `emitDecoratorMetadata`, which
-SWC emits — see `vitest.config.mts`). All suites are self-contained and use an
+SWC emits - see `vitest.config.mts`). All suites are self-contained and use an
 in-memory SQLite database; no server or database file is required.
 ```bash
 npm test                 # all suites
@@ -63,7 +63,7 @@ npm run test:watch       # watch mode
 | `PASSWORD_RESET_COOLDOWN_SECONDS` | `60` | At most one forgot-password email per address in this window (anti mail-bomb) |
 | `SMTP_HOST` / `SMTP_PORT` | *(unset)* / `587` | Standard SMTP (Gmail, Outlook/Hotmail, company); `SMTP_SECURE=true` for port 465 |
 | `SMTP_ALT_HOST` / `SMTP_ALT_PORT` | *(unset)* / `587` | Optional **second** sender, tried when the first fails (ADR-008); same `SMTP_ALT_*` variables plus `SMTP_ALT_FROM` |
-| `SMTP_USER` / `SMTP_PASS` | *(unset)* | SMTP login — use an **App Password** when 2FA is on |
+| `SMTP_USER` / `SMTP_PASS` | *(unset)* | SMTP login - use an **App Password** when 2FA is on |
 | `MAIL_WEBHOOK_URL` / `MAIL_WEBHOOK_TOKEN` | *(unset)* | Optional: POST `{ to, subject, text }` to an HTTPS mail relay |
 | `RESEND_API_KEY` | *(unset)* | Optional: real delivery through Resend's HTTP API |
 | `MAIL_FROM` | `Eurisko Hub <no-reply@eurisko.local>` | From address on outgoing mail |
@@ -74,7 +74,7 @@ npm run test:watch       # watch mode
 | `AI_FALLBACK_MODEL` | *(unset)* | Comma-separated models tried when the primary fails (429/5xx/retired) instead of dropping to the offline rules |
 | `AI_RETRY_DELAY_MS` | `1500` | Wait before the one retry of a rate-limited / transient call |
 | `AI_OFFLINE_FALLBACK` | `true` | Answer from the built-in keyword classifier (always labelled `source: "offline"`) when no model is available; `false` = strict `{ suggestion: null, error }` |
-| `AI_API_KEY` | *(unset)* | **Required for Groq** — free key from console.groq.com (a keyless local provider needs none) |
+| `AI_API_KEY` | *(unset)* | **Required for Groq** - free key from console.groq.com (a keyless local provider needs none) |
 
 ## Layout
 ```
@@ -116,7 +116,7 @@ test/
 The backend seeds exactly one account (the Admin) and exposes no public
 registration. Seeding is self-healing: if a database has no Admin at all, the
 next boot creates one (an existing Admin is never duplicated or reset). See
-[`../docs/security.md`](../docs/security.md) — set a strong `ADMIN_PASSWORD` and
+[`../docs/security.md`](../docs/security.md) - set a strong `ADMIN_PASSWORD` and
 `JWT_SECRET` before any real deployment.
 
 Passwords are bcrypt-hashed and can never be retrieved; recovery issues a
@@ -124,7 +124,7 @@ one-time link whose **hash** (never the token) and 30-minute expiry are stored,
 and `POST /auth/change-password` re-checks the current password. Forgot-password
 answers identically for unknown emails, so accounts cannot be enumerated, and a
 per-address cooldown stops it being used to mail-bomb someone. With no mail
-provider configured the reset message is printed to this process's console —
+provider configured the reset message is printed to this process's console -
 set `SMTP_HOST` (Gmail/Outlook/company), `MAIL_WEBHOOK_URL` or
 `RESEND_API_KEY` before deployment so it reaches the user instead. An Admin can
 also mint a one-time link for a colleague (`POST /users/:id/reset-password`) with

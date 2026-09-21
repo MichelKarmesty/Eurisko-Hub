@@ -10,14 +10,14 @@
  * (https://console.groq.com). This script probes, in order:
  *
  *   1. AI_PROVIDER_URL, if you already set it
- *   2. https://api.groq.com/openai/v1   (the default — needs AI_API_KEY)
- *   3. http://127.0.0.1:11434/v1        (a local Ollama — needs no key)
+ *   2. https://api.groq.com/openai/v1   (the default - needs AI_API_KEY)
+ *   3. http://127.0.0.1:11434/v1        (a local Ollama - needs no key)
  *   4. http://localhost:11434/v1
  *   5. http://host.docker.internal:11434/v1
  *   6. http://<WSL default gateway>:11434/v1   (Ollama on Windows, API in WSL)
  *
  * Ollama listens on 127.0.0.1:11434 by default. If the API runs **inside WSL**
- * and Ollama runs on **Windows**, `localhost` is not Windows — the WSL default
+ * and Ollama runs on **Windows**, `localhost` is not Windows - the WSL default
  * gateway is. Ollama must listen on all interfaces there (set the user
  * environment variable OLLAMA_HOST=0.0.0.0:11434 and restart it).
  *

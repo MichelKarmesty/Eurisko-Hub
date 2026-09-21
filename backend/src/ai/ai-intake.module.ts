@@ -3,10 +3,10 @@ import { AiIntakeController } from './ai-intake.controller';
 import { AiIntakeService } from './ai-intake.service';
 
 /**
- * v0.4 — AI-assisted intake module (docs/week4-production-ai.md).
+ * v0.4 - AI-assisted intake module (docs/week4-production-ai.md).
  *
  * Deliberately has no TypeORM import: the feature is advisory, so it must not
- * be able to touch the database. That is a design statement, not an oversight —
+ * be able to touch the database. That is a design statement, not an oversight -
  * the only writer of tickets remains TicketsService.
  */
 @Module({

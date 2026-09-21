@@ -1,9 +1,9 @@
 /**
- * ACCOUNT REACTIVATION (Admin) — `GET /users?includeInactive=true` and
+ * ACCOUNT REACTIVATION (Admin) - `GET /users?includeInactive=true` and
  * `PATCH /users/:id/active`.
  *
  * Why this exists: deleting an account that ticket history references does not
- * remove the row — it **deactivates** it, and the row keeps the email address.
+ * remove the row - it **deactivates** it, and the row keeps the email address.
  * `POST /users` therefore (correctly) refuses that address with `409`, which
  * used to be a dead end because deactivated rows were invisible in the Users
  * tab. These tests pin the way out:
@@ -28,7 +28,7 @@ const PASSWORD = 'password123';
 const run = Date.now().toString(36);
 let userSeq = 0;
 
-describe('Account reactivation — PATCH /users/:id/active', () => {
+describe('Account reactivation - PATCH /users/:id/active', () => {
   let app: INestApplication;
   let http: any;
   let adminToken: string;
@@ -97,7 +97,7 @@ describe('Account reactivation — PATCH /users/:id/active', () => {
     expect(removed.status).toBe(200);
     expect(removed.body.mode).toBe('deactivated');
 
-    // Hidden by default, visible on request — and still holding its email.
+    // Hidden by default, visible on request - and still holding its email.
     expect(await listEmails()).not.toContain(agent.email);
     expect(await listEmails(true)).toContain(agent.email);
     expect((await request(http).post('/auth/login').send({ email: agent.email, password: PASSWORD })).status).toBe(401);
@@ -208,7 +208,7 @@ describe('Account reactivation — PATCH /users/:id/active', () => {
 
     // …which is what makes a lock-out impossible: with a second Admin in place
     // one Admin can be deactivated, and the remaining one still cannot release
-    // its own access. (The service's "last active Admin" branch is defensive —
+    // its own access. (The service's "last active Admin" branch is defensive -
     // an Admin acting on somebody else implies at least two active Admins, and
     // acting on itself is already refused above.)
     const secondAdmin = await provision('Admin', 'SecondAdmin');

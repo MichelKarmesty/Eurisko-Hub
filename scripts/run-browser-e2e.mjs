@@ -98,7 +98,7 @@ async function ensureBrowser() {
     if (canLaunch(candidate, label)) return candidate;
   }
 
-  // Nothing launched — try installing Playwright's own browser. This download
+  // Nothing launched - try installing Playwright's own browser. This download
   // can be large; cap it so we never hang forever on a slow network.
   console.log('[browser-e2e] No usable Chromium — trying `npx playwright install chromium` (5 min cap)…');
   const install = spawnSync(npx, ['playwright', 'install', 'chromium'], {

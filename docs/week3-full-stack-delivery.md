@@ -1,4 +1,4 @@
-# Week 3 — v0.3 Integrated Product Slice
+# Week 3 - v0.3 Integrated Product Slice
 
 **Project:** Internal Operations Service Hub (Eurisko Hub)
 **Slice:** an assigned Support Agent resolves a Service Request end to end
@@ -15,7 +15,7 @@ this repository and to a command you can run.
 
 ## 0. Try it in five minutes (for the reviewer)
 
-A fresh database contains **exactly one account — the Admin**. There is no
+A fresh database contains **exactly one account - the Admin**. There is no
 public registration and no demo data ([ADR-004](decisions/ADR-004.md)), so the
 reviewer signs in as the Admin first and creates the accounts the slice needs.
 The app cannot be exercised end to end before that step.
@@ -44,14 +44,14 @@ The app cannot be exercised end to end before that step.
    with an Admin-issued one-time link (ADR-007). The
    `@eurisko.com` addresses used as examples below are just fixtures.
 
-4. **Create the people the scenario needs** on the **👥 Users** tab — the tab
+4. **Create the people the scenario needs** on the **👥 Users** tab - the tab
    only exists for an Admin:
 
    * an **Employee** (Requester), e.g. `rana.khoury@eurisko.com`;
    * an **IT Agent**, e.g. `karim.haddad@eurisko.com`.
 
    (Add an HR and a Maintenance agent too if you want to check department
-   isolation, §3.) Agree the passwords you type here — you will sign in with
+   isolation, §3.) Agree the passwords you type here - you will sign in with
    them next.
 
 5. **Use "Switch account"** (top right) to move between those accounts, then
@@ -71,8 +71,8 @@ document. A completely automated run of the same journey is one command:
 > it, the agent resolves it with a resolution note, and the requester sees the
 > ticket as Resolved with the note.**
 
-This is one narrow flow across all three tiers — React action, NestJS rule
-enforcement, durable database state — not a collection of unrelated screens.
+This is one narrow flow across all three tiers - React action, NestJS rule
+enforcement, durable database state - not a collection of unrelated screens.
 It is the same repository and the same product design from Weeks 1–2
 (`docs/product-spec.md`, `docs/architecture.md`, `docs/data-model.md`,
 `docs/decisions/ADR-001.md`); Week 3 hardens it and proves it.
@@ -117,7 +117,7 @@ Base URL `http://localhost:3000`. All bodies are JSON. Authenticated calls send
 `{ statusCode, message, error }`. The full reference is
 [`docs/api.md`](api.md); the slice contract is:
 
-### `POST /tickets` — open a request (any authenticated user)
+### `POST /tickets` - open a request (any authenticated user)
 
 ```jsonc
 // request
@@ -127,10 +127,10 @@ Base URL `http://localhost:3000`. All bodies are JSON. Authenticated calls send
   "requesterId": 2, "assignedToId": null, "resolutionNote": null, "requester": {…} }
 ```
 
-* `400` — missing/short fields, an unknown `category`, an unknown `priority`,
+* `400` - missing/short fields, an unknown `category`, an unknown `priority`,
   or any field outside the contract (unknown fields are rejected, not ignored).
 
-### `PATCH /tickets/:id/claim` — claim from the department queue (agent only)
+### `PATCH /tickets/:id/claim` - claim from the department queue (agent only)
 
 ```jsonc
 // no body
@@ -138,10 +138,10 @@ Base URL `http://localhost:3000`. All bodies are JSON. Authenticated calls send
 { "id": 7, "status": "In Progress", "assignedToId": 3, … }
 ```
 
-* `403` — non-agent, wrong department, already claimed, or claim of one's own request.
-* `404` — unknown ticket.
+* `403` - non-agent, wrong department, already claimed, or claim of one's own request.
+* `404` - unknown ticket.
 
-### `PATCH /tickets/:id/status` — advance the lifecycle (assigned agent or Admin)
+### `PATCH /tickets/:id/status` - advance the lifecycle (assigned agent or Admin)
 
 ```jsonc
 // request  (the slice's action)
@@ -150,11 +150,11 @@ Base URL `http://localhost:3000`. All bodies are JSON. Authenticated calls send
 { "id": 7, "status": "Resolved", "resolutionNote": "…", "assignedToId": 3, … }
 ```
 
-* `400` — `status` not in `{"In Progress", "Resolved"}`, or `Resolved` with a
+* `400` - `status` not in `{"In Progress", "Resolved"}`, or `Resolved` with a
   missing/blank `resolutionNote`.
-* `403` — the requester, a different agent, or an agent from another department
+* `403` - the requester, a different agent, or an agent from another department
   attempts to change the status; also any attempt to skip or reverse a step.
-* `404` — unknown ticket.
+* `404` - unknown ticket.
 
 **Admin override (ADR-002).** An Admin may act on a ticket that is not assigned
 to them, but only as an explicit override:
@@ -165,12 +165,12 @@ to them, but only as an explicit override:
   "overrideReason": "No IT agent on shift." }
 ```
 
-* `400` — an Admin changes a ticket not assigned to them without a non-empty
+* `400` - an Admin changes a ticket not assigned to them without a non-empty
   `overrideReason`. The override is stored as an `ADMIN_OVERRIDE` history event
   and the ticket stays unassigned (`assignedToId: null`), so no request is ever
   silently closed by an Admin without a stated reason.
 
-### `PATCH /tickets/:id/assign` — Admin (ADR-003)
+### `PATCH /tickets/:id/assign` - Admin (ADR-003)
 
 ```jsonc
 { "assigneeId": 3, "note": "Urgent — please take this." }
@@ -181,7 +181,7 @@ Gives an `Open`, unclaimed ticket a named owner (an agent of the matching
 department), records an `ASSIGNED` event, and enforces the department rule
 (`400` for a non-agent or wrong-department assignee; `403` if already claimed).
 
-### `PATCH /tickets/:id/cancel` — Admin, soft (ADR-003)
+### `PATCH /tickets/:id/cancel` - Admin, soft (ADR-003)
 
 ```jsonc
 { "reason": "Duplicate of an existing request." }
@@ -192,7 +192,7 @@ Retires a request without deleting it: the row and its history are kept, the
 status becomes the terminal `Cancelled`, and a `CANCELLED` event records who and
 why. A missing/blank reason → `400`; a `Resolved`/`Cancelled` ticket → `403`.
 
-### `POST /auth/login` — public (the only public route that creates a session)
+### `POST /auth/login` - public (the only public route that creates a session)
 
 ```jsonc
 { "email": "admin@eurisko.com", "password": "Admin123!" }
@@ -210,14 +210,14 @@ wrong password both return the same generic `401`.
 > and the self-service `POST /auth/forgot-password` was removed. Any real email
 > domain is accepted. See [api.md](api.md).
 
-### `GET /tickets` — role-scoped list
+### `GET /tickets` - role-scoped list
 
 * Employee → own tickets; Agent → their department's `Open` queue
   (`?mine=true` → tickets they claimed); Admin → all tickets, optional
   `?status=&category=&priority=` filters.
-* `403` — an agent asking for another department's queue.
+* `403` - an agent asking for another department's queue.
 
-### `GET /tickets/:id/history` — durable audit trail
+### `GET /tickets/:id/history` - durable audit trail
 
 `200` with `CREATED → CLAIMED/ASSIGNED → STATUS_CHANGED/RESOLVED` (or
 `ADMIN_OVERRIDE` for an Admin acting on an unassigned ticket, or `CANCELLED`),
@@ -243,7 +243,7 @@ an Admin can also **assign** unclaimed tickets and **cancel** them softly
 | **ALLOWED (override)** | Rami, an `Admin`, on a ticket assigned to an agent | same + `overrideReason:"…"` | `200`, `Resolved`, `ADMIN_OVERRIDE` event, `resolvedById` = Rami |
 | **ALLOWED (assign)** | Rami, an `Admin`, on an unclaimed IT ticket | `PATCH /tickets/7/assign` `{assigneeId: <IT agent>}` | `200`, `In Progress`, `assignedToId` set, `ASSIGNED` event |
 | **ALLOWED (cancel)** | Rami, an `Admin` | `PATCH /tickets/7/cancel` `{reason:"…"}` | `200`, terminal `Cancelled`, row and history kept |
-| **ALLOWED (delete account)** | Rami, an `Admin` | `DELETE /users/9` | `200`; the account leaves `GET /users` and can no longer sign in — really deleted when it has no tickets/history, otherwise deactivated so the audit stays |
+| **ALLOWED (delete account)** | Rami, an `Admin` | `DELETE /users/9` | `200`; the account leaves `GET /users` and can no longer sign in - really deleted when it has no tickets/history, otherwise deactivated so the audit stays |
 | **DENIED** | Rami, an `Admin`, deleting **his own** account | `DELETE /users/<self>` | `400 Bad Request` |
 | **DENIED** | an `Admin`, deleting the **last active Admin** | `DELETE /users/<last admin>` | `400 Bad Request` (a database can never be locked out) |
 | **DENIED** | Rami, an `Admin`, without `overrideReason` | status change | `400 Bad Request` |
@@ -253,7 +253,7 @@ an Admin can also **assign** unclaimed tickets and **cancel** them softly
 | **DENIED** | Layla, an `HR_Agent` | `GET /tickets/7` (an IT ticket) | `403 Forbidden` |
 
 The allowed and denied cases are asserted at both the service/database layer and
-the HTTP layer (see §5). Tickets are **never hard-deleted** — "erase" is the
+the HTTP layer (see §5). Tickets are **never hard-deleted** - "erase" is the
 audited soft `Cancelled` status. *(Amended later by [ADR-010](decisions/ADR-010.md):
 an Admin may now permanently delete a **`Resolved`** ticket; everything live
 still follows the rule above.)*
@@ -264,9 +264,9 @@ still follows the rule above.)*
 
 **Invalid request we reject on purpose.** `PATCH /tickets/:id/status` with
 `status: "Resolved"` but no usable `resolutionNote` is rejected with
-`400 Bad Request` — "A resolution note is required before resolving a ticket."
+`400 Bad Request` - "A resolution note is required before resolving a ticket."
 An **Admin override without `overrideReason`** is rejected with `400 Bad Request`
-— "An override reason is required when an Admin changes a ticket that is not
+"An override reason is required when an Admin changes a ticket that is not
 assigned to them." A `status` outside the enumeration (e.g. `"Cancelled"`) is
 rejected with `400` by the validation pipe. Unknown extra fields are rejected
 with `400` (`forbidNonWhitelisted`), so the contract is closed rather than
@@ -301,12 +301,12 @@ The Week 3 requirement is *"it is not lots of code and it is not lots of tests
 | 4 | Meaningful E2E tests (real UI → real API → DB) | [`e2e/dom/`](../e2e/dom/) (4 tests) + [`e2e/scripts/resolve-slice.e2e.mjs`](../e2e/scripts/resolve-slice.e2e.mjs) (real browser) | `cd e2e && npm run test:ui` · `node scripts/run-browser-e2e.mjs` |
 | | everything, isolated and automated | [`scripts/run-tests.mjs`](../scripts/run-tests.mjs) | `node scripts/run-tests.mjs` |
 
-**1 — Business rule (pure, fast).** Proves the lifecycle rule
+**1 - Business rule (pure, fast).** Proves the lifecycle rule
 `Open → In Progress → Resolved` moves *exactly one step*: single forward steps
 are allowed; skipping (`Open → Resolved`), reversing, and no-op transitions are
 denied. Also pins the role→department mapping.
 
-**2 — Backend ↔ database integration.** Boots the real `TicketsModule` +
+**2 - Backend ↔ database integration.** Boots the real `TicketsModule` +
 `UsersModule` against a real SQL database (TypeORM `sqljs`, the same driver the
 app uses) and asserts through TypeORM repositories, so it proves data is
 **actually written to and read from** the database: ticket rows, `assignedToId`,
@@ -314,7 +314,7 @@ app uses) and asserts through TypeORM repositories, so it proves data is
 authorization allowed/denied cases and that an invalid resolution attempt writes
 nothing.
 
-**3 — HTTP boundary and regression.** Boots the full `AppModule` over the exact
+**3 - HTTP boundary and regression.** Boots the full `AppModule` over the exact
 same pipeline as `src/main.ts` (`configureApp`) and drives it with `supertest`:
 `401` without a token, the full `open → claim → resolve → read back` flow,
 `400` for invalid requests, `403` for denied actors, and `200` for the allowed
@@ -324,19 +324,19 @@ ADR-004), requester/agent/admin listing scopes, department isolation,
 duplicate-email `409`, bad-credential `401`, and the fact that password hashes
 never appear in responses.
 
-**4 — E2E.** Renders the **real React app** in jsdom and drives it like a user,
+**4 - E2E.** Renders the **real React app** in jsdom and drives it like a user,
 with every request proxied to a **live NestJS backend** over HTTP, so the whole
 loop `React action → PATCH /tickets/:id/status → SQLite → React result` is
 exercised and the requester's list visibly ends up `Resolved` with the note.
 There are four DOM tests:
 
-* [`e2e/dom/resolve-slice.ui.test.tsx`](../e2e/dom/resolve-slice.ui.test.tsx) — the slice itself;
-* [`e2e/dom/admin-override.ui.test.tsx`](../e2e/dom/admin-override.ui.test.tsx) — ADR-002: resolving a ticket assigned to an agent demands an override reason **and** the resolution note, and the row names the real resolver;
-* [`e2e/dom/admin-actions.ui.test.tsx`](../e2e/dom/admin-actions.ui.test.tsx) — ADR-003: the Admin **assigns** an unclaimed ticket and **soft-cancels** a duplicate;
-* [`e2e/dom/admin-creates-account.ui.test.tsx`](../e2e/dom/admin-creates-account.ui.test.tsx) — ADR-004 and §0: the reviewer's first run. The Admin creates an Employee on the **Users** tab, **Switch account** signs in as that newly created account, and it opens a ticket.
+* [`e2e/dom/resolve-slice.ui.test.tsx`](../e2e/dom/resolve-slice.ui.test.tsx) - the slice itself;
+* [`e2e/dom/admin-override.ui.test.tsx`](../e2e/dom/admin-override.ui.test.tsx) - ADR-002: resolving a ticket assigned to an agent demands an override reason **and** the resolution note, and the row names the real resolver;
+* [`e2e/dom/admin-actions.ui.test.tsx`](../e2e/dom/admin-actions.ui.test.tsx) - ADR-003: the Admin **assigns** an unclaimed ticket and **soft-cancels** a duplicate;
+* [`e2e/dom/admin-creates-account.ui.test.tsx`](../e2e/dom/admin-creates-account.ui.test.tsx) - ADR-004 and §0: the reviewer's first run. The Admin creates an Employee on the **Users** tab, **Switch account** signs in as that newly created account, and it opens a ticket.
 
 (The Vitest global setup creates the accounts the other tests use through the
-Admin API — test fixtures only; the app itself seeds only the Admin. The
+Admin API - test fixtures only; the app itself seeds only the Admin. The
 first-run test creates its own account through the UI, so the flow a reviewer
 follows by hand is covered too.)
 
@@ -358,7 +358,7 @@ which pins the account-deletion contract (a real delete only when the account ha
 no tickets or history, a deactivation that keeps the audit otherwise, and the
 self-delete / last-active-Admin guards). Plus
 [`scripts/verify-slice.mjs`](../scripts/verify-slice.mjs), which
-re-checks the live definition of done over HTTP — including the restart-proof
+re-checks the live definition of done over HTTP - including the restart-proof
 persistence check (`node scripts/verify-slice.mjs persist`).
 
 ### One command
@@ -464,7 +464,7 @@ behind the same TypeORM repositories); there is no cloud dependency.
 
 ---
 
-## Appendix — submission checklist
+## Appendix - submission checklist
 
 * Repository: `https://github.com/MichelKarmesty/Eurisko-Hub`
 * Email subject, exactly:

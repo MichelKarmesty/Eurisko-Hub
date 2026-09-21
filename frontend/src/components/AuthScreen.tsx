@@ -25,7 +25,7 @@ function clearResetTokenFromUrl() {
  * other account (employees and agents) from the **Users** tab.
  *
  * Recovery is **Admin-initiated** (ADR-007, ADR-009): there is no self-service
- * "forgot password" and **no reset-token box** on this screen — only the Admin
+ * "forgot password" and **no reset-token box** on this screen - only the Admin
  * can issue a link. When someone forgets theirs, the Admin mints a one-time link
  * (**Users → Reset password**) and hands it over; opening that link lands here
  * with `?resetToken=…` and shows the reset form, where the employee chooses their

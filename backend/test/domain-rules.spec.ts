@@ -18,7 +18,7 @@ import {
   statusCanTransition,
 } from '../src/common/domain';
 
-describe('Business rule — the ticket lifecycle moves exactly one step forward', () => {
+describe('Business rule - the ticket lifecycle moves exactly one step forward', () => {
   it('publishes the documented order', () => {
     expect(STATUS_ORDER).toEqual(['Open', 'In Progress', 'Resolved']);
   });
@@ -44,7 +44,7 @@ describe('Business rule — the ticket lifecycle moves exactly one step forward'
   });
 });
 
-describe('Business rule — an agent serves exactly one department', () => {
+describe('Business rule - an agent serves exactly one department', () => {
   it('maps every agent role to its category', () => {
     expect(ROLE_DEPARTMENT.IT_Agent).toBe('IT');
     expect(ROLE_DEPARTMENT.HR_Agent).toBe('HR');

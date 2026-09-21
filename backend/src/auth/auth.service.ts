@@ -28,7 +28,7 @@ export class AuthService {
   ) {}
 
   /**
-   * POST /auth/login — accounts are created by an Admin via `POST /users`
+   * POST /auth/login - accounts are created by an Admin via `POST /users`
    * (ADR-004); there is no self-registration. A wrong email and a wrong
    * password return the same generic error so the endpoint cannot be used to
    * discover which emails exist. Any valid email domain is accepted, exactly as
@@ -50,9 +50,9 @@ export class AuthService {
   }
 
   /**
-   * POST /auth/forgot-password — public, step 1 of recovery (ADR-008).
+   * POST /auth/forgot-password - public, step 1 of recovery (ADR-008).
    *
-   * Passwords are bcrypt-hashed, so they can never be *retrieved* — the
+   * Passwords are bcrypt-hashed, so they can never be *retrieved* - the
    * capability is to **reset** one. The answer is always the generic message
    * (registered or not, active or not) so the endpoint cannot enumerate
    * accounts. When the account does exist and is active, a single-use token is
@@ -112,12 +112,12 @@ export class AuthService {
   }
 
   /**
-   * POST /auth/reset-password — public, step 2 of recovery.
+   * POST /auth/reset-password - public, step 2 of recovery.
    *
-   * Accepts a one-time token from a reset link — emailed by the self-service
+   * Accepts a one-time token from a reset link - emailed by the self-service
    * flow (ADR-008, `POST /auth/forgot-password`), **Admin-issued** (ADR-007,
    * `POST /users/:id/reset-password`), or minted offline by
-   * `scripts/reset-password.mjs` — plus the new password. An unknown,
+   * `scripts/reset-password.mjs` - plus the new password. An unknown,
    * already-used or expired token gets one generic 400; on success the password
    * is replaced and the token is consumed, so the same link cannot be replayed.
    */
@@ -144,7 +144,7 @@ export class AuthService {
   }
 
   /**
-   * POST /auth/change-password — authenticated. The signed-in user chooses a
+   * POST /auth/change-password - authenticated. The signed-in user chooses a
    * new password by proving the current one, so possessing a session token is
    * not by itself enough to take the account over.
    */
@@ -164,12 +164,12 @@ export class AuthService {
   }
 
   /**
-   * POST /users/:id/reset-password — **Admin-initiated** recovery (ADR-007).
+   * POST /users/:id/reset-password - **Admin-initiated** recovery (ADR-007).
    *
    * Alongside the self-service flow (ADR-008, `POST /auth/forgot-password`), an
    * Admin can mint a single-use, hashed, time-limited token for a colleague who
    * forgot their password and hand them the link, so the Admin never sees or
-   * chooses the password — the employee sets their own through the shared
+   * chooses the password - the employee sets their own through the shared
    * `POST /auth/reset-password` (docs/security.md).
    *
    * Returns `null` when the account does not exist (the controller maps that to
@@ -210,7 +210,7 @@ export class AuthService {
   }
 
   /**
-   * `POST /auth/login` — the token plus the public view of the account.
+   * `POST /auth/login` - the token plus the public view of the account.
    *
    * The body is built by `publicUser()`, not by spreading the entity: a spread
    * drops `@Exclude()`, so a pending password reset would put its token hash and
@@ -231,7 +231,7 @@ export class AuthService {
 
   /**
    * Anti mail-bomb cooldown for `POST /auth/forgot-password`: at most one
-   * reset email per address per window. In-memory on purpose — a process
+   * reset email per address per window. In-memory on purpose - a process
    * restart merely resets the window, it can never lock a user out.
    */
   private readonly forgotCooldowns = new Map<string, number>();

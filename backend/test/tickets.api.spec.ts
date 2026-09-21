@@ -2,7 +2,7 @@
  * HTTP CONTRACT + AUTHORIZATION + REGRESSION TESTS (Week 3 requirement).
  *
  * Boots the whole application (AppModule) over the exact same HTTP pipeline as
- * `main.ts` — same validation pipe, same serializer — and drives it with
+ * `main.ts` (same validation pipe, same serializer) and drives it with
  * supertest. These tests pin the explicit request/response contract of the
  * slice and protect the boundaries:
  *
@@ -26,7 +26,7 @@ const PASSWORD = 'password123';
 let run = Date.now().toString(36);
 let userSeq = 0;
 
-describe('API contract — the resolve-ticket slice over HTTP', () => {
+describe('API contract - the resolve-ticket slice over HTTP', () => {
   let app: INestApplication;
   let http: any;
   let adminToken: string;
@@ -96,7 +96,7 @@ describe('API contract — the resolve-ticket slice over HTTP', () => {
     expect(String(claim.body.message)).toMatch(/submitted yourself/i);
   });
 
-  it('lets an Admin permanently delete a Resolved ticket — and nothing else (ADR-010)', async () => {
+  it('lets an Admin permanently delete a Resolved ticket - and nothing else (ADR-010)', async () => {
     const alice = await provision('Employee', 'DelAlice');
     const bob = await provision('IT_Agent', 'DelBob');
 
@@ -117,7 +117,7 @@ describe('API contract — the resolve-ticket slice over HTTP', () => {
     expect((await request(http).delete(`/tickets/${id}`).set(auth(bob.token))).status).toBe(403);
     expect((await request(http).delete(`/tickets/${id}`).set(auth(alice.token))).status).toBe(403);
 
-    // State: an Open ticket is refused (409) — cancel it instead.
+    // State: an Open ticket is refused (409) - cancel it instead.
     const tooEarly = await request(http).delete(`/tickets/${id}`).set(auth(adminToken));
     expect(tooEarly.status).toBe(409);
     expect(String(tooEarly.body.message)).toMatch(/cancel it instead/i);
@@ -199,7 +199,7 @@ describe('API contract — the resolve-ticket slice over HTTP', () => {
     expect(claimed.status).toBe(200);
     expect(claimed.body).toMatchObject({ status: 'In Progress', assignedToId: bob.id });
 
-    // 3. INVALID REQUEST — an empty/whitespace resolution note is rejected (400).
+    // 3. INVALID REQUEST - an empty/whitespace resolution note is rejected (400).
     const emptyNote = await request(http)
       .patch(`/tickets/${ticketId}/status`)
       .set(auth(bob.token))
@@ -207,35 +207,35 @@ describe('API contract — the resolve-ticket slice over HTTP', () => {
     expect(emptyNote.status).toBe(400);
     expect(String(emptyNote.body.message)).toMatch(/resolution note/i);
 
-    // 3b. INVALID REQUEST — a status outside the contract is rejected (400).
+    // 3b. INVALID REQUEST - a status outside the contract is rejected (400).
     const badStatus = await request(http)
       .patch(`/tickets/${ticketId}/status`)
       .set(auth(bob.token))
       .send({ status: 'Cancelled', resolutionNote: 'nope' });
     expect(badStatus.status).toBe(400);
 
-    // 3c. INVALID REQUEST — an unknown field is rejected (400, whitelist).
+    // 3c. INVALID REQUEST - an unknown field is rejected (400, whitelist).
     const unknownField = await request(http)
       .patch(`/tickets/${ticketId}/status`)
       .set(auth(bob.token))
       .send({ status: 'Resolved', resolutionNote: 'ok', sneaky: true });
     expect(unknownField.status).toBe(400);
 
-    // 4. DENIED — the requester who opened the ticket cannot resolve it (403).
+    // 4. DENIED - the requester who opened the ticket cannot resolve it (403).
     const requesterDenied = await request(http)
       .patch(`/tickets/${ticketId}/status`)
       .set(auth(alice.token))
       .send({ status: 'Resolved', resolutionNote: 'I will do it myself.' });
     expect(requesterDenied.status).toBe(403);
 
-    // 4b. DENIED — an agent from another department cannot touch it (403).
+    // 4b. DENIED - an agent from another department cannot touch it (403).
     const otherDeptDenied = await request(http)
       .patch(`/tickets/${ticketId}/status`)
       .set(auth(carol.token))
       .send({ status: 'Resolved', resolutionNote: 'HR owns this now.' });
     expect(otherDeptDenied.status).toBe(403);
 
-    // 5. ALLOWED — the assigned agent resolves with a note (200).
+    // 5. ALLOWED - the assigned agent resolves with a note (200).
     const note = 'Replaced the display cable; stable for 24h.';
     const resolved = await request(http)
       .patch(`/tickets/${ticketId}/status`)
@@ -248,12 +248,12 @@ describe('API contract — the resolve-ticket slice over HTTP', () => {
       assignedToId: bob.id,
     });
 
-    // 6. React result source — the requester reads the resolved ticket + note.
+    // 6. React result source - the requester reads the resolved ticket + note.
     const asRequester = await request(http).get(`/tickets/${ticketId}`).set(auth(alice.token));
     expect(asRequester.status).toBe(200);
     expect(asRequester.body).toMatchObject({ status: 'Resolved', resolutionNote: note });
 
-    // 7. Durable history — CREATED -> CLAIMED -> RESOLVED with actor + note.
+    // 7. Durable history - CREATED -> CLAIMED -> RESOLVED with actor + note.
     const history = await request(http).get(`/tickets/${ticketId}/history`).set(auth(alice.token));
     expect(history.status).toBe(200);
     const actions = history.body.map((e: { action: string }) => e.action);
@@ -262,7 +262,7 @@ describe('API contract — the resolve-ticket slice over HTTP', () => {
     expect(resolvedEvent).toMatchObject({ actorId: bob.id, note });
   });
 
-  describe('regression protection — behaviour that already worked', () => {
+  describe('regression protection - behaviour that already worked', () => {
     it('requester listing returns only their own tickets', async () => {
       const alice = await provision('Employee', 'RegressAlice');
       const other = await provision('Employee', 'RegressBob');
@@ -310,7 +310,7 @@ describe('API contract — the resolve-ticket slice over HTTP', () => {
       expect(stats.body.total).toBeGreaterThan(0);
     });
 
-    it('has no public registration (ADR-004) — accounts are Admin-provisioned', async () => {
+    it('has no public registration (ADR-004) - accounts are Admin-provisioned', async () => {
       userSeq += 1;
       const email = `self-${run}-${userSeq}@eurisko.com`;
       // The route does not exist, so an outsider cannot create an account.
@@ -341,7 +341,7 @@ describe('API contract — the resolve-ticket slice over HTTP', () => {
     });
   });
 
-  describe('admin override (ADR-002) — no ticket is silently closed', () => {
+  describe('admin override (ADR-002) - no ticket is silently closed', () => {
     it('rejects an Admin override without a reason, then records it when given', async () => {
       const owner = await provision('Employee', 'OverrideOwner');
       const opened = await request(http)
@@ -363,7 +363,7 @@ describe('API contract — the resolve-ticket slice over HTTP', () => {
       expect(noReason.status).toBe(400);
       expect(String(noReason.body.message)).toMatch(/override reason/i);
 
-      // With a reason it succeeds — and the ticket is still unassigned.
+      // With a reason it succeeds - and the ticket is still unassigned.
       const started = await request(http)
         .patch(`/tickets/${id}/status`)
         .set(auth(adminToken))

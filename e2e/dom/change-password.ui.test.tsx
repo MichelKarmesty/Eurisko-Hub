@@ -4,10 +4,10 @@
  *
  * This pins the reported confusion directly ("change password only works for
  * the Admin"): the button lives in the top bar, `POST /auth/change-password`
- * is bearer-only (no `@Roles`), and the new password must really take effect —
+ * is bearer-only (no `@Roles`), and the new password must really take effect -
  * which is proven here by signing in again with it.
  *
- * Prereqs: backend on :3000 (or API_URL) — the Vitest global setup provisions
+ * Prereqs: backend on :3000 (or API_URL) - the Vitest global setup provisions
  * the shared fixtures. The accounts used here are created by this test with
  * unique emails, so repeat runs stay independent.
  */
@@ -29,7 +29,7 @@ function proxyFetch() {
   }) as typeof fetch;
 }
 
-describe('Change password from the top bar — every role, not only the Admin', () => {
+describe('Change password from the top bar - every role, not only the Admin', () => {
   const user = userEvent.setup();
   const stamp = Date.now();
 
@@ -93,7 +93,7 @@ describe('Change password from the top bar — every role, not only the Admin', 
     await within(first).findByText(/password has been changed/i);
     await user.click(within(first).getByRole('button', { name: 'Close' }));
 
-    // The new password is really in force — signing in with it proves the change.
+    // The new password is really in force - signing in with it proves the change.
     await login(employee.email, 'employee-new-456', 'Requester');
 
     // --- the IT agent: the role that "could not change it" -------------------

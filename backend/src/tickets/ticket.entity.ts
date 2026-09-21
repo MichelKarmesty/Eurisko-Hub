@@ -16,8 +16,8 @@ import {
 import { User } from '../users/user.entity';
 
 /**
- * docs/data-model.md §1 — Ticket: a request for help.
- * §4 — composite index on (category, status): agents constantly refresh their
+ * docs/data-model.md §1 - Ticket: a request for help.
+ * §4 - composite index on (category, status): agents constantly refresh their
  * department queue with `WHERE category = ? AND status = 'Open'`, and Admins
  * filter the global list the same way.
  */
@@ -52,7 +52,7 @@ export class Ticket {
 
   /**
    * FK -> users.id of whoever actually resolved the ticket. Normally the
-   * assigned agent, but for an Admin override it is the Admin — so the UI can
+   * assigned agent, but for an Admin override it is the Admin - so the UI can
    * name the real resolver instead of guessing from the assignment.
    */
   @Column({ type: 'int', nullable: true })

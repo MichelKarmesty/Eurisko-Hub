@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 /**
- * Eurisko Hub — offline password-reset break-glass (ADR-007).
+ * Eurisko Hub - offline password-reset break-glass (ADR-007).
  *
  *     node scripts/reset-password.mjs someone@eurisko.com
  *
  * Why this exists: the normal recovery paths are the **self-service** flow
- * (`POST /auth/forgot-password` mails a link — needs a configured mail
+ * (`POST /auth/forgot-password` mails a link - needs a configured mail
  * provider, ADR-008) and the **Admin-initiated** one
  * (`POST /users/:id/reset-password`, ADR-007), but both need *someone else* or
  * a working mail server. This script is the last resort for a **lone Admin who
- * has locked themselves out** — it mints exactly the same one-time reset token
+ * has locked themselves out** - it mints exactly the same one-time reset token
  * the app would, straight into the SQLite file, and prints the link to hand
  * over / open.
  *
  *   • writes ONLY the two existing reset columns (hash + expiry); nothing else
- *   • the raw token is never stored — only its SHA-256 hash, like the app
+ *   • the raw token is never stored - only its SHA-256 hash, like the app
  *   • single-use and time-limited (PASSWORD_RESET_TTL_MINUTES, default 30 min)
  *   • the employee sets their own new password afterwards via the app
  *
@@ -33,7 +33,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BACKEND = join(ROOT, 'backend');
 const ENV_FILE = join(BACKEND, '.env');
 
-/** Minimal `KEY=value` reader — enough for the handful of vars used here. */
+/** Minimal `KEY=value` reader - enough for the handful of vars used here. */
 function readEnvFile() {
   if (!existsSync(ENV_FILE)) return {};
   const out = {};

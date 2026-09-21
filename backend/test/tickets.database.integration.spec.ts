@@ -1,5 +1,5 @@
 /**
- * INTEGRATION TEST — BACKEND ↔ DATABASE (Week 3 requirement).
+ * INTEGRATION TEST - BACKEND ↔ DATABASE (Week 3 requirement).
  *
  * Unlike the pure business-rule test, this suite boots the real NestJS
  * `TicketsModule` + `UsersModule` against a real SQL database (TypeORM's sqljs
@@ -7,7 +7,7 @@
  * TypeORM repositories, so a passing test proves that:
  *
  *   ticket state and ticket history are actually written to, and read from,
- *   the database — not merely returned from in-memory objects.
+ *   the database - not merely returned from in-memory objects.
  *
  * The suite also exercises the slice's authorization rule at the service
  * boundary (allowed case: the assigned agent; denied case: the requester and a
@@ -30,7 +30,7 @@ import { UsersService } from '../src/users/users.service';
 /** Give each fixture user a unique email so repeated runs stay isolated. */
 const run = Date.now().toString(36);
 
-describe('Integration — ticket lifecycle is persisted in the database', () => {
+describe('Integration - ticket lifecycle is persisted in the database', () => {
   let moduleRef: TestingModule;
   let tickets: TicketsService;
   let users: UsersService;
@@ -167,13 +167,13 @@ describe('Integration — ticket lifecycle is persisted in the database', () => 
   });
 
   describe('authorization rule: only the assigned agent (or Admin) may change status', () => {
-    it('ALLOWED — the assigned agent resolves the ticket', async () => {
+    it('ALLOWED - the assigned agent resolves the ticket', async () => {
       const ticket = await openAndClaim();
       const resolved = await tickets.changeStatus(ticket.id, bob, 'Resolved', 'Fixed by the assigned agent.');
       expect(resolved.status).toBe('Resolved');
     });
 
-    it('DENIED — the requester who opened the ticket cannot resolve it (403)', async () => {
+    it('DENIED - the requester who opened the ticket cannot resolve it (403)', async () => {
       const ticket = await openAndClaim();
       await expect(
         tickets.changeStatus(ticket.id, alice, 'Resolved', 'I fixed my own ticket.'),
@@ -183,20 +183,20 @@ describe('Integration — ticket lifecycle is persisted in the database', () => 
       expect(row.status).toBe('In Progress');
     });
 
-    it('DENIED — a different IT agent cannot resolve someone else’s ticket (403)', async () => {
+    it('DENIED - a different IT agent cannot resolve someone else’s ticket (403)', async () => {
       const ticket = await openAndClaim();
       await expect(
         tickets.changeStatus(ticket.id, dave, 'Resolved', 'Not mine.'),
       ).rejects.toBeInstanceOf(ForbiddenException);
     });
 
-    it('DENIED — an HR agent cannot even read an IT ticket (403)', async () => {
+    it('DENIED - an HR agent cannot even read an IT ticket (403)', async () => {
       const ticket = await openTicket();
       await expect(tickets.getById(ticket.id, carol)).rejects.toBeInstanceOf(ForbiddenException);
     });
   });
 
-  describe('regression protection — behaviour that already worked', () => {
+  describe('regression protection - behaviour that already worked', () => {
     it('requester listing stays scoped to their own tickets', async () => {
       const mine = await openTicket();
       await openTicket(); // another ticket, also Alice's — scope is still Alice only
@@ -240,7 +240,7 @@ describe('Integration — ticket lifecycle is persisted in the database', () => 
     });
   });
 
-  describe('admin override (ADR-002) — an unclaimed ticket is never silently closed', () => {
+  describe('admin override (ADR-002) - an unclaimed ticket is never silently closed', () => {
     it('requires an override reason and writes nothing when it is missing', async () => {
       const ticket = await openTicket();
 
@@ -263,7 +263,7 @@ describe('Integration — ticket lifecycle is persisted in the database', () => 
       const updated = await tickets.changeStatus(ticket.id, admin, 'In Progress', undefined, reason);
       expect(updated.status).toBe('In Progress');
 
-      // The Admin did not claim the ticket — the point of the override record.
+      // The Admin did not claim the ticket - the point of the override record.
       const row = await ticketRepo.findOneByOrFail({ id: ticket.id });
       expect(row.assignedToId).toBeNull();
 

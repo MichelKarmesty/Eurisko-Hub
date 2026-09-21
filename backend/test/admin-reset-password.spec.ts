@@ -1,9 +1,9 @@
 /**
- * ADMIN-INITIATED PASSWORD RESET — `POST /users/:id/reset-password` (ADR-007).
+ * ADMIN-INITIATED PASSWORD RESET - `POST /users/:id/reset-password` (ADR-007).
  *
  * Boots the whole AppModule over the real HTTP pipeline (like
  * `admin-role-change.spec.ts`) and pins the Admin recovery path that needs no
- * mail provider — the counterpart to the self-service email flow:
+ * mail provider - the counterpart to the self-service email flow:
  *
  *   ALLOWED  an Admin mints a one-time link for an Employee        -> 200
  *   ALLOWED  an Admin mints one for another Admin                  -> 200
@@ -15,7 +15,7 @@
  *   SECRET   the token hash/expiry never appear on `GET /users`
  *
  * The point of the feature (docs/security.md): the Admin never sees or chooses
- * the password — they hand over a link and the employee sets their own.
+ * the password - they hand over a link and the employee sets their own.
  */
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -32,7 +32,7 @@ const NEW_PASSWORD = 'brandNewPass456';
 const run = Date.now().toString(36);
 let userSeq = 0;
 
-describe('Admin-initiated password reset — POST /users/:id/reset-password', () => {
+describe('Admin-initiated password reset - POST /users/:id/reset-password', () => {
   let app: INestApplication;
   let http: any;
   let adminToken: string;
@@ -94,7 +94,7 @@ describe('Admin-initiated password reset — POST /users/:id/reset-password', ()
     expect(res.status).toBe(401);
   });
 
-  it('refuses a non-Admin caller (403) — authorization boundary', async () => {
+  it('refuses a non-Admin caller (403) - authorization boundary', async () => {
     const employee = await provision('Employee', 'Rana');
 
     const res = await request(http)

@@ -7,7 +7,7 @@ import {
 } from 'typeorm';
 import { Role } from '../common/domain';
 
-/** docs/data-model.md §1 — User: login credentials + one defined role. */
+/** docs/data-model.md §1 - User: login credentials + one defined role. */
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn()
@@ -19,7 +19,7 @@ export class User {
   @Column({ unique: true })
   email: string;
 
-  /** bcrypt hash — never exposed by the API. */
+  /** bcrypt hash - never exposed by the API. */
   @Exclude()
   @Column()
   passwordHash: string;
@@ -31,7 +31,7 @@ export class User {
    * Account removal (Admin action, `DELETE /users/:id`).
    *
    * An account with NO history at all (no ticket opened, no event recorded) is
-   * hard-deleted — the row is really gone. An account that already has tickets
+   * hard-deleted - the row is really gone. An account that already has tickets
    * or history is kept for audit and marked inactive: it disappears from the
    * Users list and can no longer sign in, exactly like a deleted account, while
    * the tickets/history it is attached to stay intact (the same "never destroy
@@ -69,7 +69,7 @@ export class User {
  *
  * Built explicitly, never by spreading the entity: a spread produces a plain
  * object, which bypasses `@Exclude()` and serialises `passwordResetTokenHash`
- * and `passwordResetExpiresAt` whenever a reset is pending — the exact leak
+ * and `passwordResetExpiresAt` whenever a reset is pending - the exact leak
  * docs/security.md §"password recovery" promises cannot happen. Returning the
  * entity itself is also safe (the global serializer honours `@Exclude`), but an
  * explicit shape keeps the contract readable and impossible to widen by

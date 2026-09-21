@@ -1,10 +1,10 @@
 /**
- * REGRESSION — the Admin seed must never lock a database out (ADR-004).
+ * REGRESSION - the Admin seed must never lock a database out (ADR-004).
  *
  * ADR-004 ships exactly one seeded account, the Admin. The first version of
  * that seed only ran on a *completely empty* database, so a database that
- * already had users but no Admin — for example one created before the Admin
- * email changed from `rami.fares@eurisko.com` to `admin@eurisko.com` — was
+ * already had users but no Admin - for example one created before the Admin
+ * email changed from `rami.fares@eurisko.com` to `admin@eurisko.com` - was
  * skipped forever: `admin@eurisko.com` never existed and every Admin login
  * returned `401 "Invalid credentials"`, with only a console warning to explain
  * it. The database was effectively unreachable.
@@ -72,7 +72,7 @@ async function prepareDatabase(seed: SeedUser[]) {
   return { dir, file };
 }
 
-describe('Admin seed — a database can never be locked out (ADR-004)', () => {
+describe('Admin seed - a database can never be locked out (ADR-004)', () => {
   let app: INestApplication | null = null;
   let dir: string | null = null;
 
@@ -128,7 +128,7 @@ describe('Admin seed — a database can never be locked out (ADR-004)', () => {
     expect(await users.count()).toBe(1);
   });
 
-  it('leaves an existing admin@eurisko.com — and its password — untouched', async () => {
+  it('leaves an existing admin@eurisko.com (and its password) untouched', async () => {
     const prepared = await prepareDatabase([]); // empty database
     dir = prepared.dir;
 

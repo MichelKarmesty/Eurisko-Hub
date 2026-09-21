@@ -26,7 +26,7 @@ class CreateUserDto {
   name: string;
 
   // Any real email address is accepted (Gmail, Hotmail/Outlook, Yahoo, a
-  // company domain) — no domain restriction anywhere (ADR-005).
+  // company domain) - no domain restriction anywhere (ADR-005).
   @IsEmail()
   email: string;
 
@@ -49,7 +49,7 @@ class ListUsersQuery {
   role?: Role;
 
   /**
-   * `?includeInactive=true` — the Users tab asks for every row, so an account
+   * `?includeInactive=true` - the Users tab asks for every row, so an account
    * that was deactivated (because ticket history references it) stays visible
    * and can be **reactivated** instead of blocking its email address forever.
    */
@@ -65,7 +65,7 @@ class SetUserActiveDto {
 }
 
 class SetUserPasswordDto {
-  /** The new password, hashed before it is stored — never echoed back. */
+  /** The new password, hashed before it is stored - never echoed back. */
   @IsString()
   @MinLength(8)
   password: string;
@@ -103,7 +103,7 @@ export class UsersController {
         if (!revived) throw new NotFoundException(`User ${existing.id} not found.`);
         return publicUser(revived);
       }
-      // An active account genuinely holds the address — do not silently take it over.
+      // An active account genuinely holds the address - do not silently take it over.
       throw new ConflictException(
         'A user with this email already exists and is active — deactivate that account first (Users → Deactivate), then create it again, or sign in with it.',
       );
@@ -113,12 +113,12 @@ export class UsersController {
   }
 
   /**
-   * `PATCH /users/:id/active` — Admin reactivates or deactivates an account.
+   * `PATCH /users/:id/active` - Admin reactivates or deactivates an account.
    *
    * Reactivating restores a deactivated account (the supported way to bring an
    * address back, because the row keeps the email). Deactivating revokes the
    * login at once; like deletion and demotion it refuses your own account (400)
-   * and the last active Admin (400) — see UsersService.setActive.
+   * and the last active Admin (400) - see UsersService.setActive.
    */
   @Patch(':id/active')
   async setActive(
@@ -132,7 +132,7 @@ export class UsersController {
   }
 
   /**
-   * `PATCH /users/:id/role` — Admin changes an account's role.
+   * `PATCH /users/:id/role` - Admin changes an account's role.
    *
    * The same "a database can never be locked out" rule as deletion applies to
    * demotions (ADR-004): an Admin cannot change their own Admin role (400) and
@@ -150,7 +150,7 @@ export class UsersController {
   }
 
   /**
-   * `PATCH /users/:id/password` — Admin sets an account's password **directly**
+   * `PATCH /users/:id/password` - Admin sets an account's password **directly**
    * (ADR-011), as an alternative to handing over the one-time link.
    *
    * The password is hashed and any pending reset link is cleared, so the Admin
@@ -174,7 +174,7 @@ export class UsersController {
   }
 
   /**
-   * `DELETE /users/:id` — Admin deletes any account (Employee, IT/HR/
+   * `DELETE /users/:id` - Admin deletes any account (Employee, IT/HR/
    * Maintenance agent, or another Admin).
    *
    * An account with no tickets/history is really deleted; one that appears in

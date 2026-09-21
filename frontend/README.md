@@ -1,4 +1,4 @@
-# Eurisko Hub — Web client (React + Vite)
+# Eurisko Hub - Web client (React + Vite)
 
 The React front end of the Internal Operations Service Hub. It implements the
 **first real slice** end-to-end:
@@ -7,7 +7,7 @@ The React front end of the Internal Operations Service Hub. It implements the
 > (React action → `PATCH /tickets/:id/status` → SQLite → React result).
 
 It follows the architecture in [`../docs/architecture.md`](../docs/architecture.md):
-the client only presents data and triggers actions — every authorization and
+the client only presents data and triggers actions - every authorization and
 product rule (department scoping, `Open → In Progress → Resolved`, note
 required to resolve) is enforced by the NestJS backend in `../backend/`.
 
@@ -24,7 +24,7 @@ required to resolve) is enforced by the NestJS backend in `../backend/`.
    ```
 
    Wait until it prints `Eurisko Hub API listening on http://localhost:3000`
-   before starting the client below — `npm run build` compiles the backend but
+   before starting the client below - `npm run build` compiles the backend but
    does **not** start it, and a client that cannot reach the API fails sign-in
    with `Request failed with status 500`.
 
@@ -36,13 +36,13 @@ required to resolve) is enforced by the NestJS backend in `../backend/`.
    npm run dev                                   # http://localhost:5173
    ```
 
-3. On a **fresh** database the backend seeds exactly **one** account — the Admin
+3. On a **fresh** database the backend seeds exactly **one** account - the Admin
    (`admin@eurisko.com` / `Admin123!`, override via `ADMIN_EMAIL` /
    `ADMIN_PASSWORD`). Sign in with it and create everyone else from the
    **👥 Users** tab. There is **no public registration** and no demo data
-   (ADR-004): the login screen is a plain sign-in form — no self-service recovery
+   (ADR-004): the login screen is a plain sign-in form - no self-service recovery
    and no reset-token box; only an Admin can issue a reset link (ADR-007/ADR-009).
-   Accounts accept **any real email address** — Gmail, Hotmail/Outlook, Yahoo or
+   Accounts accept **any real email address** - Gmail, Hotmail/Outlook, Yahoo or
    a company domain; `@eurisko.com` is only the development default.
 
    To also run the live HTTP definition-of-done checks (they provision their own
@@ -57,9 +57,9 @@ required to resolve) is enforced by the NestJS backend in `../backend/`.
 
 | Role | Screen | Action |
 |---|---|---|
-| Requester (`Employee`) | `RequesterView` | describes the problem and presses **AI Suggest** (v0.4), opens a ticket, watches its status (cannot change it — RBAC) |
+| Requester (`Employee`) | `RequesterView` | describes the problem and presses **AI Suggest** (v0.4), opens a ticket, watches its status (cannot change it - RBAC) |
 | Support Agent | `AgentView` | claims from the department queue (→ `In Progress`), then **resolves** with a note |
-| Admin | `AdminView` | every ticket + stats + user management; **assigns** unclaimed tickets, **cancels** requests softly, **deletes a `Resolved` ticket** outright (ADR-010, with an explicit warning), **deactivates / reactivates** accounts (ADR-004 — deactivated rows are listed with a badge so the address can be brought back), **resets a password** either by handing over a one-time link *or* by setting it directly in the same panel (ADR-007/ADR-011), or resolves as a recorded **override** |
+| Admin | `AdminView` | every ticket + stats + user management; **assigns** unclaimed tickets, **cancels** requests softly, **deletes a `Resolved` ticket** outright (ADR-010, with an explicit warning), **deactivates / reactivates** accounts (ADR-004 - deactivated rows are listed with a badge so the address can be brought back), **resets a password** either by handing over a one-time link *or* by setting it directly in the same panel (ADR-007/ADR-011), or resolves as a recorded **override** |
 
 **AI Suggest (v0.4).** The free-text box + button call
 `POST /tickets/ai-suggest` and pre-fill Title, Category and Priority, each tagged
@@ -67,7 +67,7 @@ required to resolve) is enforced by the NestJS backend in `../backend/`.
 Nothing is auto-submitted and `Open ticket` still calls the unchanged
 `POST /tickets`. When no model answers, the built-in **offline keyword classifier**
 still pre-fills the fields, tagged **“Suggested (offline)”** instead of “AI
-suggested”, so a rules-based answer is never passed off as the model's — unless
+suggested”, so a rules-based answer is never passed off as the model's - unless
 `AI_OFFLINE_FALLBACK=false`, in which case the form shows a non-blocking notice
 and is filled in by hand. Full detail:
 [`../docs/week4-production-ai.md`](../docs/week4-production-ai.md).

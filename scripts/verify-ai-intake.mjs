@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * v0.4 — AI intake checks (docs/week4-production-ai.md).
+ * v0.4 - AI intake checks (docs/week4-production-ai.md).
  *
  * Calls POST /tickets/ai-suggest on a RUNNING api with realistic employee
  * descriptions and reports what came back, so the capability can be shown (and
@@ -14,7 +14,7 @@
  * OpenAI-compatible provider, the same checks run against real classifications
  * and report `source: "ai"`.
  *
- * v0.6 — one of the descriptions is deliberately meaningless ("asdfghjkl…").
+ * v0.6 - one of the descriptions is deliberately meaningless ("asdfghjkl…").
  * The AI must report that it could not find a support request there
  * (`relevant: false` + a `notice`) instead of inventing a plausible-looking
  * Category/Priority. That answer is still an HTTP 200 with a usable body: the
@@ -62,7 +62,7 @@ async function req(method, path, { token, body } = {}) {
 
 /**
  * text, expected category (null = any valid one), expected relevance
- * (null = any — the offline classifier cannot judge a vague-but-real "help" the
+ * (null = any - the offline classifier cannot judge a vague-but-real "help" the
  * way a model can, so that one is reported but not asserted).
  */
 const CASES = [

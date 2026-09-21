@@ -1,5 +1,5 @@
 /**
- * ACCOUNT DELETION (Admin) — contract, authorization and audit rules.
+ * ACCOUNT DELETION (Admin) - contract, authorization and audit rules.
  *
  * Boots the whole AppModule over the real HTTP pipeline (like
  * `tickets.api.spec.ts`) and pins the behaviour of `DELETE /users/:id`:
@@ -29,7 +29,7 @@ const PASSWORD = 'password123';
 const run = Date.now().toString(36);
 let userSeq = 0;
 
-describe('Admin account deletion — DELETE /users/:id', () => {
+describe('Admin account deletion - DELETE /users/:id', () => {
   let app: INestApplication;
   let http: any;
   let adminToken: string;
@@ -82,7 +82,7 @@ describe('Admin account deletion — DELETE /users/:id', () => {
     expect(res.status).toBe(401);
   });
 
-  it('refuses a non-Admin caller (403) — authorization boundary', async () => {
+  it('refuses a non-Admin caller (403) - authorization boundary', async () => {
     const employee = await provision('Employee', 'Mona');
     const victim = await provision('Employee', 'Sami');
 
@@ -150,7 +150,7 @@ describe('Admin account deletion — DELETE /users/:id', () => {
     expect(history.body.map((e: any) => e.action)).toContain('CLAIMED');
   });
 
-  it('deactivates an assignee who owns no event of their own — the ticket must not lose its owner', async () => {
+  it('deactivates an assignee who owns no event of their own - the ticket must not lose its owner', async () => {
     const requester = await provision('Employee', 'Rami');
     const agent = await provision('IT_Agent', 'Dana');
 
@@ -183,10 +183,10 @@ describe('Admin account deletion — DELETE /users/:id', () => {
     expect(ticket.body.assignedToId).toBe(agent.id);
   });
 
-  it('enforces the declared foreign keys — a ticket cannot reference a user that does not exist', async () => {
+  it('enforces the declared foreign keys - a ticket cannot reference a user that does not exist', async () => {
     // The entities declare RESTRICT / SET NULL / CASCADE, but SQLite only
     // honours them while `PRAGMA foreign_keys` is ON; AppModule turns it on at
-    // bootstrap (through the driver's own connection — `dataSource.query()`
+    // bootstrap (through the driver's own connection - `dataSource.query()`
     // does not persist a PRAGMA on sqljs). Without it these are decorative.
     const tickets = app.get<Repository<Ticket>>(getRepositoryToken(Ticket));
 
@@ -232,7 +232,7 @@ describe('Admin account deletion — DELETE /users/:id', () => {
 
   it('refuses deleting the last active Admin (service guard)', async () => {
     // Two other Admins, both since deactivated, so the seeded one is the only
-    // ACTIVE Admin left — the lockout the rule exists for.
+    // ACTIVE Admin left - the lockout the rule exists for.
     const other = await provision('Admin', 'Hadi');
     await users.update(other.id, { isActive: false });
     const doomedAdmin = await provision('Admin', 'Walid');

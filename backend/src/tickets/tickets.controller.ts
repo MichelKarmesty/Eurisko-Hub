@@ -24,25 +24,25 @@ import { AuthUser, CurrentUser, Roles } from '../common/auth.decorators';
 export class TicketsController {
   constructor(private readonly tickets: TicketsService) {}
 
-  /** POST /tickets — any authenticated user opens a ticket in their name. */
+  /** POST /tickets - any authenticated user opens a ticket in their name. */
   @Post()
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateTicketDto) {
     return this.tickets.create(user, dto);
   }
 
-  /** GET /tickets — RBAC-scoped list (see TicketsService.list). */
+  /** GET /tickets - RBAC-scoped list (see TicketsService.list). */
   @Get()
   list(@CurrentUser() user: AuthUser, @Query() query: any) {
     return this.tickets.list(user, query);
   }
 
-  /** GET /tickets/:id — requester, matching agent, or admin. */
+  /** GET /tickets/:id - requester, matching agent, or admin. */
   @Get(':id')
   get(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
     return this.tickets.getById(id, user);
   }
 
-  /** GET /tickets/:id/history — durable event log for the ticket. */
+  /** GET /tickets/:id/history - durable event log for the ticket. */
   @Get(':id/history')
   history(
     @Param('id', ParseIntPipe) id: number,
@@ -52,7 +52,7 @@ export class TicketsController {
   }
 
   /**
-   * ADR-001: PATCH /tickets/:id/claim — an agent claims an OPEN ticket from
+   * ADR-001: PATCH /tickets/:id/claim - an agent claims an OPEN ticket from
    * their department's queue (sets assigned_to; status -> In Progress).
    */
   @Patch(':id/claim')
@@ -62,7 +62,7 @@ export class TicketsController {
   }
 
   /**
-   * PATCH /tickets/:id/status — assigned agent (or Admin) advances the
+   * PATCH /tickets/:id/status - assigned agent (or Admin) advances the
    * lifecycle (In Progress -> Resolved; note required to resolve).
    */
   @Patch(':id/status')
@@ -82,7 +82,7 @@ export class TicketsController {
   }
 
   /**
-   * ADR-003: PATCH /tickets/:id/assign — Admin assigns an OPEN, unclaimed
+   * ADR-003: PATCH /tickets/:id/assign - Admin assigns an OPEN, unclaimed
    * ticket to an agent of the matching department (it then becomes In Progress).
    */
   @Roles('Admin')
@@ -97,7 +97,7 @@ export class TicketsController {
   }
 
   /**
-   * ADR-003: PATCH /tickets/:id/cancel — Admin retires a request (soft cancel;
+   * ADR-003: PATCH /tickets/:id/cancel - Admin retires a request (soft cancel;
    * the ticket and its history are kept, never deleted).
    */
   @Roles('Admin')
@@ -112,7 +112,7 @@ export class TicketsController {
   }
 
   /**
-   * ADR-010: DELETE /tickets/:id — Admin only, and only for a **Resolved**
+   * ADR-010: DELETE /tickets/:id - Admin only, and only for a **Resolved**
    * ticket: the one case where a ticket (and its history) leaves the database
    * instead of being soft-cancelled. Anything else is refused with `409`.
    */

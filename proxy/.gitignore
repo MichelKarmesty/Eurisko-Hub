@@ -1,4 +1,5 @@
 # Local Worker state — never commit any of this
 .dev.vars
 .wrangler/
+.wrangler-home/
 node_modules/

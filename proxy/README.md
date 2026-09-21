@@ -1,4 +1,4 @@
-# Demo AI provider — how the real model works with no key in the repo
+# Demo AI provider - how the real model works with no key in the repo
 
 The repository is **public**. A key committed here would be scraped and burned
 within minutes, so the key lives in exactly one place: an encrypted **Cloudflare
@@ -17,7 +17,7 @@ instructor's clone                    Cloudflare                    Groq
 Why it works with zero setup: the backend sends **no** `Authorization` header
 when `AI_API_KEY` is empty (`callOnce()` in `backend/src/ai/ai-intake.service.ts`),
 and the default `AI_PROVIDER_URL` is this Worker. If the Worker is down or
-rate-limited, the app does **not** fail — it answers from the labelled offline
+rate-limited, the app does **not** fail - it answers from the labelled offline
 classifier and the UI tags it **"Suggested (offline)"** (ADR-006).
 
 ## Deploy once (about 3 minutes)
@@ -80,7 +80,7 @@ curl -s -X POST https://eurisko-hub-demo-ai.<your-subdomain>.workers.dev/v1/chat
 2. **Rotate after the course.** Revoke the key at
    <https://console.groq.com/keys>, then `npx wrangler secret put GROQ_API_KEY`
    again with a new one.
-3. **Kill switch.** `npx wrangler delete` removes the endpoint entirely — the app
+3. **Kill switch.** `npx wrangler delete` removes the endpoint entirely - the app
    then falls back to the labelled offline classifier. Deleting the
    `GROQ_API_KEY` secret (dashboard) has the same effect.
 4. **Never** "just commit the key instead". On a public repo it is gone the same

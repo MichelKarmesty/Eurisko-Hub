@@ -63,7 +63,7 @@ describe('First run: Admin creates an account, then signs in as it (ADR-004)', (
       await screen.findByText(role, { selector: '.role-chip' });
     };
 
-    // 1. The Admin signs in (the only seeded account) and opens the Users tab —
+    // 1. The Admin signs in (the only seeded account) and opens the Users tab -
     //    the only place an account can be created.
     await login('admin@eurisko.com', 'Admin123!', 'Admin');
     await user.click(screen.getByRole('button', { name: /Users/ }));

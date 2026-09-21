@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Eurisko Hub — run the whole automated confidence suite with one command.
+ * Eurisko Hub - run the whole automated confidence suite with one command.
  *
  *   node scripts/run-tests.mjs
  *

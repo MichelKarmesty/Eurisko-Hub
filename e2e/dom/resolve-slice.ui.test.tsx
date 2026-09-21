@@ -114,7 +114,7 @@ describe('Slice: assigned agent resolves a ticket (UI -> API -> UI)', () => {
     // 3. Empty note -> backend 400 surfaced in the form --------------------
     await user.click(within(workItem).getByRole('button', { name: 'Mark Resolved' }));
     // Empty string is rejected by the DTO (@MinLength(1)); whitespace-only
-    // would be rejected by the service rule — both surface as a 400 here.
+    // would be rejected by the service rule - both surface as a 400 here.
     const formError = await within(workItem).findByText(/resolution/i, { selector: '.form-error' });
     console.log(`\n[diagnostic] empty-note 400 shown in UI: "${formError.textContent}"`);
     expect(formError.textContent).toMatch(/resolution/i);

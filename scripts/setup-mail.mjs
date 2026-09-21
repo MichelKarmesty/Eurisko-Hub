@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 /**
- * Eurisko Hub — one-time setup for REAL password-reset email.
+ * Eurisko Hub - one-time setup for REAL password-reset email.
  *
  *     node scripts/setup-mail.mjs [you@gmail.com]
  *
  * It asks for your address(es) and an App Password, writes them into
- * `backend/.env` (gitignored — never committed), and then sends real test
+ * `backend/.env` (gitignored - never committed), and then sends real test
  * messages through the same built-in SMTP client the backend uses, so a PASS
  * means reset links will genuinely reach an inbox.
  *
  * **Two senders are supported** (ADR-008): the backend tries the first one and
  * falls back to the second when it fails. Give a Gmail address first and an
- * Outlook one second — or just one and press Enter at the second prompt.
+ * Outlook one second - or just one and press Enter at the second prompt.
  * The provider is recognised from the domain:
  *
  *   @gmail.com                      -> smtp.gmail.com:587
@@ -20,7 +20,7 @@
  *
  * App Passwords are typed hidden and are never echoed, logged or printed.
  *
- * Gmail requires an App Password — a normal account password will not work:
+ * Gmail requires an App Password - a normal account password will not work:
  *   1. turn on 2-Step Verification  https://myaccount.google.com/security
  *   2. create one                   https://myaccount.google.com/apppasswords
  *   3. copy the 16 characters (spaces are ignored)

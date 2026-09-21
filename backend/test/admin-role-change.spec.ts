@@ -1,9 +1,9 @@
 /**
- * ROLE CHANGES (Admin) — `PATCH /users/:id/role`.
+ * ROLE CHANGES (Admin) - `PATCH /users/:id/role`.
  *
  * Boots the whole AppModule over the real HTTP pipeline (like
  * `admin-user-deletion.spec.ts`) and pins the rule that a demotion can never
- * empty the Admin seat — the same "a database can never be locked out"
+ * empty the Admin seat - the same "a database can never be locked out"
  * guarantee that deletion already had (ADR-004, docs/security.md):
  *
  *   ALLOWED  Employee -> IT_Agent, or Employee -> Admin      -> 200
@@ -31,7 +31,7 @@ const PASSWORD = 'password123';
 const run = Date.now().toString(36);
 let userSeq = 0;
 
-describe('Admin role changes — PATCH /users/:id/role', () => {
+describe('Admin role changes - PATCH /users/:id/role', () => {
   let app: INestApplication;
   let http: any;
   let adminToken: string;
@@ -83,7 +83,7 @@ describe('Admin role changes — PATCH /users/:id/role', () => {
     expect(res.status).toBe(401);
   });
 
-  it('refuses a non-Admin caller (403) — authorization boundary', async () => {
+  it('refuses a non-Admin caller (403) - authorization boundary', async () => {
     const employee = await provision('Employee', 'Rana');
     const target = await provision('Employee', 'Nadim');
 
@@ -149,7 +149,7 @@ describe('Admin role changes — PATCH /users/:id/role', () => {
     expect(await roleInDb(other.id)).toBe('Employee');
 
     // The demotion is durable and applies to the next sign-in. (A token already
-    // issued keeps its old claim until it expires — JWT is not DB-checked; see
+    // issued keeps its old claim until it expires - JWT is not DB-checked; see
     // docs/security.md.)
     const login = await request(http)
       .post('/auth/login')
@@ -187,7 +187,7 @@ describe('Admin role changes — PATCH /users/:id/role', () => {
     expect(me.status).toBe(401);
 
     // The API can therefore no longer reach the service guard with a dead
-    // session, so the rule is exercised directly — this is what actually
+    // session, so the rule is exercised directly - this is what actually
     // protects the Admin seat.
     const service = app.get(UsersService);
     await expect(service.updateRole(adminId, 'Employee', doomed.id)).rejects.toThrow(

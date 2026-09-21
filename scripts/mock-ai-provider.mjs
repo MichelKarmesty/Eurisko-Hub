@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * Eurisko Hub — a TEST DOUBLE for an OpenAI-compatible provider.
+ * Eurisko Hub - a TEST DOUBLE for an OpenAI-compatible provider.
  *
  * ┌──────────────────────────────────────────────────────────────────────────┐
  * │  THIS IS NOT A MODEL. Its answers come from keyword rules.              │
  * │                                                                          │
  * │  Point the app at it and the app will report `source: "ai"` for answers  │
- * │  a machine derived from a keyword table — which is exactly what §3.4 of  │
+ * │  a machine derived from a keyword table - which is exactly what §3.4 of  │
  * │  docs/week4-production-ai.md forbids in the product. That is acceptable  │
  * │  HERE and only here: this file exists to exercise the HTTP path, the     │
  * │  prompt that goes out, and the response handling, in a test or a         │
@@ -16,8 +16,8 @@
  *
  * Why it exists: every live AI check in this repo (scripts/verify-ai-intake.mjs,
  * the real-provider eval cases 1–5) skips when no provider answers, so the
- * *model* half of the contract — the `source: "ai"` branch, the request the
- * service actually sends, the model-path notices — is otherwise never exercised
+ * *model* half of the contract - the `source: "ai"` branch, the request the
+ * service actually sends, the model-path notices - is otherwise never exercised
  * on a machine without a key. The offline classifier cannot cover it: it is
  * deliberately labelled `source: "offline"` and is a different code path.
  *
@@ -32,7 +32,7 @@
  *     AI_PROVIDER_URL=http://127.0.0.1:4321/v1 AI_MODEL=mock-model AI_API_KEY=mock-key \
  *     node dist/main.js
  *
- *   # and run the ordinary checks — they now report `source: ai`
+ *   # and run the ordinary checks - they now report `source: ai`
  *   node scripts/verify-ai-intake.mjs
  *   (cd backend && AI_PROVIDER_URL=http://127.0.0.1:4321/v1 AI_MODEL=mock-model \
  *      AI_API_KEY=mock-key npm run test:ai-eval)     # cases 1–5 stop skipping
@@ -45,7 +45,7 @@
  *                              hang              -> never answers (timeout path)
  *
  * It logs one line per call, including whether the system prompt it received
- * mentions `relevant`/`reason` — so a stale build that still sends the old
+ * mentions `relevant`/`reason` - so a stale build that still sends the old
  * prompt is visible immediately rather than silently "passing".
  */
 import http from 'node:http';
@@ -53,7 +53,7 @@ import http from 'node:http';
 const PORT = Number(process.env.MOCK_PORT ?? 4321);
 const FAIL = (process.env.MOCK_FAIL ?? '').toLowerCase();
 
-/** Keyword tables in the same spirit as the offline classifier — deliberately rough. */
+/** Keyword tables in the same spirit as the offline classifier - deliberately rough. */
 const KEYWORDS = {
   HR: [
     'contract', 'payroll', 'salary', 'payslip', 'leave', 'vacation', 'badge', 'hr',

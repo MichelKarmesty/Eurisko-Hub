@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Eurisko Hub — "Assigned agent resolves a ticket" browser E2E.
+ * Eurisko Hub - "Assigned agent resolves a ticket" browser E2E.
  *
  * Drives the REAL React app (http://localhost:5173) with no direct API calls:
  *

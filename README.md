@@ -5,7 +5,7 @@ Maintenance. Instead of chasing requests through WhatsApp messages and
 scattered emails, people can submit a ticket, follow its progress, and see how
 it was resolved.
 
-> **Week 3 status — v0.3 integrated product slice.** One narrow, user-facing
+> **Week 3 status - v0.3 integrated product slice.** One narrow, user-facing
 > flow is complete across all three tiers: **a requester opens a Service
 > Request, a department agent claims it, the agent resolves it with a note, and
 > the requester sees it Resolved.** React frontend → NestJS backend → real
@@ -14,13 +14,13 @@ it was resolved.
 > and an automated test suite (business rule, backend↔database integration, HTTP
 > contract/regression, DOM UI E2E, and a real-browser Playwright E2E). The Admin
 > role is governed too: assign an unclaimed ticket, override with a recorded
-> reason, or cancel softly — never delete. Full delivery record:
+> reason, or cancel softly - never delete. Full delivery record:
 > [`docs/week3-full-stack-delivery.md`](docs/week3-full-stack-delivery.md).
 
-> **Week 4 status — v0.4 AI-assisted Request Intake.** An employee can describe
+> **Week 4 status - v0.4 AI-assisted Request Intake.** An employee can describe
 > the problem in their own words and press **AI Suggest**: the AI proposes a
 > Category, a Priority and a cleaned-up Title, which appear in the New Request
-> form as an editable starting point. The AI is **advisory only** — it never
+> form as an editable starting point. The AI is **advisory only** - it never
 > creates a ticket and never touches the database, every suggested value is
 > validated against the domain enums before it is returned, the employee can
 > change or ignore all of it, and `POST /tickets` stays exactly as it was. If no
@@ -28,17 +28,17 @@ it was resolved.
 > Full delivery record:
 > [`docs/week4-production-ai.md`](docs/week4-production-ai.md).
 
-> **v0.5 status — password recovery + any real email address (revised by ADR-007/ADR-008/ADR-009).**
+> **v0.5 status - password recovery + any real email address (revised by ADR-007/ADR-008/ADR-009).**
 > A password can be **reset** (never "retrieved": passwords are bcrypt-hashed) or
 > **changed** by a signed-in user with the current one. Recovery is
 > **Admin-initiated**: an Admin mints a one-time link (**Users → Reset password**)
 > and hands it over, and a locked-out lone Admin uses the offline
-> `scripts/reset-password.mjs` break-glass — **no mail server involved**. The
+> `scripts/reset-password.mjs` break-glass - **no mail server involved**. The
 > public, emailed variant is off by default (it answers `404`; ADR-009) and can be
 > switched on with `PASSWORD_RESET_SELF_SERVICE=true` plus a transport
 > (SMTP / webhook / Resend). Accounts accept
-> **any valid email address** — Gmail, Hotmail/Outlook, Yahoo or a company domain
-> — not just `@eurisko.com`. Design records:
+> **any valid email address** - Gmail, Hotmail/Outlook, Yahoo or a company domain
+> - not just `@eurisko.com`. Design records:
 > [`docs/decisions/ADR-005.md`](docs/decisions/ADR-005.md),
 > [`docs/decisions/ADR-007.md`](docs/decisions/ADR-007.md),
 > [`docs/decisions/ADR-008.md`](docs/decisions/ADR-008.md) and
@@ -51,13 +51,14 @@ it was resolved.
 | [`backend/`](backend/) | NestJS + TypeORM API (auth with password reset/change, RBAC, tickets with claim/status flow, durable history, advisory AI intake under `src/ai/`, console/HTTP mail under `src/mail/`) |
 | [`frontend/`](frontend/) | React + Vite web client (requester dashboard with AI Suggest, agent queue, admin view) |
 | [`docs/`](docs/) | Product spec, architecture, data model, ADRs (incl. [ADR-006](docs/decisions/ADR-006.md), the advisory-AI scope decision), API reference, Week 3 & Week 4 delivery records |
-| [`scripts/`](scripts/) | [`verify-slice.mjs`](scripts/verify-slice.mjs) live HTTP checks · [`run-tests.mjs`](scripts/run-tests.mjs) one-command test suite · [`verify-ai-intake.mjs`](scripts/verify-ai-intake.mjs) AI intake checks · [`ai-provider-doctor.mjs`](scripts/ai-provider-doctor.mjs) find a working AI provider · [`mock-ai-provider.mjs`](scripts/mock-ai-provider.mjs) **test double** — exercises the model path with no key (never a real model) · [`reset-password.mjs`](scripts/reset-password.mjs) offline break-glass: mint a reset link when a lone Admin is locked out |
+| [`scripts/`](scripts/) | [`verify-slice.mjs`](scripts/verify-slice.mjs) live HTTP checks · [`run-tests.mjs`](scripts/run-tests.mjs) one-command test suite · [`verify-ai-intake.mjs`](scripts/verify-ai-intake.mjs) AI intake checks · [`ai-provider-doctor.mjs`](scripts/ai-provider-doctor.mjs) find a working AI provider · [`mock-ai-provider.mjs`](scripts/mock-ai-provider.mjs) **test double** - exercises the model path with no key (never a real model) · [`reset-password.mjs`](scripts/reset-password.mjs) offline break-glass: mint a reset link when a lone Admin is locked out |
 | [`e2e/`](e2e/) | End-to-end tests: DOM-level (default) and real-browser (optional) |
+| [`proxy/`](proxy/) | Optional shared demo AI provider: a small Cloudflare Worker that keeps the AI key in an encrypted secret, so the real model can be reached without putting a key in this public repo ([deploy notes](proxy/README.md)) |
 
 ## Requirements
 
 - **Node.js 20.19+** (Node 22 LTS recommended) with npm
-- No database server needed — the API persists to a local SQLite file
+- No database server needed - the API persists to a local SQLite file
 
 ## Install
 
@@ -74,11 +75,11 @@ cd Eurisko-Hub
 
 The API and the web client are **two separate processes**. Run each one in its
 own terminal and leave both running. `npm run build` only compiles the backend
-into `dist/` — it does **not** start it; `npm start` does. If the client cannot
+into `dist/` - it does **not** start it; `npm start` does. If the client cannot
 reach the API, sign-in fails with `Request failed with status 500` (see
 [Troubleshooting](#troubleshooting)).
 
-> **VS Code — one click.** Open the repo in VS Code and use the built-in tasks:
+> **VS Code - one click.** Open the repo in VS Code and use the built-in tasks:
 >
 > 1. **Terminal → Run Task… → `deps: install all`** (once).
 > 2. Copy `backend/.env.example` → `backend/.env` and fill in `AI_API_KEY`
@@ -94,7 +95,7 @@ reach the API, sign-in fails with `Request failed with status 500` (see
 > path stays off unless you set `PASSWORD_RESET_SELF_SERVICE=true` and a
 > transport (`SMTP_HOST`, `MAIL_WEBHOOK_URL` or `RESEND_API_KEY`).
 
-**1. Backend API** — http://localhost:3000
+**1. Backend API** - http://localhost:3000
 
 ```bash
 cd backend
@@ -104,26 +105,26 @@ DB_FILE="$PWD/.data/hub.sqlite" npm start
 ```
 
 Wait until it prints `Eurisko Hub API listening on http://localhost:3000` before
-starting the client — if that line never appears, sign-in in the browser will
+starting the client - if that line never appears, sign-in in the browser will
 fail with a `500`. On Windows PowerShell the same commands are
 `New-Item -ItemType Directory -Force .data | Out-Null`, then
 `$env:DB_FILE="$PWD\.data\hub.sqlite"; npm start`.
 
-First boot seeds **one** account — the Admin: `admin@eurisko.com` / `Admin123!`
+First boot seeds **one** account - the Admin: `admin@eurisko.com` / `Admin123!`
 (override with `ADMIN_EMAIL` / `ADMIN_PASSWORD`). There is **no public
 registration** and no demo data (ADR-004): sign in as the Admin and create
 everyone else from the **Users** tab. Set `DB_FILE` so tickets survive restarts;
 without it the database is in-memory.
 
 `admin@eurisko.com` is only the development **default**: the application accepts
-**any valid email address** — `someone@gmail.com`, `someone@hotmail.com`,
+**any valid email address** - `someone@gmail.com`, `someone@hotmail.com`,
 `someone@outlook.com`, `someone@yahoo.com`, or a company domain.
 
 If a database ever has **no Admin at all**, the backend seeds one on the next
-boot — so an instance created before the Admin email changed is recovered rather
+boot - so an instance created before the Admin email changed is recovered rather
 than locked out. An existing Admin is never duplicated or reset.
 
-**2. Web client** (second terminal) — http://localhost:5173
+**2. Web client** (second terminal) - http://localhost:5173
 
 ```bash
 cd frontend
@@ -134,10 +135,10 @@ The Vite dev server proxies `/api` to the backend on port 3000.
 
 **3. Create the accounts you want to test with.** Open http://localhost:5173 and
 sign in as the Admin (`admin@eurisko.com` / `Admin123!`), then open the
-**👥 Users** tab and use **Create account** to add people — for example an
+**👥 Users** tab and use **Create account** to add people - for example an
 **Employee** (Requester), an **IT Agent**, an **HR Agent** and a
 **Maintenance Agent**. Only an Admin can create accounts, and only an Admin sees
-the Users tab; the login screen is a plain sign-in form — no self-service recovery
+the Users tab; the login screen is a plain sign-in form - no self-service recovery
 and no token box, because only an Admin can issue a reset link (ADR-007/ADR-009).
 Any real email address is accepted for the people you create.
 
@@ -156,18 +157,18 @@ node scripts/verify-slice.mjs full
    (e.g. `karim@eurisko.com`). Remember the passwords you set.
 2. Click **Switch account** and sign in as the **Employee**. Under
    **New request**, enter a title, choose **IT** / **High**, add a description,
-   and click **Open ticket** — it shows as `Open` in **My tickets**.
+   and click **Open ticket** - it shows as `Open` in **My tickets**.
 3. Click **Switch account** → sign in as the **IT Agent**. The ticket is in the
-   **Department queue**; click **Claim** — it moves to **My work · In Progress**.
+   **Department queue**; click **Claim** - it moves to **My work · In Progress**.
 4. Click **Mark Resolved** *without* typing a note. The backend refuses the
    request and the form shows the validation message inline (the deliberate
    invalid request; nothing is saved).
 5. Type a resolution note (e.g. *"Replaced the display cable."*) and click
-   **Mark Resolved** — the ticket moves to **Resolved by me**.
+   **Mark Resolved** - the ticket moves to **Resolved by me**.
 6. Switch back to the **Employee**. **My tickets** now shows `Resolved` with the
    note. Expand **▾ History** to see `CREATED → CLAIMED → RESOLVED`, who did it,
    and when.
-7. Optional — Admin actions: sign in as **Admin** → **Tickets** tab. On an
+7. Optional - Admin actions: sign in as **Admin** → **Tickets** tab. On an
    unclaimed ticket use **Assign** (give it an owner) or **Cancel request…**
    (retire a duplicate with a reason); on an in-progress ticket, resolving asks
    for an **override reason** because the Admin is not the assignee. On the
@@ -188,17 +189,17 @@ the database. Full detail: [`docs/week4-production-ai.md`](docs/week4-production
 
 **If the text is not a support request, the AI says so (v0.6).** Random
 characters, a greeting, a test message or something unrelated to work now come
-back as `relevant: false` with a short `reason` and a notice — nothing is
+back as `relevant: false` with a short `reason` and a notice - nothing is
 pre-filled, the form keeps whatever the employee typed, and they can still open
 the ticket by hand. Before this, meaningless input was quietly answered with a
 plausible-looking `IT` / `Medium`. The status is still `200`: the AI call
 succeeded, it is only the *input* it could not read as a request, so this is a
 signal and never an error the form has to handle. A real request is never flagged
-by the model, however terse — `"help"` is a request. (The keyword fallback is
+by the model, however terse - `"help"` is a request. (The keyword fallback is
 blunter: it flags anything it has no keyword for, and says only that it found
-nothing — never that the message was nonsense.)
+nothing - never that the message was nonsense.)
 
-**The default provider is Groq's free cloud API** — nothing to install, no
+**The default provider is Groq's free cloud API** - nothing to install, no
 credit card. Get a free key at <https://console.groq.com>, then start the
 backend with it:
 
@@ -212,7 +213,7 @@ so list what your key can use before changing it:
 `curl -s https://api.groq.com/openai/v1/models -H "Authorization: Bearer $AI_API_KEY"`.
 
 **It works with no key at all.** With no `AI_API_KEY` the provider answers `401`
-and the built-in **offline classifier** still fills the form in — clearly
+and the built-in **offline classifier** still fills the form in - clearly
 labelled: the API returns `source: "offline"` with a notice, and the UI tags
 those fields **"Suggested (offline)"** instead of "AI suggested", so a
 rules-based answer is never passed off as the model's. Set
@@ -224,9 +225,9 @@ behaviour. Nothing about running the app or the test suite requires a key.
 | Variable | Default | Purpose |
 |---|---|---|
 | `PORT` | `3000` | HTTP port |
-| `DB_FILE` | *(in-memory)* | SQLite file path — set it to keep data across restarts |
+| `DB_FILE` | *(in-memory)* | SQLite file path - set it to keep data across restarts |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `admin@eurisko.com` / `Admin123!` | The one seeded Admin account (change both before any real deployment) |
-| `JWT_SECRET` | dev value | JWT signing secret — **set a strong one in production** |
+| `JWT_SECRET` | dev value | JWT signing secret - **set a strong one in production** |
 | `JWT_EXPIRES_IN` | `8h` | Session-token lifetime |
 
 **AI intake** (optional):
@@ -240,7 +241,7 @@ behaviour. Nothing about running the app or the test suite requires a key.
 | `AI_FALLBACK_MODEL` | *(unset)* | Comma-separated models tried when the primary fails (rate limit / retired) instead of dropping to the offline rules, e.g. `qwen/qwen3.8-27b` |
 | `AI_RETRY_DELAY_MS` | `1500` | Wait before the one retry of a rate-limited/transient call |
 | `AI_OFFLINE_FALLBACK` | `true` | Suggest from the offline keyword classifier when no model answers (always labelled); `false` = strict provider-only |
-| `AI_API_KEY` | *(unset)* | **Required for Groq** — free key from console.groq.com |
+| `AI_API_KEY` | *(unset)* | **Required for Groq** - free key from console.groq.com |
 
 **Prefer to run the model locally?** You can also use a local Ollama, which needs
 no API key: install it from <https://ollama.com> and start the backend with
@@ -260,7 +261,7 @@ node scripts/verify-ai-intake.mjs
 `source: "offline"` and is a different code path, so it cannot cover the
 `source: "ai"` branch, the prompt that goes out, or the model-path notices.
 `scripts/mock-ai-provider.mjs` is an OpenAI-compatible **test double** for exactly
-that — a keyword table behind `/chat/completions`. It is test tooling, not a
+that - a keyword table behind `/chat/completions`. It is test tooling, not a
 model, and pointing the app at it makes the API label rule-based answers
 `source: "ai"`, which is precisely what the product must never do in front of
 anyone. Use it to exercise the path; use a real key to judge the AI. Details:
@@ -268,14 +269,14 @@ anyone. Use it to exercise the path; use a real key to judge the AI. Details:
 
 ## Password recovery & any email address (v0.5, revised by ADR-007/ADR-008/ADR-009)
 
-**Passwords are bcrypt-hashed, so they can never be *retrieved*** — the capability
+**Passwords are bcrypt-hashed, so they can never be *retrieved*** - the capability
 is to **reset** one, or to **change** it from inside the app. All of it accepts any
 real email address.
 
 | I want to… | Where | What happens |
 |---|---|---|
-| Reset **someone's** forgotten password | **Admin → Users → Reset password** (or `POST /users/:id/reset-password`) | The Admin gets a one-time link to hand over; the employee sets their own password, and the Admin never sees or chooses it. Works out of the box — **no mail server involved** (ADR-007/ADR-009). |
-| Set **someone's** password right now | Same panel → **Set password** (or `PATCH /users/:id/password`) | The Admin types the new password and applies it (bcrypt-hashed, any pending link is invalidated, the action is logged). Use it when the person is present or unreachable — the Admin then knows the credential, so tell them to change it (ADR-011). |
+| Reset **someone's** forgotten password | **Admin → Users → Reset password** (or `POST /users/:id/reset-password`) | The Admin gets a one-time link to hand over; the employee sets their own password, and the Admin never sees or chooses it. Works out of the box - **no mail server involved** (ADR-007/ADR-009). |
+| Set **someone's** password right now | Same panel → **Set password** (or `PATCH /users/:id/password`) | The Admin types the new password and applies it (bcrypt-hashed, any pending link is invalidated, the action is logged). Use it when the person is present or unreachable - the Admin then knows the credential, so tell them to change it (ADR-011). |
 | Reset **my own** forgotten password | Ask an Admin (or, only if enabled, `POST /auth/forgot-password`) | Recovery is Admin-initiated. The public, emailed variant is **off by default** (it answers `404`) and comes back with `PASSWORD_RESET_SELF_SERVICE=true` (ADR-008/ADR-009). |
 | Finish a reset | The link opens **Set a new password** (or `POST /auth/reset-password`) | The token is accepted once, expires after 30 minutes, and the old password stops working. |
 | Change my own password while signed in | **Change password** in the top bar (or `POST /auth/change-password`) | The current password is required; a session token alone cannot take the account over. |
@@ -283,10 +284,10 @@ real email address.
 
 **No mail server is needed at all by default.** The Admin-issued link is the
 recovery route, and the offline script covers a locked-out lone Admin. The
-optional public/emailed path (ADR-008) is off unless you opt in — set
+optional public/emailed path (ADR-008) is off unless you opt in - set
 `PASSWORD_RESET_SELF_SERVICE=true` **and** configure a transport below; with no
 provider the message would only be printed to the backend console. For real email
-— Gmail, Outlook/Hotmail, a company server or any SMTP provider — set the SMTP
+ (Gmail, Outlook/Hotmail, a company server or any SMTP provider) set the SMTP
 variables and restart the backend (the SMTP client is built in; no package to
 install):
 
@@ -324,14 +325,14 @@ One command asks for one or two addresses + App Passwords, writes them into
 | `PASSWORD_RESET_SELF_SERVICE` | `false` | Serve the public, emailed `POST /auth/forgot-password`; while off it answers `404` (ADR-009) |
 | `SMTP_HOST` / `SMTP_PORT` | *(unset)* / `587` | Standard SMTP server (Gmail, Outlook, company); `SMTP_SECURE=true` for port 465 |
 | `SMTP_ALT_HOST` / `SMTP_ALT_PORT` | *(unset)* / `587` | Optional **second** sender, tried when the first fails (ADR-008) |
-| `SMTP_USER` / `SMTP_PASS` | *(unset)* | SMTP login — use an **App Password** when 2FA is on |
+| `SMTP_USER` / `SMTP_PASS` | *(unset)* | SMTP login - use an **App Password** when 2FA is on |
 | `MAIL_WEBHOOK_URL` / `MAIL_WEBHOOK_TOKEN` | *(unset)* | Optional HTTP mail relay |
 | `RESEND_API_KEY` / `MAIL_FROM` | *(unset)* | Optional Resend delivery |
 | `PASSWORD_RESET_RETURN_TOKEN` | `true` outside production | Return the one-time token in the API response (development only; **always off** when `NODE_ENV=production`) |
 | `PASSWORD_RESET_COOLDOWN_SECONDS` | `60` | At most one forgot-password email per address in this window (anti mail-bomb) |
-| `SMTP_ALT_SECURE`, `SMTP_FROM`, `SMTP_TIMEOUT_MS`, `SMTP_ALT_TIMEOUT_MS` | *(derived)* | Per-sender overrides (TLS flag, From address, timeouts) — the full list is in [`backend/README.md`](backend/README.md) |
+| `SMTP_ALT_SECURE`, `SMTP_FROM`, `SMTP_TIMEOUT_MS`, `SMTP_ALT_TIMEOUT_MS` | *(derived)* | Per-sender overrides (TLS flag, From address, timeouts) - the full list is in [`backend/README.md`](backend/README.md) |
 
-**Any real email address is accepted — `@eurisko.com` is only the development
+**Any real email address is accepted - `@eurisko.com` is only the development
 default.** Account creation, login, password reset and every example work
 identically for `someone@gmail.com`, `someone@hotmail.com`,
 `someone@outlook.com`, `someone@yahoo.com` or a company domain; a malformed
@@ -356,7 +357,7 @@ skipped, not failed).
 
 ### Layer by layer
 
-**Backend tests** (self-contained — no server, no database file needed):
+**Backend tests** (self-contained - no server, no database file needed):
 
 ```bash
 cd backend
@@ -376,11 +377,11 @@ npm run test:ai-eval      # v0.4/v0.6: the 9 AI intake eval cases
 | Admin account deletion: contract, authorization, audit | `npm test` | `backend/test/admin-user-deletion.spec.ts` |
 | v0.4/v0.6: AI intake evals (5 real-or-skip + 4 mocked) | `npm run test:ai-eval` | `backend/test/ai-intake-eval.spec.ts` |
 | v0.5: password recovery/change + any-email rule | `npm test` | `backend/test/auth-password.spec.ts` |
-| ADR-007/ADR-009: Admin-issued reset link — contract + authorization | `npm test` | `backend/test/admin-reset-password.spec.ts` |
+| ADR-007/ADR-009: Admin-issued reset link - contract + authorization | `npm test` | `backend/test/admin-reset-password.spec.ts` |
 | Role changes + the last-active-Admin guard | `npm test` | `backend/test/admin-role-change.spec.ts` |
 | Mail transports: real SMTP conversation, backup sender, console fallback | `npm test` | `backend/test/mail-smtp.spec.ts` |
 
-**UI E2E — two layers:**
+**UI E2E - two layers:**
 
 * **DOM E2E (fast, no browser needed):** renders the real React app in jsdom
   against a live API.
@@ -399,9 +400,9 @@ npm run test:ai-eval      # v0.4/v0.6: the 9 AI intake eval cases
   The five tests cover the resolve slice, the Admin override (ADR-002), Admin
   assign/cancel (ADR-003), the first run itself (the Admin creates an account in
   the Users tab and signs in as it), and changing a password from the top bar
-  (ADR-005, every role — not only the Admin).
+  (ADR-005, every role - not only the Admin).
 
-* **Real-browser E2E (Playwright — self-contained, self-installing):**
+* **Real-browser E2E (Playwright - self-contained, self-installing):**
 
   ```bash
   node scripts/run-browser-e2e.mjs
@@ -411,7 +412,7 @@ npm run test:ai-eval      # v0.4/v0.6: the 9 AI intake eval cases
   is available (`CHROME_PATH`, a repo-local binary, or
   `npx playwright install chromium`), drives the real UI, then tears everything
   down. If no browser can launch (e.g. missing system libraries) it **skips**
-  with a clear message — set `STRICT_BROWSER_E2E=1` to fail instead.
+  with a clear message - set `STRICT_BROWSER_E2E=1` to fail instead.
 
 Both layers run as part of `node scripts/run-tests.mjs`.
 
@@ -436,17 +437,17 @@ Base URL `http://localhost:3000`; authenticated calls send
 | `POST /auth/forgot-password` | public, **off by default** | the optional self-service path: emails a one-time link, always with the same generic answer (ADR-008); answers `404` unless `PASSWORD_RESET_SELF_SERVICE=true` (ADR-009) |
 | `POST /auth/reset-password` | public | set a new password with the one-time token from an emailed or **Admin-issued** link (single use, 30 min) |
 | `POST /auth/change-password` | authenticated | change your own password (current password required) |
-| `POST /users/:id/reset-password` | Admin | mint a one-time reset link for an account and hand it over — no mail server required; single-use, 30 min (ADR-007) |
-| `PATCH /users/:id/password` | Admin | set that account's password **directly** (bcrypt-hashed, pending link cleared, logged) — the alternative when a link cannot be handed over (ADR-011) |
+| `POST /users/:id/reset-password` | Admin | mint a one-time reset link for an account and hand it over - no mail server required; single-use, 30 min (ADR-007) |
+| `PATCH /users/:id/password` | Admin | set that account's password **directly** (bcrypt-hashed, pending link cleared, logged) - the alternative when a link cannot be handed over (ADR-011) |
 | `POST /tickets` | any authenticated user | open a request (title, description, category, priority) |
 | `GET /tickets` | role-scoped | requester: own tickets · agent: own department's `Open` queue (`?mine=true` for claimed) · admin: all |
 | `PATCH /tickets/:id/claim` | matching agent | claim an `Open` ticket → `In Progress` |
 | `PATCH /tickets/:id/assign` | Admin | give an `Open`, unclaimed ticket a matching agent (ADR-003) |
 | `PATCH /tickets/:id/status` | **assigned agent or Admin override** | advance `Open → In Progress → Resolved`; a note is required to resolve. An Admin acting on a ticket not assigned to them must also send `overrideReason` (`400` otherwise), recorded as `ADMIN_OVERRIDE` (ADR-002) |
-| `PATCH /tickets/:id/cancel` | Admin | soft-cancel a request with a reason — kept and audited, never deleted (ADR-003) |
+| `PATCH /tickets/:id/cancel` | Admin | soft-cancel a request with a reason - kept and audited, never deleted (ADR-003) |
 | `DELETE /tickets/:id` | Admin | permanently delete a **`Resolved`** ticket and its history (`409` for anything else; a `Cancelled` ticket is kept) (ADR-010) |
 | `GET /tickets/:id/history` | ticket readers | durable `CREATED → CLAIMED/ASSIGNED → RESOLVED` trail, plus `ADMIN_OVERRIDE` / `CANCELLED` where applicable |
-| `GET /users` · `POST /users` · `PATCH /users/:id/role` · `PATCH /users/:id/active` · `DELETE /users/:id` | Admin | manage accounts: list (`?includeInactive=true` shows deactivated rows), create, change role, **deactivate / reactivate** (`active: false` revokes the login at once, `true` restores the same account and its tickets), **delete any account** (an account with tickets/history is only deactivated, one with none is really deleted). A deactivated row keeps its email, so **creating that address again revives the same account** (same id, history intact); an **active** one still answers `409` — deactivate it first. No path can empty the Admin seat: you cannot change/deactivate your own Admin role or account, and the last active Admin cannot be demoted or deleted |
+| `GET /users` · `POST /users` · `PATCH /users/:id/role` · `PATCH /users/:id/active` · `DELETE /users/:id` | Admin | manage accounts: list (`?includeInactive=true` shows deactivated rows), create, change role, **deactivate / reactivate** (`active: false` revokes the login at once, `true` restores the same account and its tickets), **delete any account** (an account with tickets/history is only deactivated, one with none is really deleted). A deactivated row keeps its email, so **creating that address again revives the same account** (same id, history intact); an **active** one still answers `409` - deactivate it first. No path can empty the Admin seat: you cannot change/deactivate your own Admin role or account, and the last active Admin cannot be demoted or deleted |
 | `GET /admin/stats` | Admin | company-wide counters |
 
 ## Roles and access
@@ -457,17 +458,17 @@ Base URL `http://localhost:3000`; authenticated calls send
   colleague.
 - **Admin:** sees every ticket, manages users, and can **assign** an unclaimed
   ticket to a matching agent, **cancel** a request softly (never a hard delete),
-  or change any ticket's status — but a change to a ticket they are not assigned
+  or change any ticket's status - but a change to a ticket they are not assigned
   to is an explicit **override** that requires a reason and is written to the
   ticket history (ADR-002), so an unclaimed ticket is never silently closed.
-  On the **Users** tab the Admin can also **delete any account** — an Employee,
+  On the **Users** tab the Admin can also **delete any account** - an Employee,
   an IT/HR/Maintenance agent, or another Admin. The deleted person disappears
   from the list and can no longer sign in; an account with tickets/history is
   kept for audit (deactivated) while an account with none is really deleted.
   An Admin can never delete their own account, and the last active Admin can
   never be deleted or demoted (so the hub can't be locked out).
 
-Role checks happen on the server only — the client never enforces permissions.
+Role checks happen on the server only - the client never enforces permissions.
 
 ## Documentation
 
@@ -476,37 +477,37 @@ Read in this order:
 1. [`docs/product-spec.md`](docs/product-spec.md)
 2. [`docs/architecture.md`](docs/architecture.md)
 3. [`docs/data-model.md`](docs/data-model.md)
-4. [`docs/decisions/ADR-001.md`](docs/decisions/ADR-001.md) — manual queue claiming
-5. [`docs/decisions/ADR-002.md`](docs/decisions/ADR-002.md) — Admin override policy
-6. [`docs/decisions/ADR-003.md`](docs/decisions/ADR-003.md) — Admin assign & soft cancel
-7. [`docs/decisions/ADR-004.md`](docs/decisions/ADR-004.md) — Admin-provisioned accounts, no public registration
-8. [`docs/decisions/ADR-005.md`](docs/decisions/ADR-005.md) — password recovery/change and any-real-email accounts
-9. [`docs/decisions/ADR-006.md`](docs/decisions/ADR-006.md) — advisory-only AI request intake
-10. [`docs/decisions/ADR-007.md`](docs/decisions/ADR-007.md) — Admin-initiated password reset (one-time link, no mail server)
-11. [`docs/decisions/ADR-008.md`](docs/decisions/ADR-008.md) — self-service forgot password restored, backed by the built-in mail transports
-12. [`docs/decisions/ADR-009.md`](docs/decisions/ADR-009.md) — recovery is Admin-initiated; the public self-service reset is off by default
-13. [`docs/decisions/ADR-010.md`](docs/decisions/ADR-010.md) — an Admin may permanently delete a **`Resolved`** ticket (the one exception to "never delete")
-14. [`docs/decisions/ADR-011.md`](docs/decisions/ADR-011.md) — an Admin may **set a password directly**, not only hand over a one-time link
+4. [`docs/decisions/ADR-001.md`](docs/decisions/ADR-001.md) - manual queue claiming
+5. [`docs/decisions/ADR-002.md`](docs/decisions/ADR-002.md) - Admin override policy
+6. [`docs/decisions/ADR-003.md`](docs/decisions/ADR-003.md) - Admin assign & soft cancel
+7. [`docs/decisions/ADR-004.md`](docs/decisions/ADR-004.md) - Admin-provisioned accounts, no public registration
+8. [`docs/decisions/ADR-005.md`](docs/decisions/ADR-005.md) - password recovery/change and any-real-email accounts
+9. [`docs/decisions/ADR-006.md`](docs/decisions/ADR-006.md) - advisory-only AI request intake
+10. [`docs/decisions/ADR-007.md`](docs/decisions/ADR-007.md) - Admin-initiated password reset (one-time link, no mail server)
+11. [`docs/decisions/ADR-008.md`](docs/decisions/ADR-008.md) - self-service forgot password restored, backed by the built-in mail transports
+12. [`docs/decisions/ADR-009.md`](docs/decisions/ADR-009.md) - recovery is Admin-initiated; the public self-service reset is off by default
+13. [`docs/decisions/ADR-010.md`](docs/decisions/ADR-010.md) - an Admin may permanently delete a **`Resolved`** ticket (the one exception to "never delete")
+14. [`docs/decisions/ADR-011.md`](docs/decisions/ADR-011.md) - an Admin may **set a password directly**, not only hand over a one-time link
 15. [`docs/api.md`](docs/api.md)
-16. [`docs/security.md`](docs/security.md) — the seeded Admin, no public registration, the authorization model, and password recovery
-17. [`docs/week3-full-stack-delivery.md`](docs/week3-full-stack-delivery.md) — the Week 3 delivery record
-18. [`docs/week4-production-ai.md`](docs/week4-production-ai.md) — the Week 4 AI-assisted intake record
+16. [`docs/security.md`](docs/security.md) - the seeded Admin, no public registration, the authorization model, and password recovery
+17. [`docs/week3-full-stack-delivery.md`](docs/week3-full-stack-delivery.md) - the Week 3 delivery record
+18. [`docs/week4-production-ai.md`](docs/week4-production-ai.md) - the Week 4 AI-assisted intake record
 
 ## Troubleshooting
 
 - **Sign-in shows `Request failed with status 500`:** the browser reached the Vite
   dev server but not the API, so the `/api` proxy returned a bodiless `500`. The
-  usual cause is that the backend is not running — `npm run build` compiles it but
+  usual cause is that the backend is not running - `npm run build` compiles it but
   does **not** start it. Confirm its terminal prints
   `Eurisko Hub API listening on http://localhost:3000`. If it instead repeats
   `Unable to connect to the database. Retrying…`, the `DB_FILE` folder is missing
   or not writable: `mkdir -p .data` (or point `DB_FILE` at a writable path) and
   restart. A wrong password is `401`, never `500`.
-- **You cannot get a password reset link:** that is by design — recovery is
+- **You cannot get a password reset link:** that is by design - recovery is
   **Admin-initiated** (ADR-007/ADR-009). An Admin opens **Users → Reset password**
   and hands the one-time link over; the employee chooses their own new password,
   and no mail server is involved. If the locked-out person *is* the only Admin,
-  run the offline break-glass — stop the backend first so it cannot overwrite the
+  run the offline break-glass - stop the backend first so it cannot overwrite the
   database, then `node scripts/reset-password.mjs that-admin@eurisko.com`, and
   start the backend again. A reset link is valid for 30 minutes
   (`PASSWORD_RESET_TTL_MINUTES`) and can be used once. (There *is* an optional
@@ -517,7 +518,7 @@ Read in this order:
   proxy targets 3000, so either free port 3000 or point the client at the new
   port with `VITE_API_BASE=http://localhost:3001`.
 - **Start over with an empty database:** stop the backend, `rm backend/.data/*.sqlite`,
-  and start it again — the Admin account is re-seeded automatically. Every other
+  and start it again - the Admin account is re-seeded automatically. Every other
   account is created by an Admin from the Users tab.
 - **`npm install` fails on a restricted machine:** point npm at a writable cache:
   `npm install --cache ./.npm-cache`.
@@ -532,12 +533,12 @@ Read in this order:
 ## Current status
 
 A working NestJS API ([`docs/api.md`](docs/api.md)) implements the core MVP
-workflow — open a ticket, claim it from a department queue, resolve it with a
-note, review it from the admin dashboard — and the React client in `frontend/`
+workflow - open a ticket, claim it from a department queue, resolve it with a
+note, review it from the admin dashboard - and the React client in `frontend/`
 wires that workflow end-to-end for the **"assigned agent resolves a ticket"**
 slice, with durable SQLite persistence across restarts and an automated
 test suite covering the business rule, the database integration, the HTTP
 boundaries, regression, and the UI E2E. On top of that: advisory AI intake
-(v0.4) and **password recovery/change** — Admin-issued one-time links with an
+(v0.4) and **password recovery/change** - Admin-issued one-time links with an
 offline break-glass, accepting any real email address (v0.5,
 ADR-007/ADR-008/ADR-009).

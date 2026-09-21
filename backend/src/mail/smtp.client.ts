@@ -9,7 +9,7 @@ import tls from 'node:tls';
  * speaks plain SMTP with AUTH + TLS. This covers exactly that:
  *
  *  - implicit TLS (port 465, `SMTP_SECURE=true`)
- *  - STARTTLS (port 587, the default — upgraded after EHLO)
+ *  - STARTTLS (port 587, the default - upgraded after EHLO)
  *  - AUTH PLAIN, falling back to AUTH LOGIN
  *  - a UTF-8 plain-text message, base64-encoded (no dot-stuffing needed)
  *

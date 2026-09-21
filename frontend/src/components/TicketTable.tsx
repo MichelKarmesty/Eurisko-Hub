@@ -22,7 +22,7 @@ const ACTION_LABEL: Record<TicketEvent['action'], string> = {
  * React action (claim / resolve / advance) is injected per role.
  *
  * Every row also offers a small "History" toggle that loads the durable event
- * log (GET /tickets/:id/history) so anyone can see WHO did WHAT and WHEN —
+ * log (GET /tickets/:id/history) so anyone can see WHO did WHAT and WHEN -
  * including who resolved the ticket, with their note.
  */
 export function TicketTable({

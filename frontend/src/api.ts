@@ -105,12 +105,12 @@ export interface ForgotPasswordResult {
 }
 
 /**
- * "I forgot my password" — the self-service, emailed reset (ADR-008).
+ * "I forgot my password" - the self-service, emailed reset (ADR-008).
  *
  * **Off by default** (ADR-009): recovery is Admin-initiated
  * (`apiAdminResetPassword`), and the backend answers `404` for this route unless
  * the operator sets `PASSWORD_RESET_SELF_SERVICE=true`. Kept here so a
- * deployment that switches the public path back on has the client ready — the
+ * deployment that switches the public path back on has the client ready - the
  * sign-in screen deliberately offers no link to it.
  */
 export function apiForgotPassword(email: string): Promise<ForgotPasswordResult> {
@@ -167,7 +167,7 @@ export function apiCreateTicket(input: {
 
 /**
  * v0.4 (docs/week4-production-ai.md): ask the AI to suggest Category, Priority
- * and Title from a free-form description. Advisory and side-effect free — it
+ * and Title from a free-form description. Advisory and side-effect free - it
  * never creates a ticket. A provider that is disabled, down or too slow comes
  * back as `{ suggestion: null, error }`, so the caller can carry on by hand.
  */
@@ -203,7 +203,7 @@ export function apiTicketHistory(id: number): Promise<unknown[]> {
 }
 
 /**
- * ADR-010: an Admin permanently deletes a **Resolved** ticket — the row and its
+ * ADR-010: an Admin permanently deletes a **Resolved** ticket - the row and its
  * history leave the database, so it disappears for the requester and the agents
  * too. Anything not Resolved is refused with `409` (cancel it instead); a
  * Cancelled ticket is kept for audit.
@@ -221,7 +221,7 @@ export function apiAssignTicket(id: number, assigneeId: number, note?: string): 
 }
 
 /**
- * ADR-003: an Admin retires a request. Soft cancel — the ticket and its
+ * ADR-003: an Admin retires a request. Soft cancel - the ticket and its
  * history are kept (status becomes `Cancelled`); it is never deleted.
  */
 export function apiCancelTicket(id: number, reason: string): Promise<Ticket> {
@@ -232,7 +232,7 @@ export function apiCancelTicket(id: number, reason: string): Promise<Ticket> {
 
 /**
  * List accounts. The Users tab passes `includeInactive = true` so a
- * **deactivated** account stays visible — its row holds the email address, so
+ * **deactivated** account stays visible - its row holds the email address, so
  * reactivating it is the only way that address can be used again (creating a
  * duplicate is refused with `409`).
  */
@@ -259,7 +259,7 @@ export function apiCreateUser(input: {
 }
 
 /**
- * ADR-011: the Admin sets an account's password **directly** — the alternative
+ * ADR-011: the Admin sets an account's password **directly** - the alternative
  * to handing over the one-time link. The password is hashed server-side and any
  * pending reset link is cleared, so an old link can never outlive the change.
  * The Admin then knows the credential; the person can change it from the top bar.
@@ -288,7 +288,7 @@ export function apiDeleteUser(
 }
 
 /**
- * ADR-007: Admin-initiated password recovery — mints a one-time reset link for
+ * ADR-007: Admin-initiated password recovery - mints a one-time reset link for
  * an account and returns it, so the Admin can hand it to the employee. Needs no
  * mail provider; the employee sets their own password and the Admin never sees
  * it. Single-use and time-limited (docs/security.md).

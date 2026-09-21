@@ -3,10 +3,10 @@ import { apiUpdateStatus } from '../api';
 import type { Ticket } from '../types';
 
 /**
- * The narrow slice — "React action".
+ * The narrow slice - "React action".
  *
  * Rendered by the assigned agent on an `In Progress` ticket, and by an Admin
- * (who reaches it through the explicit override path — ADR-002). Submits:
+ * (who reaches it through the explicit override path - ADR-002). Submits:
  *
  *   PATCH /tickets/:id/status
  *   { "status": "Resolved", "resolutionNote": "…" }                     // agent
@@ -14,7 +14,7 @@ import type { Ticket } from '../types';
  *
  * and hands the authoritative, updated ticket back to the parent so the UI can
  * move it to the "Resolved" section immediately. The backend rejects an empty
- * note (and a missing override reason) with 400 — the message is surfaced right
+ * note (and a missing override reason) with 400 - the message is surfaced right
  * here in the form.
  */
 export function ResolveControl({

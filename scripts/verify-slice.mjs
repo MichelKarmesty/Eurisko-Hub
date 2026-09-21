@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Eurisko Hub — "Assigned agent resolves a ticket" slice verifier.
+ * Eurisko Hub - "Assigned agent resolves a ticket" slice verifier.
  *
  * Runs the Definition-of-Done checks for the slice
  *   React action -> PATCH /tickets/:id/status -> SQLite -> React result
@@ -11,11 +11,11 @@
  *   node scripts/verify-slice.mjs [full|persist]
  *
  * Modes:
- *   full    — fresh-DB scenario: provisions users, opens a ticket, claims it,
+ *   full    - fresh-DB scenario: provisions users, opens a ticket, claims it,
  *             runs the negative tests (400 empty note, 400 bad status,
  *             403 requester, 403 unassigned agent, 403 admin-on-others) and
  *             resolves it as the assigned agent. Leaves durable state behind.
- *   persist — restart-proof check: logs in again and asserts the Resolved
+ *   persist - restart-proof check: logs in again and asserts the Resolved
  *             ticket + RESOLVED history event are still there (proves the
  *             state change survived a server restart).
  *
@@ -32,7 +32,7 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@eurisko.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'Admin123!';
 
 /**
- * Test fixtures — NOT application demo data. The app seeds only the Admin and
+ * Test fixtures - NOT application demo data. The app seeds only the Admin and
  * has no public registration (ADR-004), so this verifier provisions the
  * accounts it needs through the real Admin API (`ensureUser` below).
  */
@@ -154,7 +154,7 @@ async function run() {
     check('Assigned agent claims ticket', claimed.status === 200 && claimed.data?.status === 'In Progress', `HTTP ${claimed.status} -> ${claimed.data?.status}`);
     check('Claim records assignedToId', claimed.data?.assignedToId === agent.user?.id, `assignedTo=${claimed.data?.assignedToId}`);
 
-    // 5. Validation — the backend must reject bad input (400) ...
+    // 5. Validation - the backend must reject bad input (400) ...
     const emptyNote = await resolveTicket(agent.accessToken, ticket.id, '   ');
     check('400: empty resolutionNote rejected', emptyNote.status === 400, `HTTP ${emptyNote.status} ${JSON.stringify(emptyNote.data?.message)}`);
 
@@ -188,7 +188,7 @@ async function run() {
     check('RESOLVED event records actor + note', resolvedEvent?.actorId === agent.user?.id && resolvedEvent?.note === NOTE, `actor=${resolvedEvent?.actorId}`);
 
     // 9. Admin override (ADR-002): an Admin may still drive a ticket nobody
-    //    claimed, but only with an explicit reason — which is recorded.
+    //    claimed, but only with an explicit reason - which is recorded.
     const adminTicket = await req('POST', '/tickets', {
       token: admin.accessToken,
       body: { title: `${ADMIN_TITLE_PREFIX}printer jam`, description: 'Admin-created to verify the override policy.', category: 'HR', priority: 'Medium' },

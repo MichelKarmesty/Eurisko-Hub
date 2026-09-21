@@ -1,23 +1,23 @@
 /**
- * v0.4 — AI INTAKE EVAL (docs/week4-production-ai.md §"Eval results").
+ * v0.4 - AI INTAKE EVAL (docs/week4-production-ai.md §"Eval results").
  *
  * Nine eval cases for the AI-assisted Request Intake capability, in two
  * groups with deliberately different guarantees:
  *
- *   Cases 1–5 — behaviour against a REAL provider. No local installation is
+ *   Cases 1–5 - behaviour against a REAL provider. No local installation is
  *   required: the default provider is Groq's free OpenAI-compatible API
  *   (https://api.groq.com/openai/v1), which needs only a free `AI_API_KEY`
  *   from console.groq.com. If no provider answers (no key, no network) these
- *   cases skip gracefully instead of failing — a paid provider is never
+ *   cases skip gracefully instead of failing - a paid provider is never
  *   required. When a provider *does* answer they also require the configured
  *   `AI_MODEL` to actually reply (`source: "ai"`): a retired or misspelled
  *   model name must not hide behind the offline fallback. They assert what the
- *   product promises — the suggestion is always inside the domain enums and
- *   always usable — rather than exact wording from a specific model, which
+ *   product promises - the suggestion is always inside the domain enums and
+ *   always usable - rather than exact wording from a specific model, which
  *   would be flaky and would pin the eval to one LLM. A local Ollama works
  *   too: AI_PROVIDER_URL=http://localhost:11434/v1.
  *
- *   Cases 6–9 — the safety net, fully mocked and therefore deterministic and
+ *   Cases 6–9 - the safety net, fully mocked and therefore deterministic and
  *   always run: whatever the model returns (garbage, wrong enums, wrong types)
  *   the validation layer emits valid values, a dead provider produces a graceful
  *   fallback instead of an exception, and text that is not a support request is
@@ -51,7 +51,7 @@ beforeAll(async () => {
   // The service retries a transient failure once; tests keep that instant.
   process.env.AI_RETRY_DELAY_MS = process.env.AI_RETRY_DELAY_MS ?? '0';
 
-  // Groq requires the key on every call — including this probe, otherwise it
+  // Groq requires the key on every call - including this probe, otherwise it
   // answers 401 and the real cases would always skip.
   const apiKey = process.env.AI_API_KEY;
 
@@ -137,7 +137,7 @@ function expectUsable(result: AiIntakeResult, label: string): NonNullable<AiInta
 /**
  * A real-provider answer: usable AND genuinely from the model. Without this, a
  * retired or misspelled `AI_MODEL` falls back to the offline classifier and
- * still "passes" — the exact silent failure this guards against.
+ * still "passes" - the exact silent failure this guards against.
  */
 function expectModelAnswer(result: AiIntakeResult, label: string): NonNullable<AiIntakeResult['suggestion']> {
   const suggestion = expectUsable(result, label);
@@ -145,7 +145,7 @@ function expectModelAnswer(result: AiIntakeResult, label: string): NonNullable<A
   return suggestion;
 }
 
-describe('AI intake eval — real provider (skips when no provider is running)', () => {
+describe('AI intake eval - real provider (skips when no provider is running)', () => {
   it('1. clear IT report -> IT, with a usable priority and title', async ({ skip }) => {
     if (!providerAvailable) skip();
     const suggestion = expectModelAnswer(
@@ -179,7 +179,7 @@ describe('AI intake eval — real provider (skips when no provider is running)',
     if (!providerAvailable) skip();
     const thin = expectModelAnswer(await service.suggest('help'), 'thin input');
     expectModelAnswer(await service.suggest('something is wrong'), 'thin input (second wording)');
-    // v0.6 — "wrote very little" must never be mistaken for "not a request". The
+    // v0.6 - "wrote very little" must never be mistaken for "not a request". The
     // prompt says so explicitly; this is the assertion that keeps the relevance
     // signal from nagging the employees who write the least.
     expect(thin.relevant, 'thin input must stay relevant').not.toBe(false);
@@ -198,7 +198,7 @@ describe('AI intake eval — real provider (skips when no provider is running)',
   });
 });
 
-describe('AI intake eval — validation and failure handling (mocked, always runs)', () => {
+describe('AI intake eval - validation and failure handling (mocked, always runs)', () => {
   it('6. the validation layer emits domain values for any AI output', () => {
     const hostileInputs: unknown[] = [
       null,
@@ -260,12 +260,12 @@ describe('AI intake eval — validation and failure handling (mocked, always run
       // It never claims model-like certainty: rules are capped low on purpose.
       expect(offline.confidence).toBeLessThanOrEqual(0.6);
     }
-    // No signal at all still yields something valid — and a modest confidence.
+    // No signal at all still yields something valid - and a modest confidence.
     const vague = classifyOffline('help');
     expect(CATEGORIES).toContain(vague.category);
     expect(PRIORITIES).toContain(vague.priority);
     expect(vague.confidence).toBeLessThan(0.4);
-    // v0.6 — relevance is on this path too, and it means the weak, verifiable
+    // v0.6 - relevance is on this path too, and it means the weak, verifiable
     // thing rules can mean: nothing matched. Real reports are never flagged.
     expect(vague.relevant).toBe(false);
     expect(vague.reason).toBeTruthy();
@@ -329,7 +329,7 @@ describe('AI intake eval — validation and failure handling (mocked, always run
     delete process.env.AI_API_KEY;
   });
 
-  it('8. provider failure is always graceful — strict error, or a labelled offline suggestion', async () => {
+  it('8. provider failure is always graceful - strict error, or a labelled offline suggestion', async () => {
     // Strict contract (AI_OFFLINE_FALLBACK=false): null + a clear error.
     process.env.AI_OFFLINE_FALLBACK = 'false';
     stubProviderDown();
@@ -451,7 +451,7 @@ describe('AI intake eval — validation and failure handling (mocked, always run
 
     // The two producers do not claim the same thing, so they do not say the
     // same thing: a model judges "this is not a request", while the keyword
-    // classifier can only report that it found nothing to match — which is
+    // classifier can only report that it found nothing to match - which is
     // equally true of a short-but-real "help". The rules' notice must therefore
     // be the weaker wording, never the model's.
     expect(offlineJunk.notice).toMatch(/not enough here/i);

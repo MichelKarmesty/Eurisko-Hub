@@ -60,7 +60,7 @@ export class TicketsService {
   ) {}
 
   /**
-   * POST /tickets — any authenticated user opens a ticket in their name.
+   * POST /tickets - any authenticated user opens a ticket in their name.
    * The ticket is created OPEN and immediately joins its department queue
    * (ADR-001: status remains Open until an agent explicitly claims it).
    */
@@ -101,7 +101,7 @@ export class TicketsService {
     const where: Record<string, unknown> = {};
 
     if (isAdminRole(user.role)) {
-      // Global view (Admin Pattern) — filters allowed below.
+      // Global view (Admin Pattern) - filters allowed below.
     } else if (isAgentRole(user.role)) {
       // Agents are confined to their department (architecture.md §3, api.md).
       const department =
@@ -161,7 +161,7 @@ export class TicketsService {
   }
 
   /**
-   * ADR-001: PATCH /tickets/:id/claim — an agent claims an OPEN, unclaimed
+   * ADR-001: PATCH /tickets/:id/claim - an agent claims an OPEN, unclaimed
    * ticket from their own department queue. Sets assignedToId and moves the
    * status to In Progress. Already-claimed or non-Open tickets are rejected.
    */
@@ -180,7 +180,7 @@ export class TicketsService {
       throw new ForbiddenException('This ticket is already claimed.');
     }
     // Conflict of interest: an agent must not handle a ticket they submitted
-    // themselves — a colleague from the same department queue takes it.
+    // themselves - a colleague from the same department queue takes it.
     if (ticket.requesterId === user.id) {
       throw new ForbiddenException(
         'You cannot claim a ticket you submitted yourself — leave it for a colleague in the queue.',
@@ -204,13 +204,13 @@ export class TicketsService {
   }
 
   /**
-   * PATCH /tickets/:id/status — advance the ticket one step along the
+   * PATCH /tickets/:id/status - advance the ticket one step along the
    * documented lifecycle (Open -> In Progress -> Resolved). Only the
    * assigned agent (or an Admin) may change status, and moving to Resolved
    * requires a non-empty resolution note (data-model.md §2).
    *
    * ADR-002 (Admin override): an Admin may still act on a ticket that is not
-   * assigned to them, but that is an explicit override — a non-empty
+   * assigned to them, but that is an explicit override - a non-empty
    * `overrideReason` is required and the change is recorded as an
    * ADMIN_OVERRIDE history event, so no ticket is ever silently closed
    * without an agent (or a stated reason).
@@ -304,7 +304,7 @@ export class TicketsService {
   }
 
   /**
-   * ADR-003: PATCH /tickets/:id/assign — an Admin gives an unclaimed ticket an
+   * ADR-003: PATCH /tickets/:id/assign - an Admin gives an unclaimed ticket an
    * owner by assigning it to an agent of the matching department. Moves the
    * ticket Open -> In Progress (the documented claim transition) and records an
    * ASSIGNED event, so urgent work gets a named owner without an override.
@@ -358,7 +358,7 @@ export class TicketsService {
   }
 
   /**
-   * ADR-003: PATCH /tickets/:id/cancel — an Admin retires a request that should
+   * ADR-003: PATCH /tickets/:id/cancel - an Admin retires a request that should
    * not be worked (duplicate, obsolete, withdrawn). This is a SOFT cancel: the
    * ticket keeps its row and full history with status `Cancelled`; we never
    * hard-delete tickets, because the audit trail is a core product requirement.
@@ -395,7 +395,7 @@ export class TicketsService {
   }
 
   /**
-   * ADR-010: DELETE /tickets/:id — an Admin **permanently deletes a Resolved
+   * ADR-010: DELETE /tickets/:id - an Admin **permanently deletes a Resolved
    * ticket**. This is the one deliberate exception to ADR-003's "a ticket is
    * never hard-deleted": the row and its `ticket_events` leave the database
    * together, so the request disappears for the requester, the agents and the
@@ -403,7 +403,7 @@ export class TicketsService {
    *
    * Only a `Resolved` ticket qualifies. Anything still being worked is retired
    * with the **soft** `cancel` above, and a `Cancelled` ticket stays as the
-   * audit record — both are refused here with `409`, so a typo cannot erase
+   * audit record - both are refused here with `409`, so a typo cannot erase
    * work in progress.
    *
    * The deletion removes the ticket's own trace, so the action itself is written

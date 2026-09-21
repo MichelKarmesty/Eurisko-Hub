@@ -71,7 +71,7 @@ export class UsersService {
    * the same id instead of dangling.
    *
    * Only ever called for an account that is `isActive === false`; an **active**
-   * account keeps the plain 409 — someone still has access with that address, and
+   * account keeps the plain 409 - someone still has access with that address, and
    * silently taking it over would be wrong.
    */
   async revive(
@@ -133,7 +133,7 @@ export class UsersService {
    * (`PATCH /users/:id/password`, ADR-011).
    *
    * The Admin-issued link (ADR-007) has the employee choose their own password,
-   * which is the better shape — but it needs the person to open the link. When
+   * which is the better shape - but it needs the person to open the link. When
    * the Admin is standing next to them, or resetting a demo/test account, they
    * can set the password here instead. The password is bcrypt-hashed like any
    * other, and setting it **clears any pending reset link** (`setPassword` above),
@@ -159,7 +159,7 @@ export class UsersService {
    *
    * A demotion can empty the Admin seat just as effectively as a delete, so the
    * same "a database can never be locked out" rule applies (ADR-004,
-   * docs/security.md) — and it is enforced here, at the API boundary, not in the
+   * docs/security.md) - and it is enforced here, at the API boundary, not in the
    * Users tab:
    *
    *  - an Admin can never change their **own** Admin role (400): that is how a
@@ -216,7 +216,7 @@ export class UsersService {
    * Admin action: remove an account (`DELETE /users/:id`).
    *
    * Rules:
-   *  - an Admin can never delete their own account (400) — that is how a
+   *  - an Admin can never delete their own account (400) - that is how a
    *    session would lock itself out mid-request;
    *  - the last remaining active Admin can never be deleted (400), matching the
    *    "a database can never be locked out" rule (ADR-004);
@@ -275,14 +275,14 @@ export class UsersService {
    * (`PATCH /users/:id/active`).
    *
    * **Reactivating is how an address comes back into use.** A deactivated row
-   * keeps its email — its tickets/history still reference it — so `POST /users`
+   * keeps its email (its tickets/history still reference it) so `POST /users`
    * rightly refuses the duplicate. Instead of a second row, the Admin restores
    * *that* account (Users → **Reactivate**), which keeps every historical
    * reference pointing at the same person.
    *
    * Deactivating is the revoke half of the same switch and follows the
    * "a database can never be locked out" rule (ADR-004):
-   *  - an Admin can never deactivate their **own** account (400) — that is how a
+   *  - an Admin can never deactivate their **own** account (400) - that is how a
    *    session would revoke itself mid-request;
    *  - the last remaining active Admin can never be deactivated (400).
    *

@@ -1,7 +1,7 @@
 /**
  * E2E for the Admin ticket actions (ADR-003):
  *  - assign an unclaimed ticket to a matching agent (gives it an owner), and
- *  - soft-cancel a request (kept with status Cancelled — never deleted).
+ *  - soft-cancel a request (kept with status Cancelled - never deleted).
  *
  * Prereqs: backend on :3000 (or API_URL); the Vitest global setup provisions
  * the test fixtures through the Admin API. No public registration (ADR-004).

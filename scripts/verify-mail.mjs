@@ -17,7 +17,7 @@
  * Resend transports are called exactly as `MailService` calls them.
  *
  * The exit code is 0 when at least one transport delivered (the app can still
- * send), 1 when none did — so it can gate CI.
+ * send), 1 when none did - so it can gate CI.
  */
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -108,7 +108,7 @@ for (const sender of [
 ].filter(Boolean)) {
   // An SMTP block whose values are still empty/placeholders is not configured:
   // skip it with a note instead of failing the whole check (the other
-  // transports may be perfectly fine — e.g. a Resend-only setup).
+  // transports may be perfectly fine - e.g. a Resend-only setup).
   const incomplete = Object.entries(sender.keys).filter(
     ([field, key]) =>
       !sender[field] ||

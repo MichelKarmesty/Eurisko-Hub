@@ -7,7 +7,7 @@ export interface MailMessage {
   text: string;
 }
 
-/** How a message actually left the process — reported back to the caller. */
+/** How a message actually left the process - reported back to the caller. */
 export type MailDelivery = 'smtp' | 'smtp-alt' | 'webhook' | 'resend' | 'console';
 
 /** One configured SMTP server, with the label it reports when it delivers. */
@@ -26,31 +26,31 @@ interface SmtpTransport {
  * as the AI intake's offline fallback and the zero-setup SQLite database): out of
  * the box every message is written to the backend console, so the "forgot
  * password" flow is fully usable in development with nothing installed. For real
- * delivery, configure **any** of these — the service itself never changes, and the
+ * delivery, configure **any** of these - the service itself never changes, and the
  * first configured transport that works wins, in this order:
  *
- *  1. `SMTP_HOST` — a standard mail server, so Gmail, Outlook/Hotmail, a company
+ *  1. `SMTP_HOST` - a standard mail server, so Gmail, Outlook/Hotmail, a company
  *     server or any SMTP provider works. `SMTP_PORT` (default 587), `SMTP_SECURE`
- *     (default true only for 465 — implicit TLS; 587 uses STARTTLS),
+ *     (default true only for 465 - implicit TLS; 587 uses STARTTLS),
  *     `SMTP_USER` / `SMTP_PASS` (an app password where 2FA is on) and the
  *     `MAIL_FROM` address (override per provider with `SMTP_FROM`). Implemented by
- *     a tiny built-in client (`smtp.client.ts`) — no npm dependency.
- *  2. `SMTP_ALT_HOST` — a **second** SMTP server, tried when the first one fails
+ *     a tiny built-in client (`smtp.client.ts`) - no npm dependency.
+ *  2. `SMTP_ALT_HOST` - a **second** SMTP server, tried when the first one fails
  *     (e.g. Gmail as the primary sender and Outlook as the backup, or vice versa).
  *     Same variables with the `SMTP_ALT_` prefix: `SMTP_ALT_PORT`,
  *     `SMTP_ALT_SECURE`, `SMTP_ALT_USER`, `SMTP_ALT_PASS` and `SMTP_ALT_FROM`
  *     (defaults to `MAIL_FROM`). Its own `From` matters: Gmail rewrites a
  *     mismatched sender to the authenticated account, and some servers reject it
  *     outright, so set `SMTP_ALT_FROM` to the alternate account's own address.
- *  3. `MAIL_WEBHOOK_URL` — POSTs `{ to, subject, text }` as JSON to any HTTPS
+ *  3. `MAIL_WEBHOOK_URL` - POSTs `{ to, subject, text }` as JSON to any HTTPS
  *     endpoint that accepts the payload (an internal relay, Zapier, a serverless
  *     function…). `MAIL_WEBHOOK_TOKEN` adds `Authorization: Bearer <token>`.
- *  4. `RESEND_API_KEY` — POSTs to Resend's HTTP API
+ *  4. `RESEND_API_KEY` - POSTs to Resend's HTTP API
  *     (<https://api.resend.com/emails>) from `MAIL_FROM`, no SDK required.
  *
  * A provider failure is logged and then the next transport (finally the console)
  * is tried, so a missing or misconfigured provider can never break account
- * recovery — it only ever changes *how* the link reaches the person.
+ * recovery - it only ever changes *how* the link reaches the person.
  */
 @Injectable()
 export class MailService {

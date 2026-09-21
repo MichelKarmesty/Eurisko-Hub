@@ -1,5 +1,5 @@
 /**
- * PASSWORD RECOVERY + CHANGE — HTTP contract tests.
+ * PASSWORD RECOVERY + CHANGE - HTTP contract tests.
  *
  * Boots the whole application over the same HTTP pipeline as `main.ts` and
  * drives it with supertest, pinning the behaviour of the recovery paths on top
@@ -141,7 +141,7 @@ describe('Password recovery and change over HTTP', () => {
       expect(hidden.status).toBe(404);
       expect(String(hidden.body.message)).toMatch(/Cannot POST \/auth\/forgot-password/);
 
-      // Completing an Admin-issued link still works — that is the supported route.
+      // Completing an Admin-issued link still works - that is the supported route.
       const reset = await request(http)
         .post('/auth/reset-password')
         .send({ token: 'a'.repeat(64), password: NEW_PASSWORD });
@@ -166,7 +166,7 @@ describe('Password recovery and change over HTTP', () => {
     const created = await provision(email);
     expect(created.status).toBe(201);
 
-    // The account has no history, so DELETE really removes it — a forgotten
+    // The account has no history, so DELETE really removes it - a forgotten
     // password for a row that no longer exists must stay indistinguishable
     // from a never-registered address.
     const deleted = await request(http)
@@ -191,7 +191,7 @@ describe('Password recovery and change over HTTP', () => {
       `http://localhost:5173/?resetToken=${res.body.resetToken}`,
     );
     // No mail provider is configured in the test environment, so MailService
-    // falls through to its console transport — proving the send path ran.
+    // falls through to its console transport - proving the send path ran.
     expect(res.body.delivery).toBe('console');
   });
 
@@ -422,7 +422,7 @@ describe('Password recovery and change over HTTP', () => {
     expect(account.status).toBe(201);
 
     // Plant a token that was valid yesterday: same storage the app uses, only
-    // the expiry differs — the case ADR-005 documents as "expiry rejection".
+    // the expiry differs - the case ADR-005 documents as "expiry rejection".
     const token = 'e'.repeat(64);
     const users = app.get(UsersService);
     await users.setPasswordResetToken(

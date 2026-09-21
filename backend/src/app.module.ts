@@ -74,7 +74,7 @@ export class AppModule implements OnApplicationBootstrap {
    *
    * The statement has to go through the driver's own connection: on `sqljs`,
    * `dataSource.query()` does not persist a PRAGMA (the connection still reports
-   * `0` right after), while `databaseConnection.run()` does — and the setting
+   * `0` right after), while `databaseConnection.run()` does - and the setting
    * then survives ordinary repository traffic. `admin-user-deletion.spec.ts`
    * pins both facts.
    */

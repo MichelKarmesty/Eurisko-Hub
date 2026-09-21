@@ -10,8 +10,8 @@ import { Notice, Spinner, StatusBadge } from './ui';
  * Support Agent workspace.
  *
  * Tabs:
- *  1. Queue     — claim Open tickets from the agent's department (ADR-001).
- *  2. Submit    — open a ticket for any department (api.md: POST /tickets is
+ *  1. Queue     - claim Open tickets from the agent's department (ADR-001).
+ *  2. Submit    - open a ticket for any department (api.md: POST /tickets is
  *                 available to "any authenticated user").
  *
  * The agent claims an Open ticket which moves it to In Progress, then uses
@@ -90,7 +90,7 @@ function QueueTab({ user }: { user: { id: number; name: string } }) {
           empty="Nothing waiting in your queue."
           actions={(t) =>
             t.requesterId === user.id ? (
-              // Self-submitted request — must be handled by a colleague.
+              // Self-submitted request - must be handled by a colleague.
               <span className="muted small" title="You submitted this request — it must be handled by another agent.">
                 Your request
               </span>
@@ -142,7 +142,7 @@ function QueueTab({ user }: { user: { id: number; name: string } }) {
 }
 
 // ---------------------------------------------------------------------------
-// Submit ticket tab (api.md: POST /tickets — any authenticated user)
+// Submit ticket tab (api.md: POST /tickets - any authenticated user)
 // ---------------------------------------------------------------------------
 
 function SubmitTab({ user }: { user: { id: number; name: string } }) {
@@ -158,15 +158,15 @@ function SubmitTab({ user }: { user: { id: number; name: string } }) {
   const loadMyTickets = useCallback(async () => {
     try {
       // Show the requests THIS agent opened. An agent's GET /tickets returns
-      // their own department's OPEN queue — the API has no "opened by me"
-      // scope — so keep only the rows this agent requested. A request opened
+      // their own department's OPEN queue - the API has no "opened by me"
+      // scope - so keep only the rows this agent requested. A request opened
       // for another department is not in that list; it is worked in that
       // department's queue, and it appears here immediately after it is
       // submitted.
       const visible = await apiListTickets();
       setMyTickets(visible.filter((t) => t.requesterId === user.id));
     } catch {
-      // non-critical — just leave empty
+      // non-critical - just leave empty
     } finally {
       setLoadingTickets(false);
     }
@@ -262,7 +262,7 @@ function SubmitTab({ user }: { user: { id: number; name: string } }) {
 }
 
 // ---------------------------------------------------------------------------
-// AgentView — tabbed shell
+// AgentView - tabbed shell
 // ---------------------------------------------------------------------------
 
 export function AgentView({ user }: { user: { id: number; name: string } }) {

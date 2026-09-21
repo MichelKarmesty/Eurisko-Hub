@@ -56,7 +56,7 @@ const AGENT_DEPARTMENT: Partial<Record<Role, Category>> = {
 };
 
 /**
- * ADR-003: the normal Admin action for an unclaimed ticket — hand it to an
+ * ADR-003: the normal Admin action for an unclaimed ticket - hand it to an
  * agent of the matching department so it has a named owner (Open -> In
  * Progress). Submits PATCH /tickets/:id/assign { assigneeId }.
  */
@@ -102,7 +102,7 @@ function AdminAssignControl({
 }
 
 /**
- * ADR-003: retire a request that should not be worked. Soft cancel — the
+ * ADR-003: retire a request that should not be worked. Soft cancel - the
  * ticket and its history are kept, never deleted. Submits
  * PATCH /tickets/:id/cancel { reason }.
  */
@@ -249,8 +249,8 @@ function TicketsTab() {
 
   /**
    * ADR-010: permanently delete a **Resolved** ticket. Unlike every other Admin
-   * action the record does not survive — the ticket and its history rows are
-   * removed from the database — so this is the one action that asks for an
+   * action the record does not survive - the ticket and its history rows are
+   * removed from the database - so this is the one action that asks for an
    * explicit confirmation spelling that out.
    */
   const removeTicket = async (t: Ticket) => {
@@ -365,7 +365,7 @@ function TicketsTab() {
                       onAssign={(assigneeId) => void assign(t, assigneeId)}
                     />
                   ) : (
-                    // No matching agent exists — the only way forward is an
+                    // No matching agent exists - the only way forward is an
                     // explicit, recorded override (ADR-002).
                     <AdminStartControl
                       busy={busyId === t.id}
@@ -473,7 +473,7 @@ function UsersTab() {
 
   /**
    * Account lifecycle (ADR-004): reactivate a deactivated account, or revoke an
-   * active one. Reactivating is the supported way to bring an address back —
+   * active one. Reactivating is the supported way to bring an address back -
    * the deactivated row kept the email, so creating a second account with it is
    * refused (409) and this is what unblocks that message.
    */
@@ -512,7 +512,7 @@ function UsersTab() {
   };
 
   /**
-   * Admin deletes any account — Employee, IT/HR/Maintenance agent, or another
+   * Admin deletes any account - Employee, IT/HR/Maintenance agent, or another
    * Admin. The backend refuses deleting your own account and the last active
    * Admin; an account with history is deactivated rather than destroyed so the
    * tickets/history stay intact. Either way it leaves this list immediately.
@@ -556,7 +556,7 @@ function UsersTab() {
 
   /**
    * ADR-007: mint a one-time reset link for a user who forgot their password.
-   * Needs no mail server — the Admin copies the link and hands it over, and the
+   * Needs no mail server - the Admin copies the link and hands it over, and the
    * employee chooses their own new password (the Admin never sees it).
    */
   const handleResetPassword = async (user: User) => {
@@ -886,14 +886,14 @@ function UsersTab() {
 }
 
 // ---------------------------------------------------------------------------
-// AdminView — tabbed shell
+// AdminView - tabbed shell
 // ---------------------------------------------------------------------------
 
 type Tab = 'tickets' | 'users';
 
 /**
  * Admin dashboard: tabbed view with Tickets (global view + lifecycle actions)
- * and Users (create accounts, change roles, delete accounts) — product-spec §3,
+ * and Users (create accounts, change roles, delete accounts) - product-spec §3,
  * api.md §Admin.
  */
 export function AdminView() {

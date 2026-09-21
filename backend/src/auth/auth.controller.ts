@@ -36,7 +36,7 @@ import { AuthUser, CurrentUser, Public } from '../common/auth.decorators';
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
-  /** POST /auth/login — public; returns { accessToken, user }. */
+  /** POST /auth/login - public; returns { accessToken, user }. */
   @Public()
   @HttpCode(HttpStatus.OK)
   @Post('login')
@@ -45,7 +45,7 @@ export class AuthController {
   }
 
   /**
-   * POST /auth/forgot-password — **off by default** (ADR-009).
+   * POST /auth/forgot-password - **off by default** (ADR-009).
    *
    * Recovery is Admin-initiated: an Admin mints a one-time link
    * (`POST /users/:id/reset-password`) and hands it over. The public, emailed
@@ -66,7 +66,7 @@ export class AuthController {
   }
 
   /**
-   * POST /auth/reset-password — public, step 2. Completes the reset with the
+   * POST /auth/reset-password - public, step 2. Completes the reset with the
    * one-time token from an emailed or Admin-issued link plus the new password.
    */
   @Public()
@@ -77,7 +77,7 @@ export class AuthController {
   }
 
   /**
-   * POST /auth/change-password — signed in. Changes the caller's own password
+   * POST /auth/change-password - signed in. Changes the caller's own password
    * and requires the current one.
    */
   @HttpCode(HttpStatus.OK)
@@ -89,7 +89,7 @@ export class AuthController {
     return this.auth.changePassword(user.id, dto);
   }
 
-  /** GET /auth/me — current profile for the bearer token. */
+  /** GET /auth/me - current profile for the bearer token. */
   @Get('me')
   me(@CurrentUser() user: AuthUser) {
     return { id: user.id, email: user.email, role: user.role };

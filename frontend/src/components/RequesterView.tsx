@@ -11,19 +11,19 @@ const NO_AI: Record<AiFlag, boolean> = { title: false, category: false, priority
 
 /**
  * Requester (Employee) workspace: open a ticket, then follow its status.
- * Per RBAC the requester cannot change status — only the assigned agent or
- * an Admin can — so no action cell is rendered here. The status column is
+ * Per RBAC the requester cannot change status - only the assigned agent or
+ * an Admin can - so no action cell is rendered here. The status column is
  * the "React result": after an agent resolves, a refresh shows Resolved.
  *
  * v0.4 (docs/week4-production-ai.md): the employee can describe the problem in
  * their own words and press **AI Suggest**. The AI fills in Category, Priority
- * and Title as a *suggestion* — every field stays editable, the markers drop
+ * and Title as a *suggestion* - every field stays editable, the markers drop
  * as soon as the employee types, and "Open ticket" still calls the unchanged
  * POST /tickets with the ordinary CreateTicketDto. If the AI is unavailable the
  * form simply carries on by hand.
  *
  * v0.6: if the text does not read as a support request at all, the answer says
- * so (`relevant: false` + a notice) and **nothing is pre-filled** — a guess the
+ * so (`relevant: false` + a notice) and **nothing is pre-filled** - a guess the
  * AI itself flagged as meaningless is not worth showing. The form is untouched
  * and the employee opens the ticket by hand.
  */
@@ -75,14 +75,14 @@ export function RequesterView() {
       }
       const suggestion = result.suggestion;
 
-      // v0.6 — the model (or the offline classifier) could not find a support
+      // v0.6 - the model (or the offline classifier) could not find a support
       // request in the text. Nothing is pre-filled: a guess dressed up as a
       // suggestion is worse than none. The employee is told why and carries on.
       //
       // The severity follows the claim being made. A model saying "this is not a
       // request" is an error worth red; the keyword classifier reporting only
-      // "I found nothing to match" is the softer, weaker statement — it says
-      // that about a perfectly good "help" too — so it stays informational.
+      // "I found nothing to match" is the softer, weaker statement - it says
+      // that about a perfectly good "help" too - so it stays informational.
       if (suggestion.relevant === false) {
         const fromRules = result.source === 'offline';
         setAiSuggested(NO_AI);
@@ -101,7 +101,7 @@ export function RequesterView() {
       setPriority(suggestion.priority);
       setAiSuggested({ title: true, category: true, priority: true });
 
-      // A suggestion produced without a model is labelled as such — the UI never
+      // A suggestion produced without a model is labelled as such - the UI never
       // dresses up the offline classifier as the AI's answer.
       const offline = result.source === 'offline';
       setAiSource(offline ? 'offline' : 'ai');
