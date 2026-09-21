@@ -1,0 +1,4 @@
+# Local Worker state — never commit any of this
+.dev.vars
+.wrangler/
+node_modules/

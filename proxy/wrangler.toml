@@ -1,0 +1,12 @@
+# Eurisko Hub — shared demo AI provider.
+#
+# Deploy from this folder:  npx wrangler deploy
+# The AI key is NOT here: it is a Cloudflare secret named GROQ_API_KEY
+# (npx wrangler secret put GROQ_API_KEY). Never put it in this file.
+
+name = "eurisko-hub-demo-ai"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# The Worker is stateless and the rate limiter is in-memory by design;
+# no bindings, no storage, no KV, no Durable Objects.
