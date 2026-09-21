@@ -24,7 +24,7 @@ npx vitest run                                   # or: npm run test:ui
 ```
 
 Point at a different API with `API_URL=http://127.0.0.1:3100 npm run test:ui`.
-The suite contains four tests:
+The suite contains five tests:
 
 * `dom/resolve-slice.ui.test.tsx` — Rana opens a ticket → Karim claims it →
   empty resolution note is rejected (backend 400 rendered in the form) → Karim
@@ -39,6 +39,9 @@ The suite contains four tests:
 * `dom/admin-creates-account.ui.test.tsx` — ADR-004, the tester's first run: the
   Admin creates an Employee in the **Users** tab, then **Switch account** signs
   in as that new account and it opens a ticket.
+* `dom/change-password.ui.test.tsx` — ADR-005: an Employee and an IT agent each
+  change their own password from the top bar (not only the Admin), and the new
+  password is the one that works afterwards.
 
 These harnesses keep using the sign-in form (the same `Email` / `Password`
 labels and `Log in` button). The sign-in card offers only **I have a reset

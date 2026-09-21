@@ -102,6 +102,8 @@ test/
   admin-role-change.spec.ts             role changes + the last-active-Admin guard
   admin-user-deletion.spec.ts           DELETE /users/:id: contract, audit rule,
                                         foreign-key enforcement
+  admin-user-reactivation.spec.ts       ADR-004: reactivating a deactivated account
+                                        (no dead-end 409)
   auth-password.spec.ts                 v0.5 forgot/reset/change + any-email rule
   admin-reset-password.spec.ts          ADR-007/ADR-009: Admin-issued reset link
   mail-smtp.spec.ts                     SMTP transport selection + console fallback

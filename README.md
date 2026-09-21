@@ -396,9 +396,10 @@ npm run test:ai-eval      # v0.4/v0.6: the 9 AI intake eval cases
   ```
 
   Point it elsewhere with `API_URL=http://127.0.0.1:3100 npm run test:ui`.
-  The four tests cover the resolve slice, the Admin override (ADR-002), Admin
-  assign/cancel (ADR-003), and the first run itself (the Admin creates an
-  account in the Users tab and signs in as it).
+  The five tests cover the resolve slice, the Admin override (ADR-002), Admin
+  assign/cancel (ADR-003), the first run itself (the Admin creates an account in
+  the Users tab and signs in as it), and changing a password from the top bar
+  (ADR-005, every role — not only the Admin).
 
 * **Real-browser E2E (Playwright — self-contained, self-installing):**
 

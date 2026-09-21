@@ -390,12 +390,18 @@ $ cd backend && npm test
 
 > **Added after this record.** Several suites landed later — `ai-intake-eval.spec.ts`
 > (Week 4 AI intake, [`week4-production-ai.md`](week4-production-ai.md)),
-> `auth-password.spec.ts`, `admin-role-change.spec.ts`,
-> `admin-user-deletion.spec.ts`, `admin-reset-password.spec.ts` (ADR-007) and
-> `mail-smtp.spec.ts` (restored with the mail transports by ADR-008) — so
-> `npm test` runs **10 spec files** (five AI-eval cases skip when no AI provider is
-> running), and `npm run test:ai-eval` runs the AI evals on their own. The
-> Week 3 numbers above are kept as the record of that delivery.
+> `admin-role-change.spec.ts`, `auth-password.spec.ts`,
+> `admin-reset-password.spec.ts` (ADR-007), `admin-user-reactivation.spec.ts`
+> (ADR-004) and `mail-smtp.spec.ts` (restored with the mail transports by
+> ADR-008) — and the DOM suite gained `change-password.ui.test.tsx`. So `npm test`
+> now runs **11 spec files**, and `cd e2e && npm run test:ui` **5 DOM tests**
+> (five AI-eval cases skip when no AI provider is running);
+> `npm run test:ai-eval` runs the AI evals on their own. The Week 3 numbers above
+> are kept as the record of that delivery.
+>
+> Latest verified run (`b2c4371`, browser layer skipped): backend
+> **102 passed, 5 skipped (107)** · live HTTP **28/28** · AI intake **11/11** ·
+> DOM UI **5/5** — `node scripts/run-tests.mjs` → `ALL TESTS PASSED`.
 
 $ node scripts/verify-slice.mjs full
  28/28 checks passed   (live HTTP definition of done, fresh database)
