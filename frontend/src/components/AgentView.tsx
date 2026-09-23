@@ -275,13 +275,13 @@ export function AgentView({ user }: { user: { id: number; name: string } }) {
           className={`tab-btn${tab === 'queue' ? ' tab-btn--active' : ''}`}
           onClick={() => setTab('queue')}
         >
-          🎫 My Queue
+          <span aria-hidden="true">🎫</span> My Queue
         </button>
         <button
           className={`tab-btn${tab === 'submit' ? ' tab-btn--active' : ''}`}
           onClick={() => setTab('submit')}
         >
-          ✉️ Submit a Request
+          <span aria-hidden="true">✉️</span> Submit a Request
         </button>
       </nav>
 

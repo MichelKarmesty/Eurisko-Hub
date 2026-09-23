@@ -96,6 +96,9 @@ export function AuthScreen({ onAuthed }: { onAuthed: (session: Session) => void 
   return (
     <div className="auth-wrap">
       <div className="card auth-card">
+        <div className="auth-mark" aria-hidden="true">
+          E
+        </div>
         <h1>Eurisko Hub</h1>
         <p className="muted">
           Internal Operations Service Hub — sign in to continue.

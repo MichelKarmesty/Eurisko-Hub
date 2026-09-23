@@ -778,103 +778,105 @@ function UsersTab() {
         ) : users.length === 0 ? (
           <p className="muted">No users yet.</p>
         ) : (
-          <table className="ticket-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Change role</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => (
-                <tr key={u.id}>
-                  <td className="muted small">{u.id}</td>
-                  <td>{u.name}</td>
-                  <td className="small">{u.email}</td>
-                  <td>
-                    <span className="role-chip">{ROLE_LABELS[u.role]}</span>
-                  </td>
-                  <td>
-                    {u.isActive === false ? (
-                      <span className="role-chip" title="Deactivated: ticket history references this account, so the row (and its email) were kept.">
-                        Deactivated
-                      </span>
-                    ) : (
-                      <span className="muted small">Active</span>
-                    )}
-                  </td>
-                  <td>
-                    <select
-                      className="input"
-                      value={u.role}
-                      disabled={patchingId === u.id}
-                      onChange={(e) => void handleRoleChange(u, e.target.value as Role)}
-                    >
-                      {ROLES.map((r) => (
-                        <option key={r} value={r}>{ROLE_LABELS[r]}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <div className="admin-actions">
-                      {/* ADR-007: mint a one-time link for anyone who forgot
-                          their password — no mail server required. */}
-                      <button
-                        type="button"
-                        className="btn btn-ghost"
-                        disabled={resettingId === u.id || u.isActive === false}
-                        onClick={() => void handleResetPassword(u)}
-                      >
-                        {resettingId === u.id ? 'Creating…' : 'Reset password'}
-                      </button>
-                      {/* ADR-004: a deactivated row keeps its email, so this is
-                          the way that address comes back into use. */}
+          <div className="table-wrap">
+            <table className="ticket-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Change role</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u) => (
+                  <tr key={u.id}>
+                    <td className="muted small">{u.id}</td>
+                    <td>{u.name}</td>
+                    <td className="small">{u.email}</td>
+                    <td>
+                      <span className="role-chip">{ROLE_LABELS[u.role]}</span>
+                    </td>
+                    <td>
                       {u.isActive === false ? (
+                        <span className="role-chip" title="Deactivated: ticket history references this account, so the row (and its email) were kept.">
+                          Deactivated
+                        </span>
+                      ) : (
+                        <span className="muted small">Active</span>
+                      )}
+                    </td>
+                    <td>
+                      <select
+                        className="input"
+                        value={u.role}
+                        disabled={patchingId === u.id}
+                        onChange={(e) => void handleRoleChange(u, e.target.value as Role)}
+                      >
+                        {ROLES.map((r) => (
+                          <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <div className="admin-actions">
+                        {/* ADR-007: mint a one-time link for anyone who forgot
+                            their password — no mail server required. */}
                         <button
                           type="button"
                           className="btn btn-ghost"
-                          disabled={patchingId === u.id}
-                          onClick={() => void setActive(u, true)}
+                          disabled={resettingId === u.id || u.isActive === false}
+                          onClick={() => void handleResetPassword(u)}
                         >
-                          {patchingId === u.id ? 'Reactivating…' : 'Reactivate'}
+                          {resettingId === u.id ? 'Creating…' : 'Reset password'}
                         </button>
-                      ) : (
-                        u.id !== currentUserId && (
+                        {/* ADR-004: a deactivated row keeps its email, so this is
+                            the way that address comes back into use. */}
+                        {u.isActive === false ? (
                           <button
                             type="button"
                             className="btn btn-ghost"
                             disabled={patchingId === u.id}
-                            onClick={() => void setActive(u, false)}
+                            onClick={() => void setActive(u, true)}
                           >
-                            {patchingId === u.id ? 'Deactivating…' : 'Deactivate'}
+                            {patchingId === u.id ? 'Reactivating…' : 'Reactivate'}
                           </button>
-                        )
-                      )}
-                      {/* Deleting your own account is refused by the backend
-                          (400) — hide the control for your own row instead. */}
-                      {u.id === currentUserId ? (
-                        <span className="muted small">you</span>
-                      ) : (
-                        <button
-                          type="button"
-                          className="btn btn-danger"
-                          disabled={deletingId === u.id}
-                          onClick={() => void handleDelete(u)}
-                        >
-                          {deletingId === u.id ? 'Deleting…' : 'Delete'}
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                        ) : (
+                          u.id !== currentUserId && (
+                            <button
+                              type="button"
+                              className="btn btn-ghost"
+                              disabled={patchingId === u.id}
+                              onClick={() => void setActive(u, false)}
+                            >
+                              {patchingId === u.id ? 'Deactivating…' : 'Deactivate'}
+                            </button>
+                          )
+                        )}
+                        {/* Deleting your own account is refused by the backend
+                            (400) — hide the control for your own row instead. */}
+                        {u.id === currentUserId ? (
+                          <span className="muted small">you</span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn btn-danger"
+                            disabled={deletingId === u.id}
+                            onClick={() => void handleDelete(u)}
+                          >
+                            {deletingId === u.id ? 'Deleting…' : 'Delete'}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
@@ -906,13 +908,13 @@ export function AdminView() {
           className={`tab-btn${tab === 'tickets' ? ' tab-btn--active' : ''}`}
           onClick={() => setTab('tickets')}
         >
-          🎫 Tickets
+          <span aria-hidden="true">🎫</span> Tickets
         </button>
         <button
           className={`tab-btn${tab === 'users' ? ' tab-btn--active' : ''}`}
           onClick={() => setTab('users')}
         >
-          👥 Users
+          <span aria-hidden="true">👥</span> Users
         </button>
       </nav>
 

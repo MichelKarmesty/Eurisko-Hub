@@ -53,21 +53,40 @@ export default function App() {
         ? 'Requester'
         : `${user.role.replace('_Agent', '')} Agent`;
 
+  // Two initials for the avatar — decorative only, the name is right beside it.
+  const initials = user.name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('');
+
   return (
     <div className="app">
       <header className="topbar">
-        <div className="brand">Eurisko Hub</div>
-        <div className="who">
-          <span className="role-chip">{roleLabel}</span>
-          <span className="muted small">
-            {user.name} · {user.email}
-          </span>
-          <button className="btn btn-ghost" onClick={() => setChangingPassword(true)}>
-            Change password
-          </button>
-          <button className="btn btn-ghost" onClick={logout}>
-            Switch account
-          </button>
+        <div className="topbar-inner">
+          <div className="brand">
+            <span className="brand-mark" aria-hidden="true">
+              E
+            </span>
+            Eurisko Hub
+          </div>
+          <div className="who">
+            <span className="role-chip">{roleLabel}</span>
+            <span className="avatar" aria-hidden="true">
+              {initials || '?'}
+            </span>
+            <span className="who-text">
+              <strong>{user.name}</strong>
+              <span className="muted small">{user.email}</span>
+            </span>
+            <button className="btn btn-ghost" onClick={() => setChangingPassword(true)}>
+              Change password
+            </button>
+            <button className="btn btn-ghost" onClick={logout}>
+              Switch account
+            </button>
+          </div>
         </div>
       </header>
       <main className="content">

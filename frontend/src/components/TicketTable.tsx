@@ -137,13 +137,17 @@ function TicketRowGroup({
         <td>{t.id}</td>
         <td>
           <strong>{t.title}</strong>
-          <div className="muted small">{t.description}</div>
+          <div className="muted small cell-desc" title={t.description}>
+            {t.description}
+          </div>
           <button type="button" className="history-toggle" onClick={onToggle}>
             {isOpen ? '▴ Hide history' : '▾ History'}
           </button>
         </td>
         <td>{t.category}</td>
-        <td>{t.priority}</td>
+        <td>
+          <span className={`prio prio-${t.priority.toLowerCase()}`}>{t.priority}</span>
+        </td>
         <td>
           <StatusBadge status={t.status} />
         </td>

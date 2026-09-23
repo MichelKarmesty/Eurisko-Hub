@@ -1,287 +1,832 @@
+/* ==========================================================================
+   Eurisko Hub — Operations Console
+   --------------------------------------------------------------------------
+   One stylesheet, organised as:
+
+     1. Design tokens            6. Tables
+     2. Base & typography        7. Feature blocks (agent, admin, AI, history)
+     3. App shell / top bar      8. Auth screen + modal
+     4. Cards & notices          9. Responsive
+     5. Buttons, badges, forms  10. Reduced motion + dark mode
+
+   Several class names are load-bearing: the DOM and Playwright suites assert on
+   `.topbar`, `.role-chip`, `.notice-success`, `.form-error`, `.work-item`,
+   `table.tickets` and the section headings. Keep them.
+   ========================================================================== */
+
+/* 1. Design tokens -------------------------------------------------------- */
+
 :root {
-  --bg: #f4f6f9;
-  --card: #ffffff;
-  --ink: #1f2933;
-  --muted: #5f6b7a;
-  --line: #e2e8f0;
-  --brand: #1d4ed8;
-  --brand-dark: #1e40af;
+  color-scheme: light;
+
+  /* Surfaces */
+  --bg: #f4f6fb;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --surface-3: #eef2f8;
+
+  /* Ink */
+  --ink: #0f172a;
+  --ink-2: #334155;
+  --muted: #64748b;
+
+  /* Lines */
+  --line: #e5e9f1;
+  --line-strong: #d3dae6;
+
+  /* Brand */
+  --brand: #4f46e5;
+  --brand-dark: #4338ca;
+  --brand-2: #7c3aed;
+  --brand-ink: #3730a3;
+  --brand-soft: #eef2ff;
+  --brand-soft-2: #e0e7ff;
+  --on-brand: #ffffff;
+
+  /* Semantic */
   --ok: #047857;
-  --ok-bg: #d1fae5;
+  --ok-bg: #ecfdf5;
+  --ok-line: #a7f3d0;
   --warn: #b45309;
-  --warn-bg: #fef3c7;
+  --warn-bg: #fffbeb;
+  --warn-line: #fde68a;
   --info: #1d4ed8;
-  --info-bg: #dbeafe;
+  --info-bg: #eff6ff;
+  --info-line: #bfdbfe;
   --err: #b91c1c;
-  --err-bg: #fee2e2;
+  --err-bg: #fef2f2;
+  --err-line: #fecaca;
+
+  /* Priority accents */
+  --prio-high: #b91c1c;
+  --prio-high-bg: #fef2f2;
+  --prio-med: #b45309;
+  --prio-med-bg: #fffbeb;
+  --prio-low: #475569;
+  --prio-low-bg: #f1f5f9;
+
+  /* Radii */
+  --r-xs: 6px;
+  --r-sm: 9px;
+  --r: 12px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+  --r-full: 999px;
+
+  /* Elevation */
+  --sh-1: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --sh-2: 0 6px 16px -6px rgba(15, 23, 42, 0.14), 0 2px 6px rgba(15, 23, 42, 0.05);
+  --sh-3: 0 24px 48px -18px rgba(15, 23, 42, 0.28), 0 8px 20px -8px rgba(15, 23, 42, 0.12);
+
+  /* Top bar */
+  --topbar: #0f172a;
+  --topbar-2: #1e1b4b;
+  --topbar-ink: #f1f5f9;
+  --topbar-muted: #94a3b8;
+  --topbar-line: rgba(255, 255, 255, 0.12);
+  --topbar-w: 1360px;
+
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
+
+/* 2. Base & typography ---------------------------------------------------- */
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font);
+  font-size: 15px;
   background: var(--bg);
+  background-image:
+    radial-gradient(58rem 32rem at 12% -8%, rgba(79, 70, 229, 0.1), transparent 60%),
+    radial-gradient(46rem 28rem at 100% 0%, rgba(124, 58, 237, 0.09), transparent 55%);
+  background-attachment: fixed;
   color: var(--ink);
-  line-height: 1.45;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
+p {
+  margin: 0 0 0.5rem;
+}
+
+p:last-child {
+  margin-bottom: 0;
+}
+
+code {
+  font-family: var(--mono);
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  padding: 0.05rem 0.32rem;
+  border-radius: var(--r-xs);
+  font-size: 0.85em;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 0.84rem;
+}
+
+/* A shared focus ring — keyboard users get the same clear target everywhere. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* 3. App shell / top bar -------------------------------------------------- */
 
 .app {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Top bar ---------------------------------------------------------------- */
 .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: linear-gradient(100deg, var(--topbar) 0%, var(--topbar-2) 100%);
+  color: var(--topbar-ink);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05), 0 8px 24px -18px rgba(15, 23, 42, 0.9);
+}
+
+.topbar-inner {
+  max-width: var(--topbar-w);
+  margin: 0 auto;
+  padding: 0.6rem 1.4rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;         /* never clip "Change password" / "Switch account" */
-  gap: 0.5rem 1rem;
-  padding: 0.7rem 1.4rem;
-  background: #0f172a;
-  color: #fff;
-  position: sticky;
-  top: 0;
-  z-index: 5;
+  flex-wrap: wrap; /* never clip "Change password" / "Switch account" */
+  gap: 0.6rem 1rem;
 }
+
 .brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   font-weight: 700;
-  letter-spacing: 0.2px;
+  letter-spacing: -0.015em;
+  font-size: 1.02rem;
+  color: #fff;
 }
+
+.brand-mark {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(140deg, #6366f1 0%, #8b5cf6 55%, #a855f7 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 12px -3px rgba(99, 102, 241, 0.8);
+}
+
 .who {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.8rem;
+  gap: 0.6rem 0.8rem;
 }
-.role-chip {
-  background: #2563eb;
-  color: #fff;
-  border-radius: 999px;
-  padding: 0.15rem 0.7rem;
-  font-size: 0.8rem;
+
+.who-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 0;
+}
+
+.who-text strong {
+  font-size: 0.87rem;
   font-weight: 600;
+  color: #fff;
+}
+
+.who-text .muted.small {
+  color: var(--topbar-muted);
+  font-size: 0.76rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 22ch;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: linear-gradient(140deg, #334155, #475569);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.role-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--r-full);
+  padding: 0.16rem 0.62rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  background: var(--brand);
+  color: var(--on-brand);
+  border: 1px solid transparent;
+}
+
+/* The top bar stays dark in both themes, so its ghost buttons need light ink. */
+.topbar .btn-ghost {
+  color: #cbd5e1;
+}
+
+.topbar .btn-ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
 }
 
 .content {
-  max-width: 1080px;
+  width: 100%;
+  max-width: var(--topbar-w);
   margin: 0 auto;
-  padding: 1.4rem;
+  padding: 1.5rem 1.4rem 3.5rem;
 }
 
-/* Layout / cards ---------------------------------------------------------- */
+/* 4. Cards & notices ------------------------------------------------------ */
+
 .stack {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
-}
-.card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 1rem 1.2rem;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
-}
-.card h2 {
-  margin: 0 0 0.8rem;
-  font-size: 1.05rem;
-}
-.muted {
-  color: var(--muted);
-}
-.small {
-  font-size: 0.85rem;
+  gap: 1.15rem;
 }
 
-/* Notice ------------------------------------------------------------------ */
-.notice {
-  border-radius: 8px;
-  padding: 0.55rem 0.9rem;
-  font-size: 0.92rem;
-  border: 1px solid transparent;
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 1.15rem 1.35rem;
+  box-shadow: var(--sh-1);
 }
+
+.card h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 0.95rem;
+  font-size: 1.03rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+/* A slim brand accent so section headers read as structure, not bold text. */
+.card h2::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 4px;
+  height: 1.05em;
+  border-radius: var(--r-full);
+  background: linear-gradient(180deg, var(--brand), var(--brand-2));
+}
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  border-radius: var(--r-sm);
+  padding: 0.6rem 0.9rem 0.6rem 0.8rem;
+  font-size: 0.9rem;
+  border: 1px solid transparent;
+  border-left-width: 4px;
+}
+
+.notice::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-top: 0.44rem;
+}
+
 .notice-success {
   background: var(--ok-bg);
   color: var(--ok);
-  border-color: #a7f3d0;
+  border-color: var(--ok-line);
+  border-left-color: var(--ok);
 }
+
 .notice-error {
   background: var(--err-bg);
   color: var(--err);
-  border-color: #fecaca;
+  border-color: var(--err-line);
+  border-left-color: var(--err);
 }
+
 .notice-info {
   background: var(--info-bg);
   color: var(--info);
-  border-color: #bfdbfe;
+  border-color: var(--info-line);
+  border-left-color: var(--info);
 }
 
-/* Buttons ---------------------------------------------------------------- */
+/* 5. Buttons, badges, forms ---------------------------------------------- */
+
 .btn {
   font: inherit;
-  font-size: 0.9rem;
-  border: 1px solid var(--line);
-  background: #fff;
-  color: var(--ink);
-  border-radius: 8px;
-  padding: 0.4rem 0.9rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink-2);
+  border-radius: var(--r-sm);
+  padding: 0.44rem 0.9rem;
   cursor: pointer;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s,
+    transform 0.1s;
 }
+
 .btn:hover:not(:disabled) {
-  background: #f1f5f9;
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+  color: var(--ink);
 }
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
 .btn:disabled {
   opacity: 0.55;
-  cursor: default;
+  cursor: not-allowed;
 }
+
 .btn-primary {
-  background: var(--brand);
-  border-color: var(--brand);
-  color: #fff;
+  background: linear-gradient(180deg, var(--brand) 0%, var(--brand-dark) 100%);
+  border-color: var(--brand-dark);
+  color: var(--on-brand);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
+
 .btn-primary:hover:not(:disabled) {
-  background: var(--brand-dark);
+  background: linear-gradient(180deg, #5850ec 0%, var(--brand-dark) 100%);
+  border-color: var(--brand-dark);
+  color: var(--on-brand);
+  box-shadow: 0 4px 14px -4px rgba(79, 70, 229, 0.7);
 }
+
 .btn-ghost {
   background: transparent;
   border-color: transparent;
-  color: var(--brand);
+  color: var(--brand-ink);
 }
+
 .btn-ghost:hover:not(:disabled) {
-  background: #eff6ff;
+  background: var(--brand-soft);
+  border-color: transparent;
+  color: var(--brand-dark);
 }
-/* Destructive action (Admin deleting an account) */
+
 .btn-danger {
-  background: #fff;
-  border-color: #fca5a5;
+  background: var(--surface);
+  border-color: var(--err-line);
   color: var(--err);
 }
+
 .btn-danger:hover:not(:disabled) {
   background: var(--err-bg);
+  border-color: var(--err);
+  color: var(--err);
 }
 
 /* Badges ------------------------------------------------------------------ */
+
 .badge {
-  display: inline-block;
-  border-radius: 999px;
-  padding: 0.1rem 0.6rem;
-  font-size: 0.78rem;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+  border-radius: var(--r-full);
+  padding: 0.16rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 650;
   border: 1px solid transparent;
+  white-space: nowrap;
 }
+
+.badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: 0 0 auto;
+}
+
 .badge-open {
   background: var(--info-bg);
   color: var(--info);
-  border-color: #bfdbfe;
+  border-color: var(--info-line);
 }
+
 .badge-progress {
   background: var(--warn-bg);
   color: var(--warn);
-  border-color: #fde68a;
+  border-color: var(--warn-line);
 }
+
 .badge-resolved {
   background: var(--ok-bg);
   color: var(--ok);
-  border-color: #a7f3d0;
+  border-color: var(--ok-line);
 }
+
 .badge-cancelled {
-  background: #f1f5f9;
-  color: #64748b;
-  border-color: #cbd5e1;
+  background: var(--surface-3);
+  color: var(--muted);
+  border-color: var(--line-strong);
+}
+
+/* Priority pill (ticket table) -------------------------------------------- */
+
+.prio {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--r-full);
+  padding: 0.14rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.prio-high {
+  background: var(--prio-high-bg);
+  color: var(--prio-high);
+  border-color: var(--err-line);
+}
+
+.prio-medium {
+  background: var(--prio-med-bg);
+  color: var(--prio-med);
+  border-color: var(--warn-line);
+}
+
+.prio-low {
+  background: var(--prio-low-bg);
+  color: var(--prio-low);
+  border-color: var(--line-strong);
 }
 
 /* Forms ------------------------------------------------------------------- */
+
 .grid-form {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.8rem;
+  /* `minmax(0, …)` stops an input's intrinsic width from widening its column
+     past its share — which used to spill the password field out of the card. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.85rem;
   align-items: start;
 }
+
 .grid-form .full {
   grid-column: 1 / -1;
 }
+
 .grid-form label {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--muted);
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: var(--ink-2);
+  letter-spacing: 0.01em;
 }
+
 input,
 select,
 textarea {
   font: inherit;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 0.45rem 0.6rem;
-  background: #fff;
+  font-size: 0.92rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  padding: 0.5rem 0.65rem;
+  background: var(--surface);
   color: var(--ink);
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  width: 100%;
+  min-width: 0;
 }
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.75;
+}
+
+input:hover:not(:disabled),
+select:hover:not(:disabled),
+textarea:hover:not(:disabled) {
+  border-color: #b9c2d2;
+}
+
 input:focus,
 select:focus,
 textarea:focus {
-  outline: 2px solid #bfdbfe;
+  outline: none;
   border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.18);
 }
+
+select {
+  cursor: pointer;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 2.6rem;
+  line-height: 1.5;
+}
+
 .form-error {
   grid-column: 1 / -1;
   color: var(--err);
   font-size: 0.85rem;
+  font-weight: 550;
 }
 
-/* Tables ------------------------------------------------------------------ */
+/* Admin "Create account" rows --------------------------------------------- */
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+
+.form-row .input {
+  width: 100%;
+}
+
+.input {
+  font: inherit;
+  font-size: 0.92rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  padding: 0.5rem 0.65rem;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.18);
+}
+
+/* Give the create-account form a comfortable two-column rhythm on wide
+   screens while staying a single column when it is narrow. */
+.card > form.stack {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 0.85rem;
+}
+
+.card > form.stack > button[type='submit'] {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+/* 6. Tables --------------------------------------------------------------- */
+
 .table-wrap {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
 }
-table.tickets {
-  border-collapse: collapse;
+
+table.tickets,
+table.ticket-table {
+  border-collapse: separate;
+  border-spacing: 0;
   width: 100%;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
+
+table.tickets {
+  /* Wide enough that the title column never collapses into a ribbon. On a
+     narrower screen the wrapper scrolls rather than squeezing the cells. */
+  min-width: 980px;
+}
+
+table.ticket-table {
+  min-width: 820px;
+}
+
 table.tickets th,
-table.tickets td {
+table.tickets td,
+table.ticket-table th,
+table.ticket-table td {
   text-align: left;
   padding: 0.5rem 0.6rem;
   border-bottom: 1px solid var(--line);
   vertical-align: top;
 }
-table.tickets th {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
+
+table.ticket-table th,
+table.ticket-table td {
+  vertical-align: middle;
 }
 
-/* Agent "my work" cards ---------------------------------------------------- */
+table.tickets thead th,
+table.ticket-table thead th {
+  background: var(--surface-2);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  white-space: nowrap;
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--line);
+}
+
+table.tickets tbody tr:last-child > td,
+table.ticket-table tbody tr:last-child > td {
+  border-bottom: 0;
+}
+
+table.tickets tbody tr:hover > td {
+  background: var(--surface-2);
+}
+
+table.ticket-table tbody tr:hover > td {
+  background: var(--surface-2);
+}
+
+table.ticket-table select {
+  font-size: 0.85rem;
+  padding: 0.32rem 0.5rem;
+}
+
+/* Column sizing: let the title and the free-text columns breathe, pin the
+   short factual ones so rows stay scannable. */
+table.tickets th:nth-child(1),
+table.tickets td:nth-child(1) {
+  width: 38px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+table.tickets td:nth-child(2) {
+  min-width: 200px;
+}
+
+table.tickets th:nth-child(3),
+table.tickets td:nth-child(3) {
+  width: 78px;
+}
+
+table.tickets th:nth-child(4),
+table.tickets td:nth-child(4) {
+  width: 76px;
+}
+
+table.tickets th:nth-child(5),
+table.tickets td:nth-child(5) {
+  width: 92px;
+}
+
+table.tickets th:nth-child(6),
+table.tickets td:nth-child(6) {
+  width: 86px;
+}
+
+table.tickets th:nth-child(7),
+table.tickets td:nth-child(7) {
+  width: 86px;
+}
+
+table.tickets th:nth-child(8),
+table.tickets td:nth-child(8) {
+  min-width: 130px;
+}
+
+/* The timestamp is the one column we let wrap: locale strings vary in length,
+   so a hard `nowrap` would overflow on some machines. */
+table.tickets th:nth-child(9),
+table.tickets td:nth-child(9) {
+  width: 112px;
+  font-variant-numeric: tabular-nums;
+}
+
+table.tickets th:nth-child(10),
+table.tickets td:nth-child(10) {
+  min-width: 150px;
+}
+
+/* The description under the title is a preview: keep rows short, and the full
+   text is available on hover via the `title` attribute. */
+.cell-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 0.2rem;
+  line-height: 1.45;
+}
+
+table.tickets td strong {
+  font-weight: 650;
+}
+
+/* 7. Feature blocks ------------------------------------------------------- */
+
+/* Agent "my work" cards --------------------------------------------------- */
+
 .work-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.8rem;
+  display: grid;
+  gap: 0.85rem;
 }
+
 .work-item {
+  position: relative;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 0.7rem 0.9rem;
-  background: #fbfcfe;
+  border-radius: var(--r);
+  padding: 0.85rem 1rem 0.85rem 1.1rem;
+  background: var(--surface-2);
+  overflow: hidden;
 }
+
+.work-item::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--warn), #f59e0b);
+}
+
 .work-item header {
   display: flex;
   justify-content: space-between;
   gap: 0.6rem;
   align-items: center;
+  flex-wrap: wrap;
 }
+
 .work-title {
-  font-weight: 600;
+  font-weight: 650;
 }
+
 .work-item p {
-  margin: 0.3rem 0;
+  margin: 0.35rem 0 0;
+}
+
+.work-item .resolve-form {
+  margin-top: 0.7rem;
 }
 
 /* Resolve form ------------------------------------------------------------ */
+
 .resolve-form {
   display: flex;
   gap: 0.5rem;
@@ -289,50 +834,348 @@ table.tickets th {
   align-items: center;
   margin-top: 0.5rem;
 }
+
 .resolve-form input {
-  flex: 1 1 300px;
-}
-.resolve-form .form-error {
-  flex-basis: 100%;
+  flex: 1 1 260px;
+  min-width: 0;
 }
 
-/* Stacked Admin actions inside a table cell (assign / resolve / cancel) ---- */
+.resolve-form .form-error {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+/* Admin action cell: stack the controls instead of forcing a 300px input into
+   a narrow table cell (which used to overflow and clip). */
 .admin-actions {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  align-items: flex-start;
+  gap: 0.4rem;
+  align-items: stretch;
 }
+
 .admin-actions .resolve-form {
   margin-top: 0;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.admin-actions .resolve-form input {
+  flex: 1 1 auto;
+  width: 100%;
+}
+
+.admin-actions select,
+.admin-actions .input {
+  width: 100%;
 }
 
 /* Stats ------------------------------------------------------------------- */
+
 .stat-row {
-  display: flex;
-  gap: 0.8rem;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.85rem;
 }
+
 .stat {
-  background: var(--card);
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 0.7rem 1.1rem;
+  border-radius: var(--r-lg);
+  padding: 0.95rem 1.15rem;
+  box-shadow: var(--sh-1);
   display: flex;
   flex-direction: column;
-  min-width: 130px;
+  gap: 0.1rem;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
 }
+
+.stat::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--brand);
+}
+
+.stat:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sh-2);
+  border-color: var(--line-strong);
+}
+
 .stat-num {
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: 1.85rem;
+  font-weight: 750;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
   color: var(--brand);
 }
+
 .stat span:last-child {
-  font-size: 0.78rem;
+  font-size: 0.79rem;
+  font-weight: 550;
   color: var(--muted);
 }
 
-/* Auth -------------------------------------------------------------------- */
+/* Each card carries the colour of the number it shows. */
+.stat:nth-child(1)::after {
+  background: linear-gradient(90deg, var(--brand), var(--brand-2));
+}
+
+.stat:nth-child(2)::after {
+  background: linear-gradient(90deg, #0ea5e9, #2563eb);
+}
+
+.stat:nth-child(2) .stat-num {
+  color: var(--info);
+}
+
+.stat:nth-child(3)::after {
+  background: linear-gradient(90deg, #f59e0b, #ef4444);
+}
+
+.stat:nth-child(3) .stat-num {
+  color: var(--warn);
+}
+
+.stat:nth-child(4)::after {
+  background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.stat:nth-child(4) .stat-num {
+  color: var(--ok);
+}
+
+/* Filter chips ------------------------------------------------------------ */
+
+.admin-filter-row {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+}
+
+.chip {
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-full);
+  background: var(--surface);
+  padding: 0.3rem 0.75rem;
+  cursor: pointer;
+  color: var(--ink-2);
+  transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.chip:hover {
+  background: var(--brand-soft);
+  border-color: var(--brand-soft-2);
+  color: var(--brand-ink);
+}
+
+.chip--active {
+  background: linear-gradient(180deg, var(--brand) 0%, var(--brand-dark) 100%);
+  border-color: var(--brand-dark);
+  color: var(--on-brand);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.16);
+}
+
+.chip--active:hover {
+  background: linear-gradient(180deg, #5850ec 0%, var(--brand-dark) 100%);
+  color: var(--on-brand);
+}
+
+/* Tabs — a segmented control rather than an underline bar ------------------ */
+
+.tab-bar {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.28rem;
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  align-self: flex-start;
+}
+
+.tab-btn {
+  font: inherit;
+  font-size: 0.89rem;
+  font-weight: 600;
+  background: none;
+  border: none;
+  padding: 0.42rem 1.05rem;
+  border-radius: var(--r-full);
+  cursor: pointer;
+  color: var(--muted);
+  white-space: nowrap;
+  transition: color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.tab-btn:hover {
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.tab-btn--active {
+  color: var(--brand-ink);
+  background: var(--surface);
+  font-weight: 650;
+  box-shadow: var(--sh-1);
+}
+
+/* Ticket history ---------------------------------------------------------- */
+
+.history-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 0.35rem;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--brand-ink);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--brand) 40%, transparent);
+  text-underline-offset: 2px;
+}
+
+.history-toggle:hover {
+  color: var(--ink);
+}
+
+tr.history-row > td {
+  background: var(--surface-3);
+  padding: 0.75rem 0.85rem;
+}
+
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.history-event {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: baseline;
+  font-size: 0.84rem;
+  padding-left: 0.7rem;
+  position: relative;
+}
+
+.history-event::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.5em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--brand);
+  opacity: 0.7;
+}
+
+.history-action {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: var(--brand-ink);
+}
+
+.history-note {
+  font-style: italic;
+}
+
+/* AI-assisted intake (v0.4) ---------------------------------------------- */
+
+.ai-intake {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.85rem 0.95rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--brand-soft-2);
+  border-radius: var(--r);
+  background: linear-gradient(180deg, var(--brand-soft) 0%, var(--surface) 100%);
+}
+
+.ai-intake label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+
+.ai-intake-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+/* A grid cell that holds a tag above its label without changing the label's
+   text — the label keeps its exact accessible name, e.g. "Title". */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.field.full {
+  grid-column: 1 / -1;
+}
+
+.ai-tag {
+  align-self: flex-start;
+  font-size: 0.62rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brand-ink);
+  background: var(--brand-soft-2);
+  border-radius: var(--r-full);
+  padding: 0.08rem 0.45rem;
+}
+
+.ai-field {
+  border-color: var(--brand) !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.14);
+}
+
+/* Spinner ----------------------------------------------------------------- */
+
+.spinner {
+  margin: 3rem auto;
+  width: 2.1rem;
+  height: 2.1rem;
+  border: 3px solid var(--line);
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 8. Auth screen + modal -------------------------------------------------- */
+
 .auth-wrap {
   min-height: 100vh;
   display: flex;
@@ -342,23 +1185,60 @@ table.tickets th {
   justify-content: center;
   padding: 1.5rem 1rem;
   overflow-y: auto;
+  position: relative;
 }
+
+.auth-wrap::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    radial-gradient(40rem 26rem at 50% -10%, rgba(79, 70, 229, 0.16), transparent 65%),
+    radial-gradient(32rem 22rem at 8% 108%, rgba(124, 58, 237, 0.14), transparent 60%);
+}
+
 .auth-card {
   width: 100%;
-  max-width: 460px;
+  max-width: 470px;
+  padding: 1.7rem 1.8rem 1.5rem;
+  border-radius: var(--r-xl);
+  box-shadow: var(--sh-3);
 }
+
 .auth-card h1 {
-  margin: 0 0 0.2rem;
+  margin: 0 0 0.25rem;
+  font-size: 1.5rem;
+  font-weight: 750;
 }
+
+.auth-mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(140deg, #6366f1 0%, #8b5cf6 55%, #a855f7 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 8px 20px -6px rgba(99, 102, 241, 0.75);
+  margin-bottom: 0.85rem;
+}
+
 .auth-footnote {
-  margin: 0.9rem 0 0;
+  margin: 1rem 0 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
 }
+
 /* "Back to sign in" rows and dialog action rows */
 .auth-links {
   display: flex;
   justify-content: flex-end;
   margin-top: -0.2rem;
 }
+
 .auth-actions {
   display: flex;
   flex-wrap: wrap;
@@ -366,247 +1246,195 @@ table.tickets th {
   align-items: center;
 }
 
-/* Modal (change password) -------------------------------------------------- */
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 20;
+  z-index: 40;
   display: flex;
   align-items: safe center;
   justify-content: center;
   padding: 1.5rem 1rem;
   overflow-y: auto;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(3px);
 }
+
 .modal {
   width: 100%;
-  max-width: 460px;
+  max-width: 480px;
+  padding: 1.5rem 1.6rem;
+  border-radius: var(--r-xl);
+  box-shadow: var(--sh-3);
 }
+
 .modal h2 {
-  margin: 0 0 0.2rem;
+  margin: 0 0 0.35rem;
+  font-size: 1.15rem;
 }
 
-/* Filter chips (Admin ticket filters) ------------------------------------- */
-.chip {
-  font: inherit;
-  font-size: 0.8rem;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: #fff;
-  padding: 0.25rem 0.7rem;
-  cursor: pointer;
-  color: var(--brand);
-}
-.chip:hover {
-  background: #eff6ff;
-}
+/* 9. Responsive ----------------------------------------------------------- */
 
-/* Spinner ----------------------------------------------------------------- */
-.spinner {
-  margin: 3rem auto;
-  width: 2rem;
-  height: 2rem;
-  border: 3px solid var(--line);
-  border-top-color: var(--brand);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
+@media (max-width: 900px) {
+  .content,
+  .topbar-inner {
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
 }
-code {
-  background: #f1f5f9;
-  padding: 0 0.25rem;
-  border-radius: 4px;
-  font-size: 0.85em;
+
+@media (max-width: 640px) {
+  body {
+    font-size: 14.5px;
+  }
+
+  .grid-form {
+    grid-template-columns: 1fr;
+  }
+
+  .card {
+    padding: 1rem;
+    border-radius: var(--r);
+  }
+
+  .card h2 {
+    font-size: 0.98rem;
+  }
+
+  .who-text {
+    display: none; /* name/email stay available on wider screens */
+  }
+
+  .topbar-inner {
+    gap: 0.5rem;
+  }
+
+  .stat-num {
+    font-size: 1.55rem;
+  }
+
+  .tab-bar {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .tab-btn {
+    flex: 1 1 auto;
+    text-align: center;
+  }
 }
 
-/* Admin tab bar ----------------------------------------------------------- */
-.tab-bar {
-  display: flex;
-  gap: 0.3rem;
-  border-bottom: 2px solid var(--line);
-  padding-bottom: 0;
-}
-.tab-btn {
-  font: inherit;
-  font-size: 0.95rem;
-  background: none;
-  border: none;
-  border-bottom: 3px solid transparent;
-  margin-bottom: -2px;
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-  color: var(--muted);
-  border-radius: 6px 6px 0 0;
-  transition: color 0.15s;
-}
-.tab-btn:hover {
-  color: var(--ink);
-  background: #f1f5f9;
-}
-.tab-btn--active {
-  color: var(--brand);
-  border-bottom-color: var(--brand);
-  font-weight: 600;
+/* 10. Reduced motion + dark mode ----------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  .stat:hover,
+  .btn:active:not(:disabled) {
+    transform: none;
+  }
 }
 
-/* Create-user form rows --------------------------------------------------- */
-.form-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--muted);
-}
-.form-row .input {
-  width: 100%;
-}
-.input {
-  font: inherit;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 0.45rem 0.6rem;
-  background: #fff;
-  color: var(--ink);
-}
-.input:focus {
-  outline: 2px solid #bfdbfe;
-  border-color: var(--brand);
-}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
 
-/* Generic data table (users list) ---------------------------------------- */
-table.ticket-table {
-  border-collapse: collapse;
-  width: 100%;
-  font-size: 0.9rem;
-}
-table.ticket-table th,
-table.ticket-table td {
-  text-align: left;
-  padding: 0.5rem 0.6rem;
-  border-bottom: 1px solid var(--line);
-  vertical-align: middle;
-}
-table.ticket-table th {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-}
-table.ticket-table select {
-  font-size: 0.85rem;
-  padding: 0.3rem 0.5rem;
-}
+    --bg: #0a0f1c;
+    --surface: #111827;
+    --surface-2: #0f172a;
+    --surface-3: #1b2537;
 
+    --ink: #e8edf6;
+    --ink-2: #c7d2e0;
+    --muted: #94a3b8;
 
-/* Admin tickets filter chips ---------------------------------------------- */
-.admin-filter-row {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  margin-bottom: 0.75rem;
-}
-.chip--active {
-  background: var(--brand);
-  border-color: var(--brand);
-  color: #fff;
-  font-weight: 600;
-}
+    --line: #1f2a3d;
+    --line-strong: #2c3a52;
 
-/* Ticket history (who did what) ------------------------------------------ */
-.history-toggle {
-  background: none;
-  border: none;
-  padding: 0;
-  margin-top: 0.2rem;
-  font-size: 0.75rem;
-  color: var(--brand);
-  cursor: pointer;
-  text-decoration: underline;
-}
-.history-toggle:hover {
-  color: var(--ink);
-}
-tr.history-row > td {
-  background: #f7f9fc;
-}
-.history-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-.history-event {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: baseline;
-  font-size: 0.85rem;
-}
-.history-action {
-  font-weight: 700;
-  text-transform: uppercase;
-  font-size: 0.72rem;
-  letter-spacing: 0.04em;
-}
-.history-note {
-  font-style: italic;
-}
+    --brand: #6366f1;
+    --brand-dark: #4f46e5;
+    --brand-2: #a78bfa;
+    --brand-ink: #c7d2fe;
+    --brand-soft: rgba(99, 102, 241, 0.14);
+    --brand-soft-2: rgba(99, 102, 241, 0.26);
+    --on-brand: #ffffff;
 
-/* ---------------------------------------------------------------------------
-   v0.4 — AI-assisted intake (docs/week4-production-ai.md).
-   The suggestion is a hint: highlighted fields carry an "AI suggested" tag and
-   the highlight disappears the moment the employee edits the field.
-   --------------------------------------------------------------------------- */
-.ai-intake {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.7rem 0.8rem;
-  margin-bottom: 0.9rem;
-  border: 1px dashed var(--line);
-  border-radius: 10px;
-  background: #fbfcfe;
-}
-.ai-intake label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--muted);
-}
-.ai-intake-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.6rem;
-}
-/* A grid cell that can hold a tag above its label without changing the label's
-   text — the label keeps its exact accessible name, e.g. "Title". */
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-.field.full {
-  grid-column: 1 / -1;
-}
-.ai-tag {
-  align-self: flex-start;
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--brand);
-}
-.ai-field {
-  border-color: var(--brand) !important;
-  box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.12);
+    --ok: #34d399;
+    --ok-bg: rgba(16, 185, 129, 0.14);
+    --ok-line: rgba(52, 211, 153, 0.34);
+    --warn: #fbbf24;
+    --warn-bg: rgba(245, 158, 11, 0.15);
+    --warn-line: rgba(251, 191, 36, 0.34);
+    --info: #7dd3fc;
+    --info-bg: rgba(56, 189, 248, 0.14);
+    --info-line: rgba(125, 211, 252, 0.32);
+    --err: #fca5a5;
+    --err-bg: rgba(239, 68, 68, 0.15);
+    --err-line: rgba(248, 113, 113, 0.34);
+
+    --prio-high: #fca5a5;
+    --prio-high-bg: rgba(239, 68, 68, 0.15);
+    --prio-med: #fcd34d;
+    --prio-med-bg: rgba(245, 158, 11, 0.15);
+    --prio-low: #cbd5e1;
+    --prio-low-bg: rgba(148, 163, 184, 0.15);
+
+    --sh-1: 0 1px 2px rgba(0, 0, 0, 0.45);
+    --sh-2: 0 8px 20px -8px rgba(0, 0, 0, 0.65);
+    --sh-3: 0 26px 52px -20px rgba(0, 0, 0, 0.8);
+
+    --topbar: #070b14;
+    --topbar-2: #1b1740;
+    --topbar-muted: #94a3b8;
+  }
+
+  body {
+    background-image:
+      radial-gradient(58rem 32rem at 12% -8%, rgba(99, 102, 241, 0.16), transparent 60%),
+      radial-gradient(46rem 28rem at 100% 0%, rgba(168, 85, 247, 0.12), transparent 55%);
+  }
+
+  .role-chip {
+    background: var(--brand-soft-2);
+    color: var(--brand-ink);
+    border-color: rgba(129, 140, 248, 0.42);
+  }
+
+  input:hover:not(:disabled),
+  select:hover:not(:disabled),
+  textarea:hover:not(:disabled) {
+    border-color: #3b4a66;
+  }
+
+  .btn-primary {
+    background: linear-gradient(180deg, #6366f1 0%, #4f46e5 100%);
+    border-color: #4f46e5;
+    color: #fff;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(180deg, #7c7ff5 0%, #4f46e5 100%);
+    color: #fff;
+  }
+
+  .stat:nth-child(2)::after {
+    background: linear-gradient(90deg, #38bdf8, #6366f1);
+  }
+
+  .stat:nth-child(3)::after {
+    background: linear-gradient(90deg, #fbbf24, #f87171);
+  }
+
+  .stat:nth-child(4)::after {
+    background: linear-gradient(90deg, #34d399, #10b981);
+  }
+
+  .modal-backdrop {
+    background: rgba(2, 6, 16, 0.68);
+  }
 }
