@@ -255,10 +255,16 @@ export class AuthService {
   }
 
   private get baseUrl(): string {
-    return (process.env.APP_BASE_URL ?? 'http://localhost:5173').replace(
-      /\/+$/,
-      '',
-    );
+    const url = process.env.APP_BASE_URL;
+    if (!url && process.env.NODE_ENV === 'production') {
+      // Startup already refused to bind if APP_BASE_URL is absent (main.ts).
+      // This fallback only fires in tests that set NODE_ENV=production without
+      // a full server context; log and fall back so the request doesn't 500.
+      console.warn(
+        '[AuthService] APP_BASE_URL is not set in production — reset links will point at localhost.',
+      );
+    }
+    return (url ?? 'http://localhost:5173').replace(/\/+$/, '');
   }
 
   /**

@@ -57,7 +57,10 @@ const DEFAULT_ADMIN_PASSWORD = 'Admin123!';
           type: 'sqljs',
           location: location ?? undefined, // undefined => in-memory DB
           autoSave: Boolean(location),
-          synchronize: true,
+          // synchronize: true is intentional for dev/test (in-memory DB, no
+          // migrations needed). Disabled in production to prevent TypeORM from
+          // auto-altering or dropping columns against a live database.
+          synchronize: process.env.NODE_ENV !== 'production',
           entities: [User, Ticket, TicketEvent],
         };
       },
