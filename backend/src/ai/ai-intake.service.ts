@@ -92,12 +92,12 @@ interface ChatCompletionResponse {
 }
 
 /**
- * Defaults: Groq's free OpenAI-compatible cloud API, so the feature works with
- * nothing installed - only a free API key (console.groq.com). Any other
- * OpenAI-compatible endpoint can be used instead by setting `AI_PROVIDER_URL`
- * (e.g. a local Ollama at http://localhost:11434/v1, which needs no key).
+ * Defaults: the shared Cloudflare demo proxy (proxy/worker.js), so a fresh clone
+ * or instructor evaluation gets the real online AI model with zero setup and
+ * no API key needed. Any other OpenAI-compatible endpoint can be used instead
+ * by setting `AI_PROVIDER_URL` (e.g. direct Groq or a local Ollama).
  */
-const DEFAULT_PROVIDER_URL = 'https://api.groq.com/openai/v1';
+const DEFAULT_PROVIDER_URL = 'https://eurisko-hub-demo-ai.eurisko-hub.workers.dev/v1';
 const DEFAULT_MODEL = 'openai/gpt-oss-20b';
 const DEFAULT_TIMEOUT_MS = 15000;
 

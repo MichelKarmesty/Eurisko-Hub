@@ -37,7 +37,10 @@ import {
 
 const realFetch = globalThis.fetch.bind(globalThis);
 
-const PROVIDER_URL = (process.env.AI_PROVIDER_URL ?? 'https://api.groq.com/openai/v1').replace(/\/+$/, '');
+const PROVIDER_URL = (
+  process.env.AI_PROVIDER_URL ??
+  'https://eurisko-hub-demo-ai.eurisko-hub.workers.dev/v1'
+).replace(/\/+$/, '');
 const MODEL = process.env.AI_MODEL ?? 'openai/gpt-oss-20b';
 
 const service = new AiIntakeService();

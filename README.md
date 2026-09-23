@@ -103,15 +103,16 @@ The same thing by hand, when you would rather watch each process separately.
 > **VS Code - one click.** Open the repo in VS Code and use the built-in tasks:
 >
 > 1. **Terminal → Run Task… → `deps: install all`** (once).
-> 2. Copy `backend/.env.example` → `backend/.env` and fill in `AI_API_KEY`
->    (free key at <https://console.groq.com/keys>) if you want real AI answers.
->    `.env` is gitignored, so secrets stay local.
+> 2. `backend/.env` is completely optional: out of the box, the app connects
+>    to the shared demo AI provider (`https://eurisko-hub-demo-ai.eurisko-hub.workers.dev/v1`),
+>    so real online AI suggestions work immediately with zero configuration!
+>    To use your own private key instead, copy `backend/.env.example` → `backend/.env`
+>    and fill in `AI_API_KEY` (free key at <https://console.groq.com/keys>).
 > 3. **`Ctrl+Shift+B`** (or **Terminal → Run Task… → `dev: backend + frontend`**),
 >    then open <http://localhost:5173>.
 >
 > Or press **F5** and choose **“▶ Full app (backend + frontend)”**.
-> `backend/.env` is optional: without it the AI uses the labelled offline
-> classifier. Password recovery needs no configuration at all: the Admin issues
+> Password recovery needs no configuration at all: the Admin issues
 > the one-time link from the Users tab (ADR-007). The optional public/emailed
 > path stays off unless you set `PASSWORD_RESET_SELF_SERVICE=true` and a
 > transport (`SMTP_HOST`, `MAIL_WEBHOOK_URL` or `RESEND_API_KEY`).

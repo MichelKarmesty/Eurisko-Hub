@@ -32,17 +32,17 @@ npx wrangler secret put GROQ_API_KEY    # paste the gsk_… key when prompted
 npx wrangler deploy                     # prints the URL
 ```
 
-`wrangler deploy` prints something like:
+`wrangler deploy` prints:
 
 ```
-https://eurisko-hub-demo-ai.<your-subdomain>.workers.dev
+https://eurisko-hub-demo-ai.eurisko-hub.workers.dev
 ```
 
 The app calls `<url>/v1/chat/completions`, so the provider URL is that address
 with `/v1` appended:
 
 ```
-AI_PROVIDER_URL=https://eurisko-hub-demo-ai.<your-subdomain>.workers.dev/v1
+AI_PROVIDER_URL=https://eurisko-hub-demo-ai.eurisko-hub.workers.dev/v1
 ```
 
 The key is stored encrypted by Cloudflare and is never written to `wrangler.toml`,
@@ -51,11 +51,11 @@ to this repo, or to any response.
 ## Check it before wiring it in
 
 ```bash
-# 1. health (should print {"ok":true,...})
-curl -s https://eurisko-hub-demo-ai.<your-subdomain>.workers.dev/health
+# 1. health (prints {"ok":true,"service":"eurisko-hub-demo-ai"})
+curl -s https://eurisko-hub-demo-ai.eurisko-hub.workers.dev/health
 
 # 2. a real suggestion (no key in the request — that is the point)
-curl -s -X POST https://eurisko-hub-demo-ai.<your-subdomain>.workers.dev/v1/chat/completions \
+curl -s -X POST https://eurisko-hub-demo-ai.eurisko-hub.workers.dev/v1/chat/completions \
   -H 'content-type: application/json' \
   -d '{"model":"openai/gpt-oss-20b","messages":[
         {"role":"user","content":"my laptop screen flickers and I cannot work"}]}'
