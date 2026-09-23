@@ -117,7 +117,6 @@ export function AuthScreen({ onAuthed }: { onAuthed: (session: Session) => void 
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                placeholder="you@gmail.com"
               />
             </label>
             <label>
