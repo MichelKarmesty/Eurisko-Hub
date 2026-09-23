@@ -628,18 +628,6 @@ function UsersTab() {
     <div className="stack">
       <Notice kind={notice?.kind ?? 'info'}>{notice?.text}</Notice>
 
-      {/* First-run guidance: a fresh hub contains only the seeded Admin, and
-          there is no public registration (ADR-004), so the next step is to
-          create the accounts the slice needs. */}
-      {!loading && users.length > 0 && users.every((u) => u.role === 'Admin') && (
-        <Notice kind="info">
-          Fresh hub — only Admin accounts exist. Create an <strong>Employee</strong> (Requester) and
-          the <strong>IT</strong> / <strong>HR</strong> / <strong>Maintenance</strong> agents below,
-          then use <strong>Switch account</strong> (top right) to sign in as them and test the
-          ticket flow.
-        </Notice>
-      )}
-
       {/* ADR-007: a freshly minted one-time reset link, shown so the Admin can
           copy it and hand it over. It is never stored anywhere. */}
       {resetResult && (
