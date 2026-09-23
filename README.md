@@ -255,11 +255,14 @@ behaviour. Nothing about running the app or the test suite requires a key.
 | Variable | Default | Purpose |
 |---|---|---|
 | `AI_ENABLED` | `true` | `false` disables the feature (the endpoint answers with a clear disabled message) |
-| `AI_PROVIDER_URL` | `https://api.groq.com/openai/v1` | Any OpenAI-compatible base URL |
+| `AI_PROVIDER_URL` | the shared demo proxy (`eurisko-hub-demo-ai.…workers.dev/v1`) | Any OpenAI-compatible base URL |
 | `AI_MODEL` | `openai/gpt-oss-20b` | Groq's fast free model (names change over time) |
-| `AI_TIMEOUT_MS` | `15000` | Hard cap on the provider call |
+| `AI_TIMEOUT_MS` | `15000` | Hard cap on a single provider call |
 | `AI_FALLBACK_MODEL` | *(unset)* | Comma-separated models tried when the primary fails (rate limit / retired) instead of dropping to the offline rules, e.g. `qwen/qwen3.8-27b` |
+| `AI_FALLBACK_PROVIDER_URL` | *(unset)* | Second endpoint tried when the primary cannot answer (unreachable, 429, 5xx, empty completion). Unset + a local `AI_API_KEY` = Groq itself becomes the safety net |
+| `AI_FALLBACK_API_KEY` | `AI_API_KEY` | Key for that second endpoint, when it needs a different one |
 | `AI_RETRY_DELAY_MS` | `1500` | Wait before the one retry of a rate-limited/transient call |
+| `AI_TOTAL_BUDGET_MS` | `45000` | Budget across every endpoint/model attempt, so a dead network cannot hang the form |
 | `AI_OFFLINE_FALLBACK` | `true` | Suggest from the offline keyword classifier when no model answers (always labelled); `false` = strict provider-only |
 | `AI_API_KEY` | *(unset)* | **Required for Groq** - free key from console.groq.com |
 

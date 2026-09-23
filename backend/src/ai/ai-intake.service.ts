@@ -98,8 +98,23 @@ interface ChatCompletionResponse {
  * by setting `AI_PROVIDER_URL` (e.g. direct Groq or a local Ollama).
  */
 const DEFAULT_PROVIDER_URL = 'https://eurisko-hub-demo-ai.eurisko-hub.workers.dev/v1';
+/** Groq's public endpoint: the automatic safety net whenever a local key exists. */
+const GROQ_PROVIDER_URL = 'https://api.groq.com/openai/v1';
 const DEFAULT_MODEL = 'openai/gpt-oss-20b';
 const DEFAULT_TIMEOUT_MS = 15000;
+/** Whole-call budget, so a dead network cannot hang the ticket form. */
+const DEFAULT_TOTAL_BUDGET_MS = 45000;
+
+/** Shown when a provider answered, but not with the JSON contract we need. */
+const FORMAT_NOTICE =
+  'The AI provider answered in an unexpected format — this suggestion comes from the offline keyword classifier, not from the model.';
+
+/** One OpenAI-compatible endpoint, plus the key to call it with. */
+interface ProviderTarget {
+  url: string;
+  apiKey?: string;
+  label: string;
+}
 
 /**
  * Defaults used when the model returns a value we cannot trust.
@@ -432,9 +447,11 @@ export class AiIntakeService implements OnModuleInit {
 
     const keySet = Boolean(process.env.AI_API_KEY);
     const fallbacks = this.fallbackModels();
+    const chain = this.providerChain();
     this.logger.log(
       `AI intake: provider=${this.providerUrl()} model=${this.model()} ` +
         `key=${keySet ? 'set' : 'MISSING'}` +
+        (chain.length > 1 ? ` fallbackProvider=${chain[1].url}` : '') +
         (fallbacks.length > 0 ? ` fallback=${fallbacks.join(',')}` : '') +
         ` offlineFallback=${this.offlineFallbackEnabled() ? 'on' : 'off'}`,
     );
@@ -461,13 +478,10 @@ export class AiIntakeService implements OnModuleInit {
       const parsed = extractJsonObject(content);
 
       if (parsed === null) {
-        // The model answered, just not in JSON. The offline classifier gives a
-        // better guess than empty defaults, and it is labelled as such.
+        // The model answered, just not in JSON. callOnceJson already retried
+        // every endpoint and model, so this is the last resort before the rules.
         this.logger.warn('AI intake: the provider did not return JSON; using the offline classifier.');
-        return this.offlineResult(
-          source,
-          'The AI provider answered in an unexpected format — this suggestion comes from the offline keyword classifier, not from the model.',
-        );
+        return this.offlineResult(source, FORMAT_NOTICE);
       }
 
       const suggestion = coerceSuggestion(parsed, source);
@@ -487,7 +501,10 @@ export class AiIntakeService implements OnModuleInit {
       this.logger.warn(`AI intake unavailable: ${message}`);
 
       if (this.offlineFallbackEnabled()) {
-        return this.offlineResult(source, this.offlineNotice(message));
+        return this.offlineResult(
+          source,
+          /non-JSON/i.test(message) ? FORMAT_NOTICE : this.offlineNotice(message),
+        );
       }
 
       return { suggestion: null, error: 'AI provider unavailable' };
@@ -559,39 +576,52 @@ export class AiIntakeService implements OnModuleInit {
   /**
    * Ask the provider for a classification.
    *
-   * Tries the configured model first. If it is rate-limited (429), returns a 5xx,
-   * or the network blips, it waits briefly and retries once, then moves on to
-   * `AI_FALLBACK_MODEL` (comma-separated) before giving up - so one busy model
-   * does not drop the answer to the keyword rules. A rejected `response_format`
+   * Tries the configured provider first, then the safety net
+   * (`AI_FALLBACK_PROVIDER_URL`; or Groq itself when a local `AI_API_KEY` is set
+   * against the shared demo proxy), and within each provider the configured
+   * model followed by `AI_FALLBACK_MODEL` (comma-separated). A transient
+   * failure — 429, 5xx, a network blip, or an empty completion — is retried once
+   * per model after `AI_RETRY_DELAY_MS`, so one busy or unreachable endpoint
+   * never drops the answer to the keyword rules. A rejected `response_format`
    * (HTTP 400) is retried without JSON mode, because the field is valid OpenAI
    * but not every compatible server implements it. A 401/404 is not retried: the
-   * key or the model name is wrong.
+   * key or the model name is wrong. The whole attempt runs inside
+   * `AI_TOTAL_BUDGET_MS`, so a dead network cannot hang the ticket form.
    */
   private async callProvider(text: string, timeoutMs: number): Promise<string> {
     const models = [this.model(), ...this.fallbackModels()];
+    const targets = this.providerChain();
+    const deadline = Date.now() + this.totalBudgetMs();
     let lastError: unknown = new Error('AI provider unavailable');
 
-    for (const model of models) {
-      try {
-        return await this.callOnce(text, timeoutMs, true, model);
-      } catch (err) {
-        lastError = err;
-        const message = describe(err);
+    for (const [index, target] of targets.entries()) {
+      if (index > 0) {
+        this.logger.warn(
+          `AI intake: falling back to ${target.label} (${target.url}) after: ${describe(lastError)}`,
+        );
+      }
 
-        if (/HTTP 400/.test(message)) {
-          try {
-            return await this.callOnce(text, timeoutMs, false, model);
-          } catch (retryErr) {
-            lastError = retryErr;
+      for (const model of models) {
+        try {
+          return await this.callOnceJson(text, timeoutMs, true, model, target);
+        } catch (err) {
+          lastError = err;
+
+          if (/HTTP 400/.test(describe(err))) {
+            try {
+              return await this.callOnceJson(text, timeoutMs, false, model, target);
+            } catch (retryErr) {
+              lastError = retryErr;
+            }
           }
-        }
 
-        if (this.isRetryable(describe(lastError))) {
-          await sleep(this.retryDelayMs());
-          try {
-            return await this.callOnce(text, timeoutMs, true, model);
-          } catch (retryErr) {
-            lastError = retryErr;
+          if (Date.now() < deadline && this.isRetryable(describe(lastError))) {
+            await sleep(this.retryDelayMs());
+            try {
+              return await this.callOnceJson(text, timeoutMs, true, model, target);
+            } catch (retryErr) {
+              lastError = retryErr;
+            }
           }
         }
       }
@@ -600,33 +630,39 @@ export class AiIntakeService implements OnModuleInit {
     throw lastError;
   }
 
-  /** 429/5xx and network failures are worth retrying; a bad key or model is not. */
+  /**
+   * 429/5xx, network failures and empty completions are worth retrying; a bad
+   * key or a wrong model name is not. An empty completion is retryable because
+   * reasoning models occasionally spend every token on their reasoning and send
+   * no content at all — a second attempt (or the other model) usually answers.
+   */
   private isRetryable(message: string): boolean {
     return (
       /HTTP (429|500|502|503|504)/.test(message) ||
+      /empty response|non-JSON/i.test(message) ||
       /rate.?limit|fetch failed|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENETUNREACH|EAI_AGAIN|aborted|network|socket/i.test(
         message,
       )
     );
   }
 
-  /** A single request. `jsonMode` asks the provider for strict JSON output. */
+  /** A single request against one endpoint. `jsonMode` asks for strict JSON output. */
   private async callOnce(
     text: string,
     timeoutMs: number,
     jsonMode: boolean,
     model: string,
+    target: ProviderTarget,
   ): Promise<string> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
-    const apiKey = process.env.AI_API_KEY;
 
     try {
-      const res = await fetch(`${this.providerUrl()}/chat/completions`, {
+      const res = await fetch(`${target.url}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+          ...(target.apiKey ? { Authorization: `Bearer ${target.apiKey}` } : {}),
         },
         body: JSON.stringify({
           model,
@@ -652,6 +688,29 @@ export class AiIntakeService implements OnModuleInit {
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  /**
+   * One attempt that must also come back as parseable JSON.
+   *
+   * A provider can answer 200 with prose, or with JSON truncated because a
+   * reasoning model spent the token budget thinking (the shared demo proxy caps
+   * it at 256 tokens). That is a provider failure like any other, so it is
+   * retried and then handed to the next model/endpoint instead of ending the
+   * employee's answer at the keyword rules.
+   */
+  private async callOnceJson(
+    text: string,
+    timeoutMs: number,
+    jsonMode: boolean,
+    model: string,
+    target: ProviderTarget,
+  ): Promise<string> {
+    const content = await this.callOnce(text, timeoutMs, jsonMode, model, target);
+    if (extractJsonObject(content) === null) {
+      throw new Error('AI provider returned non-JSON content');
+    }
+    return content;
   }
 
   private enabled(): boolean {
@@ -688,6 +747,51 @@ export class AiIntakeService implements OnModuleInit {
   private timeoutMs(): number {
     const parsed = Number(process.env.AI_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TIMEOUT_MS;
+  }
+
+  /**
+   * The endpoints to try, in order: the configured one, then the safety net.
+   * The shared demo proxy is a convenience, not an SLA - a blip there should not
+   * cost the employee the model's answer when a private key is available.
+   */
+  private providerChain(): ProviderTarget[] {
+    const primary: ProviderTarget = {
+      url: this.providerUrl(),
+      apiKey: process.env.AI_API_KEY,
+      label: 'AI_PROVIDER_URL',
+    };
+
+    const fallbackUrl = this.fallbackProviderUrl(primary.url);
+    if (!fallbackUrl) return [primary];
+
+    return [
+      primary,
+      {
+        url: fallbackUrl,
+        apiKey: process.env.AI_FALLBACK_API_KEY ?? process.env.AI_API_KEY,
+        label: 'AI_FALLBACK_PROVIDER_URL',
+      },
+    ];
+  }
+
+  /**
+   * The second endpoint worth trying. An explicit `AI_FALLBACK_PROVIDER_URL`
+   * wins; otherwise a local `AI_API_KEY` turns Groq itself into the safety net,
+   * because that key belongs to Groq and the demo proxy is not the only way in.
+   */
+  private fallbackProviderUrl(primaryUrl: string): string {
+    const explicit = (process.env.AI_FALLBACK_PROVIDER_URL ?? '').trim().replace(/\/+$/, '');
+    if (explicit) return explicit === primaryUrl ? '' : explicit;
+    if (process.env.AI_API_KEY && !/groq\.(com|cloud)/i.test(primaryUrl)) {
+      return GROQ_PROVIDER_URL;
+    }
+    return '';
+  }
+
+  /** Whole-call budget (`AI_TOTAL_BUDGET_MS`), so a dead network cannot hang the form. */
+  private totalBudgetMs(): number {
+    const parsed = Number(process.env.AI_TOTAL_BUDGET_MS ?? DEFAULT_TOTAL_BUDGET_MS);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TOTAL_BUDGET_MS;
   }
 }
 
