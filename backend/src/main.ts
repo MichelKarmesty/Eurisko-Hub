@@ -16,6 +16,17 @@ function assertProductionEnv() {
     );
     process.exit(1);
   }
+
+  // Production defaults to synchronize=false and this project ships no
+  // migrations, so the tables have to exist already. Say so once, loudly,
+  // instead of letting the first query fail with "no such table".
+  if (process.env.TYPEORM_SYNCHRONIZE !== 'true') {
+    console.warn(
+      '[startup] NODE_ENV=production with TypeORM synchronize disabled — the ' +
+        'database schema must already exist (this repo ships no migrations). ' +
+        'Set TYPEORM_SYNCHRONIZE=true to let TypeORM create it.',
+    );
+  }
 }
 
 async function bootstrap() {

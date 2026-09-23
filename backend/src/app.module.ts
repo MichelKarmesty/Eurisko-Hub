@@ -27,6 +27,24 @@ const DEFAULT_ADMIN_EMAIL = 'admin@eurisko.com';
 const DEFAULT_ADMIN_PASSWORD = 'Admin123!';
 
 /**
+ * Should TypeORM create/alter the schema itself?
+ *
+ * Default: yes outside production, no in production — so a live database is
+ * never auto-altered. This project ships **no migrations**, so a production
+ * deployment has to create the tables itself before the first boot and set
+ * `TYPEORM_SYNCHRONIZE=false` explicitly; a single-node SQLite deployment that
+ * would rather let TypeORM build the schema can force it back on with
+ * `TYPEORM_SYNCHRONIZE=true`.
+ */
+function resolveSynchronize(): boolean {
+  const configured = process.env.TYPEORM_SYNCHRONIZE;
+  if (configured === undefined || configured === '') {
+    return process.env.NODE_ENV !== 'production';
+  }
+  return configured === 'true';
+}
+
+/**
  * Modular monolith (architecture.md §2): Auth Module + Ticket Module + one
  * relational database. Local runs use a SQLite database (TypeORM sqljs
  * driver) so nothing extra needs installing; swap the TypeORM config for
@@ -57,10 +75,11 @@ const DEFAULT_ADMIN_PASSWORD = 'Admin123!';
           type: 'sqljs',
           location: location ?? undefined, // undefined => in-memory DB
           autoSave: Boolean(location),
-          // synchronize: true is intentional for dev/test (in-memory DB, no
-          // migrations needed). Disabled in production to prevent TypeORM from
-          // auto-altering or dropping columns against a live database.
-          synchronize: process.env.NODE_ENV !== 'production',
+          // synchronize: on for dev/test (in-memory or throwaway SQLite, and no
+          // migrations shipped). Off in production so TypeORM never auto-alters
+          // a live database; that deployment owns its schema. TYPEORM_SYNCHRONIZE
+          // overrides either way — see resolveSynchronize().
+          synchronize: resolveSynchronize(),
           entities: [User, Ticket, TicketEvent],
         };
       },

@@ -48,29 +48,62 @@ const service = new AiIntakeService();
 /** Is a real OpenAI-compatible provider answering right now? */
 let providerAvailable = false;
 
+/** One short, aborted-on-timeout probe request. */
+async function probeFetch(url: string, init: RequestInit = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  try {
+    return await realFetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Availability probe. `/models` is the cheapest capability check, and the one
+ * Groq, Ollama and most OpenAI-compatible servers implement — but the shared
+ * Cloudflare demo proxy (the default provider) deliberately serves only
+ * `/health` and `/v1/chat/completions`, so fall back to a one-token completion.
+ * Probing the endpoint the service actually calls is the honest test.
+ */
+async function probeProvider(apiKey: string | undefined): Promise<boolean> {
+  const auth: Record<string, string> = apiKey
+    ? { Authorization: `Bearer ${apiKey}` }
+    : {};
+
+  try {
+    if ((await probeFetch(`${PROVIDER_URL}/models`, { headers: auth })).ok) {
+      return true;
+    }
+  } catch {
+    // No /models route here; the chat probe below is the real check.
+  }
+
+  try {
+    const res = await probeFetch(`${PROVIDER_URL}/chat/completions`, {
+      method: 'POST',
+      headers: { ...auth, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [{ role: 'user', content: 'ping' }],
+        max_tokens: 1,
+      }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 beforeAll(async () => {
   // Cloud APIs (Groq) and local models both get a little room to answer.
   process.env.AI_TIMEOUT_MS = process.env.AI_TIMEOUT_MS ?? '15000';
   // The service retries a transient failure once; tests keep that instant.
   process.env.AI_RETRY_DELAY_MS = process.env.AI_RETRY_DELAY_MS ?? '0';
 
-  // Groq requires the key on every call - including this probe, otherwise it
+  // Groq requires the key on every call - including these probes, otherwise it
   // answers 401 and the real cases would always skip.
-  const apiKey = process.env.AI_API_KEY;
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 5000);
-  try {
-    const probe = await realFetch(`${PROVIDER_URL}/models`, {
-      headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
-      signal: controller.signal,
-    });
-    providerAvailable = probe.ok;
-  } catch {
-    providerAvailable = false;
-  } finally {
-    clearTimeout(timer);
-  }
+  providerAvailable = await probeProvider(process.env.AI_API_KEY);
 
   if (!providerAvailable) {
     // eslint-disable-next-line no-console
