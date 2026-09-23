@@ -71,13 +71,34 @@ cd Eurisko-Hub
 (cd e2e      && npm install)   # only needed for the automated E2E tests
 ```
 
-## Run the app (quick start)
+## Run the app
 
-The API and the web client are **two separate processes**. Run each one in its
-own terminal and leave both running. `npm run build` only compiles the backend
-into `dist/` - it does **not** start it; `npm start` does. If the client cannot
-reach the API, sign-in fails with `Request failed with status 500` (see
+The API (<http://localhost:3000>) and the web client (<http://localhost:5173>) are
+**two separate processes**. Start the API first: the client proxies `/api` to it,
+so signing in before it is up fails with `Request failed with status 500` (see
 [Troubleshooting](#troubleshooting)).
+
+### One command (recommended)
+
+```bash
+node scripts/dev.mjs
+```
+
+It compiles the backend when `dist/` is missing or older than `src/`, creates the
+database folder, starts both processes, prefixes their output (`[api]`, `[web]`),
+and stops both when you press Ctrl+C. Then open <http://localhost:5173>.
+
+If a port is busy, move it - the client is pointed at the new API for you:
+
+```bash
+PORT=3001 node scripts/dev.mjs
+```
+
+### Two terminals
+
+The same thing by hand, when you would rather watch each process separately.
+`npm run build` compiles the backend into `dist/`; it does **not** start it -
+`npm start` does.
 
 > **VS Code - one click.** Open the repo in VS Code and use the built-in tasks:
 >
@@ -99,16 +120,14 @@ reach the API, sign-in fails with `Request failed with status 500` (see
 
 ```bash
 cd backend
-mkdir -p .data                       # DB_FILE's folder (gitignored, absent in a fresh clone)
 npm run build
-DB_FILE="$PWD/.data/hub.sqlite" npm start
+npm start
 ```
 
 Wait until it prints `Eurisko Hub API listening on http://localhost:3000` before
 starting the client - if that line never appears, sign-in in the browser will
-fail with a `500`. On Windows PowerShell the same commands are
-`New-Item -ItemType Directory -Force .data | Out-Null`, then
-`$env:DB_FILE="$PWD\.data\hub.sqlite"; npm start`.
+fail with a `500`. You do **not** have to create the database folder: the API
+creates `backend/.data/` on first boot if it is missing.
 
 First boot seeds **one** account - the Admin: `admin@eurisko.com` / `Admin123!`
 (override with `ADMIN_EMAIL` / `ADMIN_PASSWORD`). There is **no public

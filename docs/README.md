@@ -2,6 +2,8 @@
 
 This folder contains the decisions and working notes behind the Internal Operations Service Hub.
 
+Just want to run the app? [`run-the-app.md`](run-the-app.md) is the five-minute checklist.
+
 ## Reading order
 1. [product-spec.md](product-spec.md) - explains the problem, who uses the system, what the MVP must do, and how we will know it works.
 2. [architecture.md](architecture.md) - describes the system's main parts, boundaries, and approach to failures.

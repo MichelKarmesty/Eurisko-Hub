@@ -1,4 +1,6 @@
 import { Logger, Module, OnApplicationBootstrap } from '@nestjs/common';
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { APP_GUARD } from '@nestjs/core';
@@ -39,13 +41,26 @@ const DEFAULT_ADMIN_PASSWORD = 'Admin123!';
       // Resolved when the application boots rather than when this file is
       // imported, so `DB_FILE` is read per app instance: tests can point it at a
       // prepared database and operators at a persistent file.
-      useFactory: () => ({
-        type: 'sqljs',
-        location: process.env.DB_FILE ?? undefined, // undefined => in-memory DB
-        autoSave: Boolean(process.env.DB_FILE),
-        synchronize: true,
-        entities: [User, Ticket, TicketEvent],
-      }),
+      useFactory: () => {
+        const location = process.env.DB_FILE;
+
+        // `backend/.data` is gitignored, so it is missing in a fresh clone, and
+        // sql.js cannot write a file into a folder that does not exist -- the app
+        // would just log "Unable to connect to the database. Retrying..." until
+        // someone created the folder by hand. Create it here instead, so
+        // `npm start` works on a clean checkout with no extra step.
+        if (location) {
+          mkdirSync(dirname(location), { recursive: true });
+        }
+
+        return {
+          type: 'sqljs',
+          location: location ?? undefined, // undefined => in-memory DB
+          autoSave: Boolean(location),
+          synchronize: true,
+          entities: [User, Ticket, TicketEvent],
+        };
+      },
     }),
     UsersModule,
     AuthModule,

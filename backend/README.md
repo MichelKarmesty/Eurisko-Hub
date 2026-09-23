@@ -104,6 +104,8 @@ test/
                                         foreign-key enforcement
   admin-user-reactivation.spec.ts       ADR-004: reactivating a deactivated account
                                         (no dead-end 409)
+  db-file-folder.spec.ts                a fresh clone's missing .data/ is created
+                                        by the app, so no manual mkdir is needed
   auth-password.spec.ts                 v0.5 forgot/reset/change + any-email rule
   admin-reset-password.spec.ts          ADR-007/ADR-009: Admin-issued reset link
   mail-smtp.spec.ts                     SMTP transport selection + console fallback
@@ -135,8 +137,8 @@ offline. See [ADR-005](../docs/decisions/ADR-005.md),
 
 ## Quick start
 ```bash
-mkdir -p .data                                     # DB_FILE's folder (absent in a fresh clone)
-npm run build && DB_FILE="$PWD/.data/hub.sqlite" npm start
+npm run build && npm start
+# .data/ is created by the API if it is missing; backend/.env sets DB_FILE
 # wait for: Eurisko Hub API listening on http://localhost:3000
 # the web client runs in another terminal: cd ../frontend && npm run dev
 # sign in as admin@eurisko.com / Admin123!, then create users from the Users tab

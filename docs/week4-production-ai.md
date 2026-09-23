@@ -541,11 +541,12 @@ $ node scripts/run-tests.mjs
 
 *(Recorded at v0.6. The suite has grown since: ADR-007/ADR-008/ADR-009 added
 `admin-reset-password.spec.ts` and restored `mail-smtp.spec.ts`,
-`admin-user-reactivation.spec.ts` followed (ADR-004), and the DOM suite gained
-`change-password.ui.test.tsx`, so `npm test` now runs **11 spec files** and the
-DOM suite **5 tests**. Latest verified run (`b2c4371`, browser layer skipped):
-backend **102 passed / 5 skipped (107)** · live HTTP **28/28** · AI intake
-**11/11** · DOM UI **5/5**. The transcript above is kept as the snapshot it was.)*
+`admin-user-reactivation.spec.ts` followed (ADR-004), `db-file-folder.spec.ts`
+came with the DB-folder fix, and the DOM suite gained
+`change-password.ui.test.tsx`, so `npm test` now runs **12 spec files** and the
+DOM suite **5 tests**. Latest verified run (browser layer skipped): backend
+**103 passed / 5 skipped (108)** · live HTTP **28/28** · AI intake **11/11** ·
+DOM UI **5/5**. The transcript above is kept as the snapshot it was.)*
 
 ---
 
@@ -590,8 +591,8 @@ backend **102 passed / 5 skipped (107)** · live HTTP **28/28** · AI intake
 
 | Requirement | Status | Evidence |
 |---|---|---|
-| All existing deterministic tests still green | ✅ | `npm test` → **102 passed, 5 skipped (107)**, 11 files (verified on `b2c4371`); `run-tests.mjs` → ALL TESTS PASSED |
-| `node scripts/run-tests.mjs` still passes end to end | ✅ | 28/28 live HTTP, 11/11 AI intake, 5/5 DOM, full run exit 0 (verified on `b2c4371`) |
+| All existing deterministic tests still green | ✅ | `npm test` → **103 passed, 5 skipped (108)**, 12 files; `run-tests.mjs` → ALL TESTS PASSED |
+| `node scripts/run-tests.mjs` still passes end to end | ✅ | 28/28 live HTTP, 11/11 AI intake, 5/5 DOM, full run exit 0 |
 | 5–9 eval cases, covering the listed scenarios | ✅ | 9 cases in `ai-intake-eval.spec.ts` |
 | Cases 1–5 real when a provider exists, skipped otherwise | ✅ | `providerAvailable` probe in `beforeAll`; `skip()` in the test body |
 | Cases 6–9 mocked and deterministic | ✅ | stubbed `globalThis.fetch`, no network |
