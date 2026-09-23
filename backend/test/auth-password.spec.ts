@@ -91,6 +91,43 @@ describe('Password recovery and change over HTTP', () => {
     await app.close();
   });
 
+  // --- The profile a reload restores the session from ---------------------
+
+  it('GET /auth/me returns the whole public profile, name included', async () => {
+    const me = await request(http).get('/auth/me').set(auth(adminToken));
+
+    expect(me.status).toBe(200);
+    // The client rehydrates its session from this exact body on every reload,
+    // so everything the UI renders must be here. A missing `name` used to crash
+    // App.tsx into a blank page for anyone with a stored session.
+    expect(me.body).toMatchObject({
+      id: expect.any(Number),
+      name: expect.any(String),
+      email: 'admin@eurisko.com',
+      role: 'Admin',
+      isActive: true,
+    });
+    expect((me.body.name as string).length).toBeGreaterThan(0);
+    expect(me.body.passwordHash).toBeUndefined(); // same serializer boundary as login
+  });
+
+  it('GET /auth/me answers from the account, not from the token payload', async () => {
+    const created = await provision(`me.${run}@gmail.com`);
+    const session = await login(created.email, PASSWORD);
+    expect(session.status).toBe(200);
+
+    const promoted = await request(http)
+      .patch(`/users/${created.id}/role`)
+      .set(auth(adminToken))
+      .send({ role: 'IT_Agent' });
+    expect(promoted.status).toBe(200);
+
+    const me = await request(http).get('/auth/me').set(auth(session.body.accessToken));
+    expect(me.status).toBe(200);
+    expect(me.body.role).toBe('IT_Agent'); // the token still claims Employee
+    expect(me.body.name).toBe(session.body.user.name);
+  });
+
   // --- Any real email domain is accepted ---------------------------------
 
   it('accepts personal-provider and corporate email addresses (gmail/hotmail/outlook/company)', async () => {

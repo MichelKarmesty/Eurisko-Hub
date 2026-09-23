@@ -8,12 +8,14 @@ import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { DataSource } from 'typeorm';
 import { IS_PUBLIC_KEY } from './auth.decorators';
+import type { AuthUser } from './auth.decorators';
 import { Role } from './domain';
-import { User } from '../users/user.entity';
+import { User, publicUser } from '../users/user.entity';
 
 /**
  * Global guard: requires a valid `Authorization: Bearer <jwt>` on every route
- * except those marked @Public(). Attaches { id, email, role } as request.user.
+ * except those marked @Public(). Attaches the account's public profile
+ * (`{ id, name, email, role, isActive, createdAt }`) as request.user.
  *
  * The token is only proof that a session *was* issued: the account behind it is
  * re-read on every request. That is what makes removing or deactivating an
@@ -60,11 +62,9 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Invalid or expired token.');
     }
 
-    request.user = {
-      id: user.id,
-      email: user.email,
-      role: user.role as Role,
-    };
+    // The public profile, not just the token's claims: GET /auth/me answers with
+    // this object, and the UI needs the account's name to render its top bar.
+    request.user = publicUser(user) as AuthUser;
     return true;
   }
 }

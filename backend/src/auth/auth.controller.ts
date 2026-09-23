@@ -89,9 +89,13 @@ export class AuthController {
     return this.auth.changePassword(user.id, dto);
   }
 
-  /** GET /auth/me - current profile for the bearer token. */
+  /**
+   * GET /auth/me - the caller's own profile, in the same shape `POST /auth/login`
+   * returns it (including `name`). The client restores its session from this
+   * response on every reload, so it must be the whole public profile.
+   */
   @Get('me')
   me(@CurrentUser() user: AuthUser) {
-    return { id: user.id, email: user.email, role: user.role };
+    return user;
   }
 }

@@ -54,7 +54,9 @@ export default function App() {
         : `${user.role.replace('_Agent', '')} Agent`;
 
   // Two initials for the avatar — decorative only, the name is right beside it.
-  const initials = user.name
+  // Defensive on purpose: a field the UI only decorates with must never be able
+  // to blank the whole app (it did, while `/auth/me` omitted the name).
+  const initials = (user.name ?? '')
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
