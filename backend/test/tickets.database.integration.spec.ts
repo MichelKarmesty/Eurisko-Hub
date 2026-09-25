@@ -45,7 +45,12 @@ describe('Integration - ticket lifecycle is persisted in the database', () => {
 
   let seq = 0;
 
-  const asUser = (u: User): AuthUser => ({ id: u.id, email: u.email, role: u.role });
+  const asUser = (u: User): AuthUser => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role,
+  });
 
   async function openTicket() {
     seq += 1;
