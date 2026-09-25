@@ -1,6 +1,10 @@
 # Runtime database files (sql.js/SQLite) — never commit local state
 backend/.data/
 
+# Installed dependencies at any depth — never committed. The committed
+# package-lock.json files are what recreate them identically (`npm ci`).
+node_modules/
+
 # Frontend (Vite + React)
 frontend/node_modules/
 frontend/dist/

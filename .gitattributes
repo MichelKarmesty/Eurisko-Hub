@@ -1,0 +1,11 @@
+# Keep one behaviour on every PC. Git's default on Windows rewrites line endings
+# on checkout (core.autocrlf), which turns the same commit into different bytes
+# depending on who cloned it - the classic "works on my machine" source. Force
+# LF in the repository and in every working tree, so what runs is what was
+# committed, on Windows, macOS and Linux alike.
+* text=auto eol=lf
+
+# Windows-only helpers keep CRLF, which their own tooling expects.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf

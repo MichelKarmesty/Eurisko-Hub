@@ -5,24 +5,32 @@ the design documents start at [`docs/README.md`](README.md).
 
 Every command below is run from the repository root.
 
-## 1. Install (once)
+## 1. Install - nothing to do
 
-```bash
-(cd backend  && npm install)
-(cd frontend && npm install)
-(cd e2e      && npm install)   # only needed for the automated UI tests
-```
+On a fresh checkout, `npm run dev` (step 2) installs what is missing by itself:
+`backend/` and `frontend/` with `npm ci`, so both match the committed lockfiles
+exactly. The only prerequisite is:
 
-- Node.js **20.19+** (22 LTS recommended) with npm.
+- Node.js **20.19+** (22 LTS recommended) with npm. The run command checks this
+  before starting and names the version to install if it does not match
+  ([`.nvmrc`](../.nvmrc) pins 22, so `nvm use` selects it).
 - No database server, no Docker, no cloud account. The API writes a local SQLite
   file, and creates its folder itself.
-- Prefer the exact locked versions? Use `npm ci` instead of `npm install` - it
-  installs what `package-lock.json` pins and never rewrites it.
+
+To install ahead of time - on a slow connection, or to run the layers below by
+hand - use `npm ci`, which installs exactly what `package-lock.json` pins and
+never rewrites it:
+
+```bash
+(cd backend  && npm ci)
+(cd frontend && npm ci)
+(cd e2e      && npm ci)   # only needed for the automated UI tests
+```
 
 ## 2. Run
 
 ```bash
-node scripts/dev.mjs
+npm run dev
 ```
 
 Wait for the banner, which prints both addresses:
@@ -45,6 +53,9 @@ PORT=3001 node scripts/dev.mjs
 ```
 
 ### If you would rather use two terminals
+
+These two commands do not install anything, so run the `npm ci` pair from step 1
+first (only `npm run dev` installs for you).
 
 ```bash
 # terminal A - the API

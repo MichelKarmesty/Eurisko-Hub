@@ -57,36 +57,45 @@ it was resolved.
 
 ## Requirements
 
-- **Node.js 20.19+** (Node 22 LTS recommended) with npm
+- **Node.js 20.19+** (Node 22 LTS recommended) with npm. The run command checks
+  this before starting and, when it does not match, tells you exactly which
+  version to install instead of failing later with a confusing error
+  ([`.nvmrc`](.nvmrc) pins 22, so `nvm use` selects it).
 - No database server needed - the API persists to a local SQLite file
+- No Docker, no cloud account, and no separate install step
 
-## Install
+## Run it - one command
 
 ```bash
 git clone https://github.com/MichelKarmesty/Eurisko-Hub.git
 cd Eurisko-Hub
-
-(cd backend  && npm install)
-(cd frontend && npm install)
-(cd e2e      && npm install)   # only needed for the automated E2E tests
+npm run dev
 ```
 
-## Run the app
+That is the whole setup. On a fresh clone the command installs the backend and
+frontend dependencies with `npm ci` - exactly what the committed
+`package-lock.json` files pin, so any PC gets the same dependency tree rather
+than merely a compatible one. That install is the only step that needs the
+network. It then compiles the backend when `dist/` is missing or older than
+`src/`, creates the database folder, starts both processes, prefixes their
+output (`[api]`, `[web]`), and stops both when you press Ctrl+C:
 
-The API (<http://localhost:3000>) and the web client (<http://localhost:5173>) are
-**two separate processes**. Start the API first: the client proxies `/api` to it,
-so signing in before it is up fails with `Request failed with status 500` (see
+```text
+────────────────────────────────────────────────────────────────
+  API   http://127.0.0.1:3000
+  Web   http://127.0.0.1:5173
+────────────────────────────────────────────────────────────────
+```
+
+Open <http://localhost:5173>. Later runs skip the install and the compile and
+start in seconds. `node scripts/dev.mjs` is the same thing without going through
+npm.
+
+The API (<http://localhost:3000>) and the web client (<http://localhost:5173>)
+are **two separate processes**, and starting them in this order is what the
+command exists for: the client proxies `/api` to the API, so signing in before
+it is up fails with `Request failed with status 500` (see
 [Troubleshooting](#troubleshooting)).
-
-### One command (recommended)
-
-```bash
-node scripts/dev.mjs
-```
-
-It compiles the backend when `dist/` is missing or older than `src/`, creates the
-database folder, starts both processes, prefixes their output (`[api]`, `[web]`),
-and stops both when you press Ctrl+C. Then open <http://localhost:5173>.
 
 If a port is busy, move it - the client is pointed at the new API for you:
 
@@ -102,7 +111,9 @@ The same thing by hand, when you would rather watch each process separately.
 
 > **VS Code - one click.** Open the repo in VS Code and use the built-in tasks:
 >
-> 1. **Terminal → Run Task… → `deps: install all`** (once).
+> 1. **Terminal → Run Task… → `deps: install all`** (once). The VS Code tasks do
+>    not go through `npm run dev`, so they do not install for you; a terminal
+>    `npm run dev` installs whatever is missing by itself.
 > 2. `backend/.env` is completely optional: out of the box, the app connects
 >    to the shared demo AI provider (`https://eurisko-hub-demo-ai.eurisko-hub.workers.dev/v1`),
 >    so real online AI suggestions work immediately with zero configuration!
@@ -369,14 +380,15 @@ address is the only thing the API rejects (`400`). See
 ### Everything, with one command
 
 ```bash
-node scripts/run-tests.mjs
+npm test                      # or: node scripts/run-tests.mjs
 ```
 
-It builds the backend, runs all backend suites, starts an isolated backend on a
-free port with a throwaway SQLite file, runs the live HTTP checks, the DOM UI
-E2E, and the real-browser E2E, then tears everything down. It exits non-zero if
-any layer fails (a browser E2E that cannot obtain a Chromium is reported as
-skipped, not failed).
+It installs anything missing first (a fresh clone has no `node_modules`, and the
+`e2e/` suites need their own), then builds the backend, runs all backend suites,
+starts an isolated backend on a free port with a throwaway SQLite file, runs the
+live HTTP checks, the DOM UI E2E, and the real-browser E2E, then tears everything
+down. It exits non-zero if any layer fails (a browser E2E that cannot obtain a
+Chromium is reported as skipped, not failed).
 
 ### Layer by layer
 
@@ -543,7 +555,10 @@ Read in this order:
 - **Start over with an empty database:** stop the backend, `rm backend/.data/*.sqlite`,
   and start it again - the Admin account is re-seeded automatically. Every other
   account is created by an Admin from the Users tab.
-- **`npm install` fails on a restricted machine:** point npm at a writable cache:
+- **`npm install` fails on a restricted machine:** `npm run dev` already handles
+  this - when npm's cache in your home directory is not writable (a locked-down
+  laptop, a read-only `HOME`), it keeps the cache in the repository instead
+  (`./.npm-cache`) and tells you it did. To do it by hand:
   `npm install --cache ./.npm-cache`.
 - **E2E says the backend is not reachable:** the global setup prints the exact
   start command; make sure the API is running and pass `API_URL` if it is not on

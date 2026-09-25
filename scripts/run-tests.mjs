@@ -5,6 +5,7 @@
  *   node scripts/run-tests.mjs
  *
  * What it does:
+ *   0. installs whatever is missing (a fresh clone has no `node_modules`);
  *   1. builds the NestJS backend;
  *   2. runs the backend suites (business rule, backend<->database integration,
  *      HTTP contract/authorization/regression);
@@ -26,9 +27,11 @@ import { mkdirSync, rmSync } from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertNodeVersion, ensureDependenciesFor } from './lib/deps.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BACKEND = path.join(ROOT, 'backend');
+const FRONTEND = path.join(ROOT, 'frontend');
 const E2E = path.join(ROOT, 'e2e');
 const DB_FILE = path.join(BACKEND, '.data', `test-run-${process.pid}.sqlite`);
 
@@ -86,6 +89,12 @@ async function main() {
   let api = null;
 
   try {
+    // 0. A clean checkout has no node_modules: backend builds and runs the API,
+    //    frontend serves the Vite app the browser E2E drives, e2e holds the
+    //    suites themselves. No-op once installed.
+    assertNodeVersion();
+    ensureDependenciesFor([BACKEND, FRONTEND, E2E]);
+
     // 1. Build the backend so `dist/main.js` exists for the live checks.
     if (!run('Build backend', isWindows ? 'npm.cmd' : 'npm', ['run', 'build'], BACKEND)) {
       throw new Error('backend build failed');

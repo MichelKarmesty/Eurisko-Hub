@@ -8,12 +8,14 @@
  * prefixes each one's output so you can tell them apart, and stops both when
  * you press Ctrl+C — instead of you babysitting two terminals.
  *
- * It also removes the two things that make a clean checkout awkward:
+ * It also removes the things that make a clean checkout awkward:
  *
- *   1. the backend is compiled first when `dist/` is missing or older than
+ *   1. both folders' dependencies are installed first if they are missing or
+ *      stale, so a fresh `git clone` needs no separate install step (scripts/lib/deps.mjs);
+ *   2. the backend is compiled first when `dist/` is missing or older than
  *      `src/` (`npm start` runs the compiled server; `npm run build` alone
  *      never starts anything);
- *   2. the frontend is told which API to proxy to, so moving the API is
+ *   3. the frontend is told which API to proxy to, so moving the API is
  *      `PORT=3001 node scripts/dev.mjs` and nothing else has to change.
  *
  * Options (all optional, as env vars):
@@ -26,6 +28,7 @@ import { existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertNodeVersion, ensureDependenciesFor } from './lib/deps.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BACKEND = path.join(ROOT, 'backend');
@@ -149,6 +152,9 @@ function shutdown(code) {
 }
 
 async function main() {
+  // Before anything else: can this Node run the project at all?
+  assertNodeVersion();
+
   if (!(await portIsFree(API_PORT))) {
     throw new Error(
       `port ${API_PORT} is already in use — free it, or run: PORT=${API_PORT + 1} node scripts/dev.mjs`,
@@ -159,6 +165,10 @@ async function main() {
       `port ${WEB_PORT} is already in use — free it, or run: WEB_PORT=${WEB_PORT + 1} node scripts/dev.mjs`,
     );
   }
+
+  // A clean clone has no node_modules; this is what makes one command enough.
+  // It is a no-op on every later run (the install stamp is newer than the manifests).
+  ensureDependenciesFor([BACKEND, FRONTEND]);
 
   if (!buildIfStale()) throw new Error('the backend build failed — fix the errors above and retry');
 
