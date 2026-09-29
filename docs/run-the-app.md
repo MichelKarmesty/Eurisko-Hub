@@ -112,6 +112,11 @@ Before you send the URL:
 - [ ] The URL opens in a private window **and** on a phone hotspot, and the sign-in page loads.
 - [ ] The API answers through the tunnel:
       `curl -s -o /dev/null -w '%{http_code}\n' <URL>/api/health` → `200`.
+      Note the `/api` in that path: it goes through the web client (dev) or the
+      container's proxy, both of which strip the prefix. The bare API in the second
+      terminal has no prefix, so check it directly with
+      `curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/health` → `200`
+      (there, `/api/health` is a `404`).
 - [ ] Both terminals stay open for the whole defense. A sleeping laptop kills the tunnel,
       which is the most common way a live demo dies mid-sentence.
 
