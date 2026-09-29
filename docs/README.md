@@ -25,9 +25,11 @@ Just want to run the app? [`run-the-app.md`](run-the-app.md) is the five-minute 
 18. [week4-production-ai.md](week4-production-ai.md) - the Week 4 delivery record: the AI-assisted Request Intake capability, why it is advisory-only, the validation layer, the graceful fallback, how to run it, and the eval results.
 19. [defense-guide.md](defense-guide.md) - the capstone defense run sheet: the 15-minute plan by evaluation pillar, the exact commands, the talking points, the likely questions and the contingencies.
 20. [release-gate.md](release-gate.md) - the checklist to tick before submitting: access, product, AI feature, tests, security, documentation, operations, and the frozen SHA.
+21. [deploy.md](deploy.md) - how to put the app on a real public HTTPS URL: the single container that serves the API and the web client, the production environment variables, and step-by-step deploys for Render, Railway and Fly.
 
-Just want to run the app? [run-the-app.md](run-the-app.md) covers local, LAN and public-URL
-(the tunnel you need for the capstone submission) in five minutes.
+Just want to run the app? [run-the-app.md](run-the-app.md) covers local, LAN and a public URL
+in five minutes. For a URL that survives your laptop sleeping, use [deploy.md](deploy.md)
+instead of a tunnel.
 
 ## Purpose of these documents
 They are the living record of the delivered product, not a pre-build plan: the product specification, the architecture, the data model, and the decisions behind them, kept in step with the code in `../backend/` and `../frontend/`. Each document states what was decided, why, and where it is implemented.

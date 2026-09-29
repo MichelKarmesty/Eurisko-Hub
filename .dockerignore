@@ -1,0 +1,28 @@
+# Keep the build context small and free of secrets and local state.
+#
+# Everything here is either rebuilt inside the image (dist), reinstalled (node_modules),
+# or must never be copied into an image (secrets, databases, personal artifacts).
+
+**/node_modules
+**/dist
+**/.data
+
+# Secrets - backend/.env holds a live AI key in local development.
+**/.env
+**/.env.local
+
+# VCS and tooling state
+.git
+.gitignore
+.probe-libs
+.npm-cache
+
+# Test tooling that is not needed to build or run the server
+e2e
+**/*.log
+
+# Local / personal material
+artifacts
+*.docx
+.vscode
+.DS_Store

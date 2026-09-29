@@ -1,0 +1,64 @@
+# Render blueprint for Eurisko Hub.
+#
+# Usage: push this repo, then in Render choose
+#   New -> Blueprint -> pick this repository
+# Render reads this file, builds the Dockerfile and prompts for the two secrets
+# marked `sync: false` below.
+#
+# IMPORTANT - read before choosing a plan:
+#   * Free instance types on Render SPIN DOWN after ~15 minutes without traffic.
+#     The capstone brief explicitly forbids a live app that sleeps, because the
+#     grader can click the URL at any moment. Use a paid instance type so the
+#     service stays up for the whole defense.
+#   * Disks are not available on free instance types either. Without a disk the
+#     SQLite file lives in the container filesystem and every deploy or restart
+#     silently starts from an empty database.
+
+services:
+  - type: web
+    name: eurisko-hub
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    # `starter` keeps the service always-on and allows the disk below.
+    plan: starter
+    autoDeploy: false
+    disk:
+      name: eurisko-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8080
+
+      # The API refuses to start in production without these two.
+      - key: JWT_SECRET
+        generateValue: true # Render generates a long random value
+      - key: APP_BASE_URL
+        sync: false # set to the public https URL Render gives you
+
+      - key: ADMIN_EMAIL
+        value: admin@eurisko.com
+      - key: ADMIN_PASSWORD
+        sync: false # set a real password - never ship the default
+
+      # Persistence. This path MUST be on the mounted disk.
+      - key: DB_FILE
+        value: /data/hub.sqlite
+      # This project ships no migrations, so the schema is created on first boot.
+      - key: TYPEORM_SYNCHRONIZE
+        value: "true"
+
+      # AI intake. Left pointing at the shared demo proxy, so no API key is
+      # needed; with no provider reachable the app falls back to the labelled
+      # offline classifier instead of failing (ADR-006).
+      - key: AI_ENABLED
+        value: "true"
+      - key: AI_PROVIDER_URL
+        value: https://eurisko-hub-demo-ai.eurisko-hub.workers.dev/v1
+      - key: AI_MODEL
+        value: openai/gpt-oss-20b
+      - key: AI_OFFLINE_FALLBACK
+        value: "true"
