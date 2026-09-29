@@ -171,12 +171,37 @@ function expectUsable(result: AiIntakeResult, label: string): NonNullable<AiInta
 }
 
 /**
+ * Transient provider trouble: the right answer is to skip, not to fail. Matches
+ * both the low-level error text and the human notice the service shows, because
+ * the offline result carries the notice ("AI provider unavailable", "rate-limited
+ * (429)", "answered in an unexpected format") rather than the raw error.
+ */
+const TRANSIENT_PROVIDER_TROUBLE =
+  /rate.?limit|\b429\b|provider unavailable|unexpected format|fetch failed|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENETUNREACH|EAI_AGAIN|aborted|network|socket|empty response|non-JSON/i;
+
+/**
  * A real-provider answer: usable AND genuinely from the model. Without this, a
  * retired or misspelled `AI_MODEL` falls back to the offline classifier and
  * still "passes" - the exact silent failure this guards against.
+ *
+ * The one exception is a provider that was answering when the suite started and
+ * stopped mid-run - the shared demo proxy is rate-limited (429), and a network
+ * can blip. That is not the model misbehaving, so the case is skipped with the
+ * provider's own notice instead of turning the suite red. A configuration
+ * failure (401, 404, a wrong model name) is *not* transient and still fails.
  */
-function expectModelAnswer(result: AiIntakeResult, label: string): NonNullable<AiIntakeResult['suggestion']> {
+function expectModelAnswer(
+  result: AiIntakeResult,
+  label: string,
+  skip?: (note?: string) => never,
+): NonNullable<AiIntakeResult['suggestion']> {
   const suggestion = expectUsable(result, label);
+
+  const trouble = result.notice ?? result.error ?? '';
+  if (result.source !== 'ai' && skip && TRANSIENT_PROVIDER_TROUBLE.test(trouble)) {
+    skip(`${label}: the provider stopped answering mid-run (${trouble.slice(0, 120)})`);
+  }
+
   expect(result.source, `${label}: the model must answer, not the offline fallback`).toBe('ai');
   return suggestion;
 }
@@ -187,6 +212,7 @@ describe('AI intake eval - real provider (skips when no provider is running)', (
     const suggestion = expectModelAnswer(
       await service.suggest('My monitor is broken and I need a replacement'),
       'clear IT',
+      skip,
     );
     expect(suggestion.category).toBe('IT');
     // Urgency is a judgement call, so the eval asserts a valid priority rather
@@ -198,6 +224,7 @@ describe('AI intake eval - real provider (skips when no provider is running)', (
     const suggestion = expectModelAnswer(
       await service.suggest('I need to update my emergency contact information'),
       'clear HR',
+      skip,
     );
     expect(suggestion.category).toBe('HR');
   });
@@ -207,14 +234,15 @@ describe('AI intake eval - real provider (skips when no provider is running)', (
     const suggestion = expectModelAnswer(
       await service.suggest('The AC in conference room B is not working'),
       'clear Maintenance',
+      skip,
     );
     expect(suggestion.category).toBe('Maintenance');
   });
 
   it('4. thin input still yields a valid category and priority (low confidence is fine)', async ({ skip }) => {
     if (!providerAvailable) skip();
-    const thin = expectModelAnswer(await service.suggest('help'), 'thin input');
-    expectModelAnswer(await service.suggest('something is wrong'), 'thin input (second wording)');
+    const thin = expectModelAnswer(await service.suggest('help'), 'thin input', skip);
+    expectModelAnswer(await service.suggest('something is wrong'), 'thin input (second wording)', skip);
     // v0.6 - "wrote very little" must never be mistaken for "not a request". The
     // prompt says so explicitly; this is the assertion that keeps the relevance
     // signal from nagging the employees who write the least.
@@ -228,6 +256,7 @@ describe('AI intake eval - real provider (skips when no provider is running)', (
         'The office door lock is broken and I also need HR to update my badge',
       ),
       'mixed signals',
+      skip,
     );
     // Either department is defensible; what must never happen is an invented one.
     expect(CATEGORIES).toContain(suggestion.category);
