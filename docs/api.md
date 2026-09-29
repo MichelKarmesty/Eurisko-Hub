@@ -469,6 +469,10 @@ anything in `backend/src` - a running server keeps the code it started with.
 Wait for `Eurisko Hub API listening on http://localhost:3000`; the web client
 (`cd ../frontend && npm run dev`) runs in a second terminal.
 
+> From the repository root, `npm run dev` does all of the above for you - it
+> installs what is missing, compiles the backend, and starts the API and the web
+> client together. The block above is the by-hand version.
+
 First boot seeds exactly **one** account - the Admin
 (`admin@eurisko.com` / `Admin123!`, override via `ADMIN_EMAIL` / `ADMIN_PASSWORD`).
 Sign in with it and create everyone else from the **Users** tab (ADR-004); there

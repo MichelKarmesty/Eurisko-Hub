@@ -8,7 +8,8 @@ stack (React app → NestJS → SQLite):
 | `npx vitest run` (`npm run test:ui`) | The **real React components** (`../frontend/src`) in jsdom, with fetch proxied to a live backend | Everywhere - no browser needed (fast feedback) |
 | `node scripts/run-browser-e2e.mjs` | A **real Chromium** (Playwright) against a self-started backend + Vite, with screenshots | The primary E2E - full fidelity; self-installing |
 
-Both run inside `node scripts/run-tests.mjs`.
+Both run inside `node scripts/run-tests.mjs` (from the repository root), which
+installs whatever is missing first - including this folder's dependencies.
 
 ## DOM-level tests
 

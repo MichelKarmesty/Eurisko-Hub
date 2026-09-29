@@ -26,6 +26,11 @@ NestJS + TypeORM implementation of the Internal Operations Service Hub
   gracefully when no provider is running
 
 ## Commands
+
+> From the repository root, `npm run dev` installs, builds and runs both the API
+> and the web client in one command. The commands below are for working on this
+> package on its own.
+
 ```bash
 npm install
 npm run build        # tsc -> dist/   (re-run after changing src: npm start runs dist)

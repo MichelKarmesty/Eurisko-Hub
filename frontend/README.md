@@ -13,6 +13,10 @@ required to resolve) is enforced by the NestJS backend in `../backend/`.
 
 ## Run it
 
+> From the repository root, `npm run dev` is the one command that installs,
+> builds and starts both the API and this client. The steps below are the
+> by-hand version, for running this client on its own.
+
 1. Start the backend **with a persistent database file** (so state survives
    restarts):
 
