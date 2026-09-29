@@ -83,6 +83,28 @@ async function waitForApi(base) {
   return false;
 }
 
+/**
+ * A tree npm considers installed can still be broken: an optional,
+ * platform-specific native binding (rolldown's, which vitest drives) can be
+ * skipped without the install failing, and the runner then dies at startup with
+ * "Cannot find native binding" - which reads like a failing test suite instead of
+ * a failed install. Loading the bundler is the cheapest proof the tree works;
+ * `import.meta.resolve` comes first so a tree where the package is absent
+ * altogether is "nothing to check" rather than a false alarm.
+ */
+const E2E_SMOKE = {
+  command: process.execPath,
+  args: [
+    '--input-type=module',
+    '-e',
+    [
+      "const spec = 'rolldown';",
+      'try { import.meta.resolve(spec); } catch { process.exit(0); }',
+      'await import(spec);',
+    ].join(' '),
+  ],
+};
+
 async function main() {
   const port = process.env.TEST_PORT ? Number(process.env.TEST_PORT) : await freePort();
   const base = `http://127.0.0.1:${port}`;
@@ -93,7 +115,7 @@ async function main() {
     //    frontend serves the Vite app the browser E2E drives, e2e holds the
     //    suites themselves. No-op once installed.
     assertNodeVersion();
-    ensureDependenciesFor([BACKEND, FRONTEND, E2E]);
+    ensureDependenciesFor([BACKEND, FRONTEND, { dir: E2E, smoke: E2E_SMOKE }]);
 
     // 1. Build the backend so `dist/main.js` exists for the live checks.
     if (!run('Build backend', isWindows ? 'npm.cmd' : 'npm', ['run', 'build'], BACKEND)) {

@@ -17,10 +17,13 @@
  *     pins - two PCs then get the same tree, not merely compatible ranges - and
  *     falls back to `npm install` only when the lockfile is out of sync;
  *   - it falls back to a cache inside the repository when npm's home-directory
- *     cache is not writable, so a locked-down PC can install too.
+ *     cache is not writable, so a locked-down PC can install too;
+ *   - it can prove an installed tree really works (a caller-supplied `smoke`
+ *     command) and rebuild it once when it does not, because npm can skip a
+ *     platform-specific optional dependency without the install failing.
  */
 import { spawnSync } from 'node:child_process';
-import { accessSync, constants, existsSync, statSync } from 'node:fs';
+import { accessSync, constants, existsSync, rmSync, statSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -185,24 +188,72 @@ export function installDependencies(appDir) {
   return false;
 }
 
-/**
- * Make sure a folder is ready to run: install only when something is missing or
- * stale. Returns false when the install genuinely failed, so the caller can stop
- * with a single clear error rather than a cascade of "module not found".
- */
-export function ensureDependencies(appDir) {
-  if (dependenciesAreCurrent(appDir)) {
-    console.log(`[deps] ${label(appDir)} — dependencies are up to date.`);
-    return true;
-  }
-  return installDependencies(appDir);
+/** Run a folder's smoke command quietly; true when it answers. */
+function smokePasses(appDir, smoke) {
+  const result = spawnSync(smoke.command, smoke.args, {
+    cwd: appDir,
+    stdio: 'ignore',
+    // Never through a shell: the arguments carry a JavaScript snippet, which a
+    // shell would re-split (and Windows would need escaping for).
+    shell: false,
+  });
+  return result.status === 0;
 }
 
-/** Same, for several folders in order. Throws on the first failure. */
-export function ensureDependenciesFor(appDirs) {
-  for (const appDir of appDirs) {
-    if (!ensureDependencies(appDir)) {
-      throw new Error(`dependency install failed in ${label(appDir)} — see the output above`);
+/** Wipe an installed tree so a repair starts from a known state. */
+function removeModules(appDir) {
+  rmSync(path.join(appDir, 'node_modules'), { recursive: true, force: true, maxRetries: 3 });
+}
+
+/**
+ * Make sure a folder is ready to run: install when something is missing or
+ * stale, and - when the caller supplies a `smoke` command - prove the installed
+ * tree actually works before trusting it.
+ *
+ * The smoke check exists because "installed" and "working" are not the same
+ * thing: npm treats a platform-specific *optional* dependency it cannot fetch as
+ * a non-event, so an install on a flaky network can finish with a normal-looking
+ * report and a tree that is missing a native binding. Nothing notices until the
+ * toolchain loads it. When the smoke fails the folder is rebuilt once from a
+ * clean tree, and a second failure is reported as the install problem it is.
+ */
+export function ensureDependencies(appDir, { smoke } = {}) {
+  const where = label(appDir);
+  const healthy = () => !smoke || smokePasses(appDir, smoke);
+
+  if (dependenciesAreCurrent(appDir)) {
+    if (healthy()) {
+      console.log(`[deps] ${where} — dependencies are up to date.`);
+      return true;
+    }
+    console.warn(`[deps] ${where} is installed but does not work — rebuilding it from scratch.`);
+  } else if (installDependencies(appDir) && healthy()) {
+    return true;
+  } else {
+    console.warn(`[deps] ${where} did not install into a working state — rebuilding it from scratch.`);
+  }
+
+  removeModules(appDir);
+  if (!installDependencies(appDir)) return false;
+  if (!healthy()) {
+    console.error(
+      `[deps] ${where} still does not work after a clean reinstall. Delete node_modules and ` +
+        'package-lock.json, install again, and look for a skipped optional dependency.',
+    );
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Same, for several folders in order. Each entry is either a path or
+ * `{ dir, smoke }`. Throws on the first failure.
+ */
+export function ensureDependenciesFor(entries) {
+  for (const entry of entries) {
+    const { dir, smoke } = typeof entry === 'string' ? { dir: entry } : entry;
+    if (!ensureDependencies(dir, { smoke })) {
+      throw new Error(`dependency install failed in ${label(dir)} — see the output above`);
     }
   }
 }
