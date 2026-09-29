@@ -11,22 +11,27 @@ git rev-parse HEAD     # -> paste as Final Commit SHA
 git status --porcelain # -> must print nothing before you send
 ```
 
+**Filled at the last commit:** `b7c56f7` (push was clean; `origin/main` matches,
+working tree empty). Replace it if you commit again.
+
 ---
 
 **To:** fouad.b@euriskomobility.com, toni.tannoury@eurisko.net, fawzi.c@euriskomobility.com, academy@eurisko.net
-**Subject:** AI Academy 2026 - Final Capstone Submission - [FULL NAME]
+**Subject:** AI Academy 2026 - Final Capstone Submission - Michel Karmesty
 
 **Body:**
 
 ```
-Full Name: [FULL NAME]
+Full Name: Michel Karmesty
 Repository URL: https://github.com/MichelKarmesty/Eurisko-Hub
 Final Commit SHA: [PASTE the output of `git rev-parse HEAD`]
 Live App URL: [YOUR DEPLOYED URL]
 
 Demo Access / Roles:
   - Admin: admin@eurisko.com / Admin123! (or your custom credentials)
-  - [List any pre-created test accounts and their roles]
+  - Only the Admin is seeded and a fresh database has no tickets, so there are no
+    pre-created test accounts to list: the Admin creates them from the Users tab,
+    and the tickets are opened by hand. See the README's "Exercise the slice".
 
 Notes:
   - The submitted commit SHA above is the exact revision that is deployed and
@@ -50,7 +55,7 @@ Notes:
 - [ ] `[FULL NAME]` is filled in (both in the subject and the body).
 - [ ] `Final Commit SHA` is the output of `git rev-parse HEAD` **after** the last commit.
 - [ ] `Live App URL` opens in a private/incognito window **and** on a phone hotspot (off my network).
-- [ ] The live app answers `GET /health` with `200` and the Admin login above works on it.
+- [ ] The live app answers `GET /api/health` with `200` and the Admin login above works on it.
 - [ ] `git status --porcelain` prints nothing (nothing uncommitted is running).
 - [ ] The repository is public and the grader can open it without signing in.
 - [ ] `docs/release-gate.md` is fully ticked.

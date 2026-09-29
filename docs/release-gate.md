@@ -6,20 +6,26 @@ live. Commands assume the repository root. If a box cannot be ticked, it is not
 
 **Submission record**
 
-- **Final commit SHA:** `______________________________`
-- **Live app URL:** `______________________________`
+- **Final commit SHA:** `b7c56f752893439a7d5ad815d0c54af62f41fd14` (`b7c56f7`) — re-run `git rev-parse HEAD` after any further commit
+- **Live app URL:** `______________________________` — pending: deploy with `deploy/vm/bootstrap.sh` (Option E) or Options A–D, then paste it here
 - **Submitted at (ISO 8601):** `______________________________`
 - **Release gate reviewed by:** `______________________________`
+
+**State of this checklist at `b7c56f7`:** every box that can be checked without a
+live URL is checked below and was verified locally; the boxes that need the
+deployed app are left open and marked **live** — this file is not submit-ready
+until they are ticked. Nothing has been deployed yet.
 
 ---
 
 ## Access
 
-- [ ] Repository is public and the URL is correct — <https://github.com/MichelKarmesty/Eurisko-Hub>
-- [ ] Grader can clone and run `npm run dev` on a fresh machine (one command installs, builds and starts API + web client)
-- [ ] Live app URL is reachable from outside my network (open it on a phone hotspot, not only on my LAN)
-- [ ] Default admin credentials work, or documented alternatives are in the README
+- [x] Repository is public and the URL is correct — <https://github.com/MichelKarmesty/Eurisko-Hub>
+- [x] Grader can clone and run `npm run dev` on a fresh machine (one command installs, builds and starts API + web client)
+- [ ] Live app URL is reachable from outside my network (open it on a phone hotspot, not only on my LAN) — **live**
+- [x] Default admin credentials work, or documented alternatives are in the README
   - default: `admin@eurisko.com` / `Admin123!`; deployment overrides `ADMIN_EMAIL` / `ADMIN_PASSWORD`
+  - verified on a fresh database: exactly 1 account (the Admin) and 0 tickets
 
 Verify:
 
