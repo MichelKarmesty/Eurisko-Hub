@@ -80,6 +80,50 @@ other PC cannot connect, a host firewall is the usual cause.
 > and is unchanged by that switch - so on a shared network the API port answers
 > too, not just the web client.
 
+### Put it on a public URL (required for the capstone submission)
+
+The submission requires a URL the grader can open **from outside your network**. The
+free, no-account way is a quick tunnel in front of the dev server:
+
+```bash
+# terminal A — bind the web client to every interface (and allow the tunnel's Host)
+LAN=1 npm run dev
+
+# terminal B — a free public HTTPS URL, no account or card required
+npx cloudflared tunnel --url http://localhost:5173
+```
+
+`cloudflared` prints a `https://<random>.trycloudflare.com` address. That is the link to
+submit and the link to open on a phone hotspot. One tunnel is enough: the client's `/api`
+calls are proxied by Vite to the API on the same machine, so the API needs no tunnel of
+its own.
+
+`LAN=1` is not optional here. A tunnel forwards the request with its own hostname in the
+`Host` header, and Vite's DNS-rebinding protection rejects unknown hosts unless `DEV_HOST`
+is set — which is exactly what `LAN=1` does.
+
+Before you send the URL:
+
+- [ ] `DB_FILE` is set (copy `.env.example` to `.env`, or rely on `npm run dev`, which
+      defaults to `backend/.data/hub.sqlite`). With no `DB_FILE` the app runs **in memory**
+      and every restart erases the demo data.
+- [ ] `ADMIN_PASSWORD` is changed from `Admin123!` and `JWT_SECRET` is a long random value
+      (`node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`).
+- [ ] The URL opens in a private window **and** on a phone hotspot, and the sign-in page loads.
+- [ ] The API answers through the tunnel:
+      `curl -s -o /dev/null -w '%{http_code}\n' <URL>/api/health` → `200`.
+- [ ] Both terminals stay open for the whole defense. A sleeping laptop kills the tunnel,
+      which is the most common way a live demo dies mid-sentence.
+
+If `cloudflared` is unavailable, any equivalent tunnel works — for example
+`ssh -R 80:localhost:5173 nokey@localhost.run`. The requirement is only that the web client
+is reachable over HTTPS from outside your network.
+
+> **A tunnel is for the defense window, not for production.** The seeded Admin password is
+> published in this repository, dev mode has no rate limiting, and the SQLite file lives on
+> your laptop. This is the documented capstone deployment, not how you would run the tool
+> for a real company.
+
 ### If you would rather use two terminals
 
 These two commands do not install anything, so run the `npm ci` pair from step 1

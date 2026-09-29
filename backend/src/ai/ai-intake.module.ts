@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { AiIntakeController } from './ai-intake.controller';
+import { AiClassifyController, AiIntakeController } from './ai-intake.controller';
 import { AiIntakeService } from './ai-intake.service';
 
 /**
@@ -8,9 +8,13 @@ import { AiIntakeService } from './ai-intake.service';
  * Deliberately has no TypeORM import: the feature is advisory, so it must not
  * be able to touch the database. That is a design statement, not an oversight -
  * the only writer of tickets remains TicketsService.
+ *
+ * Two controllers, one service: `/tickets/ai-suggest` (nested, used by the
+ * React form) and `/ai/classify` (flat, the documented contract). Both are
+ * read-only views of the same classifier.
  */
 @Module({
-  controllers: [AiIntakeController],
+  controllers: [AiIntakeController, AiClassifyController],
   providers: [AiIntakeService],
   exports: [AiIntakeService],
 })

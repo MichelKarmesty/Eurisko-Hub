@@ -11,6 +11,7 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { AiIntakeModule } from './ai/ai-intake.module';
+import { HealthModule } from './health/health.module';
 import { Ticket } from './tickets/ticket.entity';
 import { TicketEvent } from './tickets/ticket-event.entity';
 import { UsersService } from './users/users.service';
@@ -88,6 +89,7 @@ function resolveSynchronize(): boolean {
     AuthModule,
     TicketsModule,
     AiIntakeModule,
+    HealthModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

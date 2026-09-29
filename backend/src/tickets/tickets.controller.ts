@@ -76,7 +76,7 @@ export class TicketsController {
       id,
       user,
       dto.status,
-      dto.resolutionNote,
+      dto.resolutionNote ?? dto.note, // `note` is the documented alias
       dto.overrideReason,
     );
   }

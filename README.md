@@ -50,8 +50,8 @@ it was resolved.
 |---|---|
 | [`backend/`](backend/) | NestJS + TypeORM API (auth with password reset/change, RBAC, tickets with claim/status flow, durable history, advisory AI intake under `src/ai/`, console/HTTP mail under `src/mail/`) |
 | [`frontend/`](frontend/) | React + Vite web client (requester dashboard with AI Suggest, agent queue, admin view) |
-| [`docs/`](docs/) | Product spec, architecture, data model, ADRs (incl. [ADR-006](docs/decisions/ADR-006.md), the advisory-AI scope decision), API reference, Week 3 & Week 4 delivery records |
-| [`scripts/`](scripts/) | [`verify-slice.mjs`](scripts/verify-slice.mjs) live HTTP checks · [`run-tests.mjs`](scripts/run-tests.mjs) one-command test suite · [`verify-ai-intake.mjs`](scripts/verify-ai-intake.mjs) AI intake checks · [`ai-provider-doctor.mjs`](scripts/ai-provider-doctor.mjs) find a working AI provider · [`mock-ai-provider.mjs`](scripts/mock-ai-provider.mjs) **test double** - exercises the model path with no key (never a real model) · [`reset-password.mjs`](scripts/reset-password.mjs) offline break-glass: mint a reset link when a lone Admin is locked out |
+| [`docs/`](docs/) | Product spec, architecture, data model, ADRs (incl. [ADR-006](docs/decisions/ADR-006.md), the advisory-AI scope decision), API reference, Week 3 & Week 4 delivery records, the [defense guide](docs/defense-guide.md) and the [release gate](docs/release-gate.md) |
+| [`scripts/`](scripts/) | [`verify-slice.mjs`](scripts/verify-slice.mjs) live HTTP checks · [`run-tests.mjs`](scripts/run-tests.mjs) one-command test suite · [`verify-ai-intake.mjs`](scripts/verify-ai-intake.mjs) AI intake checks · [`ai-provider-doctor.mjs`](scripts/ai-provider-doctor.mjs) find a working AI provider · [`mock-ai-provider.mjs`](scripts/mock-ai-provider.mjs) **test double** - exercises the model path with no key (never a real model) · [`reset-password.mjs`](scripts/reset-password.mjs) offline break-glass: mint a reset link when a lone Admin is locked out · **defense pack:** [`final-smoke.mjs`](scripts/final-smoke.mjs) 20 live checks · [`defense-health-check.mjs`](scripts/defense-health-check.mjs) live health monitor · [`prove-recovery.mjs`](scripts/prove-recovery.mjs) failure + recovery proof · [`collect-evidence.mjs`](scripts/collect-evidence.mjs) evidence compiler · [`pre-defense.mjs`](scripts/pre-defense.mjs) pre-flight checklist |
 | [`e2e/`](e2e/) | End-to-end tests: DOM-level (default) and real-browser (optional) |
 | [`proxy/`](proxy/) | Optional shared demo AI provider: a small Cloudflare Worker that keeps the AI key in an encrypted secret, so the real model can be reached without putting a key in this public repo ([deploy notes](proxy/README.md)) |
 
@@ -442,6 +442,7 @@ npm run test:ai-eval      # v0.4/v0.6: the 9 AI intake eval cases
 | ADR-007/ADR-009: Admin-issued reset link - contract + authorization | `npm test` | `backend/test/admin-reset-password.spec.ts` |
 | Role changes + the last-active-Admin guard | `npm test` | `backend/test/admin-role-change.spec.ts` |
 | Mail transports: real SMTP conversation, backup sender, console fallback | `npm test` | `backend/test/mail-smtp.spec.ts` |
+| Health/ops surface (`GET /`, `GET /health`, request log) + the flat `POST /ai/classify` contract | `npm test` | `backend/test/health-ops.spec.ts` |
 
 **UI E2E - two layers:**
 
@@ -554,6 +555,26 @@ Read in this order:
 16. [`docs/security.md`](docs/security.md) - the seeded Admin, no public registration, the authorization model, and password recovery
 17. [`docs/week3-full-stack-delivery.md`](docs/week3-full-stack-delivery.md) - the Week 3 delivery record
 18. [`docs/week4-production-ai.md`](docs/week4-production-ai.md) - the Week 4 AI-assisted intake record
+19. [`docs/defense-guide.md`](docs/defense-guide.md) - the 15-minute run sheet for the capstone defense
+20. [`docs/release-gate.md`](docs/release-gate.md) - the checklist to tick before submitting
+
+## Defense / hand-in pack
+
+Five scripts prove the delivered app; none of them needs an npm dependency, and each
+supports `--help`:
+
+```bash
+node scripts/final-smoke.mjs           # 20 checks against the RUNNING app -> 20/20
+node scripts/defense-health-check.mjs  # live monitor: 200 OK, DB size, uptime, last requests
+node scripts/prove-recovery.mjs        # 4 failure/recovery scenarios -> artifacts/recovery-proof-<ts>.txt
+node scripts/collect-evidence.mjs      # Week 1-5 evidence -> artifacts/evidence-summary.md
+node scripts/pre-defense.mjs           # everything above + git/SHA/secrets -> READY or NOT READY
+```
+
+`pre-defense.mjs` is the gate: run it 30 minutes before the defense and do not present on
+a red frame. Point it at the deployed instance with `--live <url>` / `--api <url>`, and
+pass the frozen commit with `--sha <sha>`. The run sheet itself is
+[`docs/defense-guide.md`](docs/defense-guide.md).
 
 ## Troubleshooting
 

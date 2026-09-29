@@ -38,6 +38,18 @@ export class UpdateStatusDto {
   @MinLength(1)
   resolutionNote?: string;
 
+  /**
+   * Alias for `resolutionNote`, accepted because the externally documented
+   * contract (`docs/api.md`, the capstone smoke test) posts `{ status, note }`
+   * while the web client sends `resolutionNote`. The controller collapses the
+   * two, so both spellings behave identically and neither can bypass the
+   * "a resolution note is required" rule.
+   */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  note?: string;
+
   /** Required for an Admin acting on a ticket not assigned to them (ADR-002). */
   @IsOptional()
   @IsString()

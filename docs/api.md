@@ -24,6 +24,46 @@ client is never trusted to enforce permissions).
 | `Maintenance_Agent` | Maintenance | Maintenance queue + claimed tickets |
 | `Admin` | all | every ticket company-wide + stats + user management; may **assign** unclaimed tickets (ADR-003), **cancel** them softly (ADR-003), and change status only as a recorded **override** (ADR-002) |
 
+## Health & ops - public, no authentication
+
+These two routes exist so an operator, a monitor or a grader can prove the service is
+alive **without credentials**. They are `@Public()`; the global `JwtAuthGuard` would
+otherwise answer `401`. They expose no account, ticket or secret - only a fixed service
+name, uptime, a file path/size and method+path+status triples.
+
+### GET / - liveness
+`200` while the process is serving. Used for the simplest uptime checks.
+
+```json
+{ "service": "eurisko-hub-api", "status": "ok", "version": "0.1.0",
+  "health": "/health", "uptimeSeconds": 754, "uptime": "12m 34s",
+  "timestamp": "2026-09-29T18:08:04.331Z" }
+```
+
+### GET /health - readiness + ops evidence
+Runs `SELECT 1` against the database, so `200` means *the process answers **and** the
+database answers*. `503`-class degradation is reported as `"status": "degraded"` with
+`"database": "unavailable"` rather than a crash.
+
+```json
+{ "status": "ok", "service": "eurisko-hub-api", "schemaVersion": 1,
+  "uptimeSeconds": 754, "uptime": "12m 34s", "database": "connected",
+  "db": { "mode": "file", "file": "backend/.data/hub.sqlite", "exists": true,
+          "sizeBytes": 151552, "sizeHuman": "148 KB" },
+  "requests": { "total": 47, "errors": 2,
+                "last5": [ { "method": "POST", "path": "/auth/login", "status": 200,
+                             "ms": 23, "at": "2026-09-29T18:07:41.002Z" } ] },
+  "timestamp": "2026-09-29T18:08:04.331Z" }
+```
+
+* `db.mode` is `"memory"` when `DB_FILE` is unset - a real (reportable) deployment
+  choice, not a failure.
+* `requests` is an in-process ring buffer of the **last 25 real requests**; health
+  polling itself is excluded, so the list shows user traffic during a demo. The
+  middleware never records bodies, headers or query strings.
+* This route is what `scripts/defense-health-check.mjs` polls every 10 seconds and
+  what `scripts/final-smoke.mjs` checks first.
+
 ## Authentication
 
 There is **no public registration** (ADR-004). The backend seeds exactly one
@@ -289,6 +329,11 @@ Body: `{ "status": "In Progress" | "Resolved", "resolutionNote": "...", "overrid
 * Allowed transitions only: `Open → In Progress → Resolved` (data-model §2).
 * Moving to `Resolved` **requires** a non-empty `resolutionNote`
   (data-model §2 rule) - an empty/missing note → `400 Bad Request`.
+* `note` is accepted as an **alias** for `resolutionNote`: the capstone brief and
+  `scripts/final-smoke.mjs` post `{ "status": "Resolved", "note": "..." }`, while the
+  React client sends `resolutionNote`. The controller collapses the two into one
+  value, so both spellings behave identically and neither can bypass the
+  "a resolution note is required" rule.
 * A `status` outside the allowed set → `400 Bad Request` (DTO validation).
 * Anyone else (including the requester, or another agent) → `403`.
 * **Admin override (ADR-002):** when the acting user is an Admin and the ticket
@@ -428,6 +473,50 @@ only the model path words it that way.
   `AI_OFFLINE_FALLBACK` (default `true`), and `AI_API_KEY` - **required for
   Groq** (free key from console.groq.com); a keyless local provider such as
   Ollama needs none.
+
+### POST /ai/classify - any authenticated user, advisory only
+The **canonical, flat** classification contract (the shape the capstone brief names,
+and the one `scripts/final-smoke.mjs` and `scripts/verify-ai-intake.mjs` assert).
+It is the same classifier as `/tickets/ai-suggest` - one service, one validation
+path, one set of rules - differing only in the envelope: flat here, nested there.
+
+Request - `description` is the documented field; `text` is accepted as an alias:
+
+```json
+{ "description": "The printer on the second floor keeps jamming" }
+```
+
+→ `200` with the domain-validated fields:
+
+```json
+{ "category": "IT", "priority": "Medium", "title": "Printer jamming",
+  "relevant": true, "reason": "", "confidence": 0.9, "source": "ai" }
+```
+
+→ `200` with `relevant: false` when the text is not a support request - the call
+succeeded, the *input* could not be read as one, so nothing is pre-filled:
+
+```json
+{ "category": "IT", "priority": "Low", "title": "Not a support request",
+  "relevant": false, "reason": "the text is random characters, not a request",
+  "confidence": 0.1, "source": "ai" }
+```
+
+Status codes:
+
+| Code | When |
+|---|---|
+| `200` | a suggestion exists (including `relevant: false`) |
+| `400` | `description`/`text` missing, not a string, or shorter than 3 characters |
+| `401` | no/invalid bearer token |
+| `503` | the feature is off (`AI_ENABLED=false`) or no provider answered **and** `AI_OFFLINE_FALLBACK=false` |
+
+`source` is `"ai"` only when a model actually answered; anything else is
+`"offline"`, so rules are never passed off as the model's work. When the offline
+classifier answers, `notice` explains why.
+
+Either way this route is **read-only**: it cannot create, change or delete a
+ticket. `POST /tickets` remains the only writer.
 
 ### GET-free check script
 `node scripts/verify-ai-intake.mjs` drives six descriptions (five realistic ones
