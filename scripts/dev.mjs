@@ -163,7 +163,9 @@ function banner(apiBase, appUrl) {
   lines.push(
     '',
     '  Sign in as the Admin:  admin@eurisko.com / Admin123!',
-    '  Then create the accounts you want under  👥 Users  (no public signup).',
+    '  The Admin is the ONLY account and there are NO tickets yet — create the',
+    '  accounts you want to test with under  👥 Users  (no public signup), then',
+    '  open the tickets yourself with them.',
     '',
     '  Ctrl+C stops both.',
   );

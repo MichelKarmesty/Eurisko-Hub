@@ -42,8 +42,10 @@ required to resolve) is enforced by the NestJS backend in `../backend/`.
 
 3. On a **fresh** database the backend seeds exactly **one** account - the Admin
    (`admin@eurisko.com` / `Admin123!`, override via `ADMIN_EMAIL` /
-   `ADMIN_PASSWORD`). Sign in with it and create everyone else from the
-   **👥 Users** tab. There is **no public registration** and no demo data
+   `ADMIN_PASSWORD`). That is **all** that exists: **no other account and no
+   ticket is created for you**. Sign in with it, create the people you want to
+   test with from the **👥 Users** tab, then sign in as them and open the tickets
+   yourself. There is **no public registration** and no demo data
    (ADR-004): the login screen is a plain sign-in form - no self-service recovery
    and no reset-token box; only an Admin can issue a reset link (ADR-007/ADR-009).
    Accounts accept **any real email address** - Gmail, Hotmail/Outlook, Yahoo or

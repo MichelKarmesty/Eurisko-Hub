@@ -106,7 +106,7 @@ Before you send the URL:
 
 - [ ] `DB_FILE` is set (copy `.env.example` to `.env`, or rely on `npm run dev`, which
       defaults to `backend/.data/hub.sqlite`). With no `DB_FILE` the app runs **in memory**
-      and every restart erases the demo data.
+      and every restart erases the accounts and tickets you created by hand.
 - [ ] `ADMIN_PASSWORD` is changed from `Admin123!` and `JWT_SECRET` is a long random value
       (`node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`).
 - [ ] The URL opens in a private window **and** on a phone hotspot, and the sign-in page loads.
@@ -147,12 +147,16 @@ up fails with `Request failed with status 500`.
 
 | Account | Email | Password |
 |---|---|---|
-| Admin (seeded on first boot) | `admin@eurisko.com` | `Admin123!` |
+| Admin (the **only** seeded account) | `admin@eurisko.com` | `Admin123!` |
 
-There is **no public registration** (ADR-004). Sign in as the Admin, open
-**👥 Users → Create account**, and add the people you want to test with - for
-example an **Employee**, an **IT Agent**, an **HR Agent** and a **Maintenance
-Agent**. Any real email address is accepted for the accounts you create.
+There is **no public registration** and **no demo data** (ADR-004). A fresh
+database contains **one Admin account and zero tickets** - nothing is pre-made
+for you to click. Sign in as the Admin, open **👥 Users → Create account**, and
+add the people you want to test with - for example an **Employee**, an **IT
+Agent**, an **HR Agent** and a **Maintenance Agent**. Note the passwords you set,
+then sign in as each of them and **open the tickets yourself** to exercise the
+flow (open → claim → resolve with a note → the requester sees it Resolved). Any
+real email address is accepted for the accounts you create.
 
 ## 4. Prove it works
 
@@ -196,6 +200,7 @@ break - it falls back to the labelled offline suggestion and reports why.
 | Port already in use | `PORT=3001 node scripts/dev.mjs`, or stop whatever holds the port |
 | The AI tag says **Suggested (offline)** | No key, or the provider is unreachable. See step 5 |
 | Cannot sign in after changing `ADMIN_EMAIL` | The Admin is seeded once. An existing Admin is never replaced; start over with an empty `backend/.data/` |
+| No accounts or tickets to test with | By design - the app seeds only the Admin and no demo data. Sign in as the Admin, create accounts in **👥 Users**, then open tickets from those accounts |
 
 More, including password recovery and the offline break-glass, is in the
 [top-level README](../README.md#troubleshooting).

@@ -44,6 +44,14 @@ it was resolved.
 > [`docs/decisions/ADR-008.md`](docs/decisions/ADR-008.md) and
 > [`docs/decisions/ADR-009.md`](docs/decisions/ADR-009.md).
 
+> **Testing it yourself? You start from an empty system.** A fresh database
+> seeds **exactly one account - the Admin** (`admin@eurisko.com` /
+> `Admin123!`) - and **nothing else**: no other account exists and **no ticket
+> exists**. There is no demo data to click through (ADR-004). To test any role
+> or any flow, sign in as the Admin, **create the accounts you need** from the
+> **👥 Users** tab, then **open the tickets yourself** with those accounts -
+> step-by-step below in [Exercise the slice](#exercise-the-slice-5-minutes).
+
 ## Repository layout
 
 | Folder | What it is |
@@ -170,9 +178,12 @@ creates `backend/.data/` on first boot if it is missing.
 
 First boot seeds **one** account - the Admin: `admin@eurisko.com` / `Admin123!`
 (override with `ADMIN_EMAIL` / `ADMIN_PASSWORD`). There is **no public
-registration** and no demo data (ADR-004): sign in as the Admin and create
-everyone else from the **Users** tab. Set `DB_FILE` so tickets survive restarts;
-without it the database is in-memory.
+registration** and **no demo data** (ADR-004). The database holds **only that
+Admin**: **there is no other account and no ticket in it yet** - nothing
+pre-made to look at. Every account is created from the **Users** tab by the
+Admin, and every ticket is opened by one of those accounts while you test. Set
+`DB_FILE` so the accounts and tickets you create survive restarts; without it the
+database is in-memory and each restart begins empty again.
 
 `admin@eurisko.com` is only the development **default**: the application accepts
 **any valid email address** - `someone@gmail.com`, `someone@hotmail.com`,
@@ -191,11 +202,15 @@ npm run dev
 
 The Vite dev server proxies `/api` to the backend on port 3000.
 
-**3. Create the accounts you want to test with.** Open http://localhost:5173 and
-sign in as the Admin (`admin@eurisko.com` / `Admin123!`), then open the
-**👥 Users** tab and use **Create account** to add people - for example an
-**Employee** (Requester), an **IT Agent**, an **HR Agent** and a
-**Maintenance Agent**. Only an Admin can create accounts, and only an Admin sees
+**3. Create the accounts and tickets you will test with - none exist yet.** The
+Admin is the **only** account in the database and the ticket list is **empty**;
+nothing has been prepared for you. Open http://localhost:5173, sign in as the
+Admin (`admin@eurisko.com` / `Admin123!`), then open the **👥 Users** tab and use
+**Create account** to add people - for example an **Employee** (Requester), an
+**IT Agent**, an **HR Agent** and a **Maintenance Agent**. Write down the
+passwords you set: you will sign in as each of those accounts to open and work
+the tickets (steps 1-2 of [Exercise the slice](#exercise-the-slice-5-minutes)
+below). Only an Admin can create accounts, and only an Admin sees
 the Users tab; the login screen is a plain sign-in form - no self-service recovery
 and no token box, because only an Admin can issue a reset link (ADR-007/ADR-009).
 Any real email address is accepted for the people you create.
@@ -209,10 +224,17 @@ node scripts/verify-slice.mjs full
 
 ## Exercise the slice (5 minutes)
 
+> **You build the data as you go.** The app ships no accounts and no tickets, so
+> this walkthrough starts by creating them: you are the Admin who provisions two
+> people, and then you are each of those people in turn. Nothing below can be
+> skipped - there is no pre-made ticket to click.
+
 1. Open http://localhost:5173 and sign in as the Admin (`admin@eurisko.com` /
    `Admin123!`). On the **👥 Users** tab, create two accounts you will use:
    an **Employee** (e.g. `rana@eurisko.com`) and an **IT Agent**
-   (e.g. `karim@eurisko.com`). Remember the passwords you set.
+   (e.g. `karim@eurisko.com`). Remember the passwords you set - you sign in as
+   both next. (The ticket list is still empty at this point; step 2 creates the
+   first one.)
 2. Click **Switch account** and sign in as the **Employee**. Under
    **New request**, enter a title, choose **IT** / **High**, add a description,
    and click **Open ticket** - it shows as `Open` in **My tickets**.
@@ -601,8 +623,10 @@ pass the frozen commit with `--sha <sha>`. The run sheet itself is
   proxy targets 3000, so either free port 3000 or point the client at the new
   port with `VITE_API_BASE=http://localhost:3001`.
 - **Start over with an empty database:** stop the backend, `rm backend/.data/*.sqlite`,
-  and start it again - the Admin account is re-seeded automatically. Every other
-  account is created by an Admin from the Users tab.
+  and start it again - the Admin account is re-seeded automatically and everything
+  else is gone, so you are back to **one Admin account and no tickets**. Account
+  creation and ticket opening are always done by hand from the app: no demo
+  accounts or demo tickets are ever loaded for you.
 - **`npm install` fails on a restricted machine:** `npm run dev` already handles
   this - when npm's cache in your home directory is not writable (a locked-down
   laptop, a read-only `HOME`), it keeps the cache in the repository instead
