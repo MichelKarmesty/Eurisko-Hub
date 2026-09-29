@@ -29,6 +29,7 @@ client needs a hardcoded host or CORS.
 | `.dockerignore` | keeps `node_modules`, `dist`, the SQLite file and **`.env` secrets** out of the image |
 | `deploy/server.mjs` | the single process the container runs |
 | `render.yaml` | a ready-made Render blueprint (Option A) |
+| `deploy/vm/` | an always-on VM deployment: `bootstrap.sh`, `docker-compose.yml`, `Caddyfile` (Option E) |
 
 ## Required environment variables
 
@@ -121,6 +122,30 @@ docker run --rm -p 8080:8080 \
 
 `-v eurisko-data:/data` is what makes the data survive `docker run` again; drop
 it only if you are happy to start from an empty database each time.
+
+## Option E - a free always-on VM (survives your laptop being off)
+
+Options A-D all end up either costing money or depending on a machine you have to
+keep running. A tunnel in front of a local instance - the fastest route, and the
+one `run-the-app.md` describes - dies the moment the laptop sleeps, which is the
+most common way a live demo fails.
+
+Option E moves the container onto a small cloud VM on a free tier instead, so the
+URL is independent of your own hardware and costs nothing:
+
+```bash
+# on a fresh Ubuntu VM, once the cloud firewall allows 80/443 (see the README)
+git clone https://github.com/MichelKarmesty/Eurisko-Hub.git /opt/eurisko-hub
+sudo bash /opt/eurisko-hub/deploy/vm/bootstrap.sh
+```
+
+It installs Docker, builds the same image as Option D, runs it behind Caddy with
+an automatically renewed Let's Encrypt certificate, and prints a permanent
+`https://<ip>.sslip.io` URL. No domain name is required, and Docker restarts the
+stack by itself after a reboot.
+
+Full instructions, including the cloud-firewall step that is easy to miss, the
+free-tier caveats and the troubleshooting table: **`deploy/vm/README.md`**.
 
 ## Verify the deployment
 

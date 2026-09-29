@@ -1,0 +1,24 @@
+# Eurisko Hub - Caddy configuration for the always-on VM.
+#
+# Caddy obtains and renews a Let's Encrypt certificate automatically for
+# SITE_ADDRESS, serves HTTP on :80 and redirects it to HTTPS on :443, then
+# reverse-proxies everything to the app container on 127.0.0.1:8080.
+#
+# SITE_ADDRESS is injected by docker-compose from deploy/vm/.env. With no domain
+# of your own it is a sslip.io name derived from the VM's public IP, e.g.
+#   203-0-113-10.sslip.io
+# sslip.io is a public wildcard-DNS service: that hostname resolves to the IP it
+# names, so Let's Encrypt can validate it over HTTP-01 with no DNS setup at all.
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8080
+
+	# Access log on the caddy-data volume so it survives container restarts.
+	log {
+		output file /data/access.log {
+			roll_size 10MiB
+			roll_keep 3
+		}
+	}
+}
