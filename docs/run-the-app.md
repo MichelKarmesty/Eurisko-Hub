@@ -52,6 +52,34 @@ API and the client follows automatically:
 PORT=3001 node scripts/dev.mjs
 ```
 
+### Show it to another PC on the same network
+
+The dev server answers only this machine unless you ask otherwise. For a demo or a
+review from someone else's PC, add `LAN=1`:
+
+```bash
+LAN=1 npm run dev
+```
+
+The banner then prints the address to give them:
+
+```text
+  Open it from another PC on this network:
+        http://192.168.1.42:5173
+```
+
+The web client and its `/api` proxy both answer on that address. Use
+`DEV_HOST=192.168.1.50` instead of `LAN=1` to bind one specific interface. If the
+other PC cannot connect, a host firewall is the usual cause.
+
+> **This is dev-mode sharing, not a deployment.** Anyone who can reach that
+> address can sign in, the seeded Admin password (`Admin123!`) is published in
+> this repository, and dev mode has no HTTPS. Change the Admin password (or set
+> `ADMIN_PASSWORD`) first, and only share on a network you trust. Note also that
+> the API listens on every interface whenever it runs - that is NestJS's default
+> and is unchanged by that switch - so on a shared network the API port answers
+> too, not just the web client.
+
 ### If you would rather use two terminals
 
 These two commands do not install anything, so run the `npm ci` pair from step 1

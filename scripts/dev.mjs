@@ -22,10 +22,13 @@
  *   PORT=3001        API port          (default 3000)
  *   WEB_PORT=5174    web client port   (default 5173)
  *   SKIP_BUILD=1     never compile the backend, even if it looks stale
+ *   LAN=1            let other PCs on this network open the app (see DEV_HOST)
+ *   DEV_HOST=0.0.0.0 the same, with an explicit address to bind
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import net from 'node:net';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertNodeVersion, ensureDependenciesFor } from './lib/deps.mjs';
@@ -37,6 +40,26 @@ const API_PORT = Number(process.env.PORT ?? 3000);
 const WEB_PORT = Number(process.env.WEB_PORT ?? 5173);
 const isWindows = process.platform === 'win32';
 const npm = isWindows ? 'npm.cmd' : 'npm';
+
+/**
+ * Opt-in: serve the web client to other machines on the network. Off by default,
+ * so a normal run stays on localhost.
+ *
+ * Deliberately NOT called `HOST`: zsh (and other shells) already export `HOST`
+ * as the machine's own name, so reading it would bind the dev server to a name
+ * that does not resolve. `LAN=1` is the shorthand for "every interface".
+ */
+const DEV_HOST = (process.env.DEV_HOST ?? (process.env.LAN === '1' ? '0.0.0.0' : '')).trim();
+/** Addresses that mean "every interface": they are not dialable URLs themselves. */
+const WILDCARD_HOSTS = new Set(['0.0.0.0', '::', '[::]']);
+
+/** Non-loopback IPv4 addresses, so the banner can print the real URL to share. */
+function lanAddresses() {
+  return Object.values(os.networkInterfaces())
+    .flat()
+    .filter((iface) => iface && iface.family === 'IPv4' && !iface.internal)
+    .map((iface) => iface.address);
+}
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -124,21 +147,39 @@ function buildIfStale() {
 }
 
 function banner(apiBase, appUrl) {
-  console.log(
-    [
-      '',
-      '─'.repeat(64),
-      `  API   ${apiBase}`,
-      `  Web   ${appUrl}`,
-      '',
-      '  Sign in as the Admin:  admin@eurisko.com / Admin123!',
-      '  Then create the accounts you want under  👥 Users  (no public signup).',
-      '',
-      '  Ctrl+C stops both.',
-      '─'.repeat(64),
-      '',
-    ].join('\n'),
+  const lines = ['', '─'.repeat(64), `  API   ${apiBase}`, `  Web   ${appUrl}`];
+
+  const exposed = DEV_HOST !== '';
+  const shared = exposed
+    ? lanAddresses()
+        .map((ip) => `http://${ip}:${WEB_PORT}`)
+        .filter((url) => url !== appUrl)
+    : [];
+  if (shared.length) {
+    lines.push('', '  Open it from another PC on this network:');
+    lines.push(...shared.map((url) => `        ${url}`));
+  }
+
+  lines.push(
+    '',
+    '  Sign in as the Admin:  admin@eurisko.com / Admin123!',
+    '  Then create the accounts you want under  👥 Users  (no public signup).',
+    '',
+    '  Ctrl+C stops both.',
   );
+
+  if (exposed) {
+    lines.push(
+      '',
+      `  ⚠  DEV_HOST=${DEV_HOST} — other machines can reach this dev server.`,
+      '     Anyone who can reach it can sign in, and the Admin password above is',
+      '     published in this repository: set ADMIN_PASSWORD before sharing, and',
+      '     only do this on a network you trust. Dev mode has no HTTPS.',
+    );
+  }
+
+  lines.push('─'.repeat(64), '');
+  console.log(lines.join('\n'));
 }
 
 const children = [];
@@ -187,7 +228,13 @@ async function main() {
   }
 
   const apiBase = `http://127.0.0.1:${API_PORT}`;
-  const appUrl = `http://127.0.0.1:${WEB_PORT}`;
+  // Usually loopback. With a concrete DEV_HOST the server listens only on that
+  // address, so probing 127.0.0.1 would never succeed and the readiness check
+  // below would time out with a misleading message.
+  const webIsOnConcreteAddress = DEV_HOST !== '' && !WILDCARD_HOSTS.has(DEV_HOST);
+  const appUrl = webIsOnConcreteAddress
+    ? `http://${DEV_HOST}:${WEB_PORT}`
+    : `http://127.0.0.1:${WEB_PORT}`;
 
   console.log(`[dev] starting the API on ${apiBase}…`);
   const api = spawn(process.execPath, [path.join(BACKEND, 'dist', 'main.js')], {
@@ -211,13 +258,24 @@ async function main() {
     throw new Error(`the API did not become ready at ${apiBase}`);
   }
 
+  if (DEV_HOST) {
+    console.log(
+      `[dev] DEV_HOST=${DEV_HOST} — the web client will also answer other machines on this network.`,
+    );
+  }
   console.log(`[dev] starting the web client on ${appUrl}…`);
   const web = spawn(
     npm,
     ['run', 'dev', '--', '--port', String(WEB_PORT), '--strictPort'],
     {
       cwd: FRONTEND,
-      env: { ...process.env, API_PROXY_TARGET: apiBase },
+      // DEV_HOST is passed explicitly so `LAN=1` reaches vite.config.ts, which
+      // reads it to bind the server and to accept a non-localhost Host header.
+      env: {
+        ...process.env,
+        API_PROXY_TARGET: apiBase,
+        ...(DEV_HOST ? { DEV_HOST } : {}),
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: isWindows,
       detached: !isWindows,

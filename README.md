@@ -103,6 +103,33 @@ If a port is busy, move it - the client is pointed at the new API for you:
 PORT=3001 node scripts/dev.mjs
 ```
 
+### Show it to another PC on the same network
+
+The dev server answers only this machine unless you ask otherwise. For a demo or a
+review from someone else's PC, add `LAN=1`:
+
+```bash
+LAN=1 npm run dev
+```
+
+The banner then prints the address to hand over, and the web client (with its
+`/api` proxy) answers on it:
+
+```text
+  Open it from another PC on this network:
+        http://192.168.1.42:5173
+```
+
+Use `DEV_HOST=192.168.1.50` instead of `LAN=1` to bind one specific interface. If
+the other PC cannot connect, a host firewall is the usual cause.
+
+> **This is dev-mode sharing, not a deployment.** Anyone who can reach that
+> address can sign in, the seeded Admin password (`Admin123!`) is published in
+> this repository, and dev mode has no HTTPS. Change the Admin password (or set
+> `ADMIN_PASSWORD`) before you share, and only do it on a network you trust. The
+> API also listens on every interface whenever it runs - NestJS's default,
+> unchanged by that switch - so on a shared network its port answers too.
+
 ### Two terminals
 
 The same thing by hand, when you would rather watch each process separately.
