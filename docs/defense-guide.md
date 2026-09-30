@@ -1,8 +1,10 @@
 # Eurisko Hub — Final Capstone Defense Guide
 
 **Defense date:** \_\_\_\_\_\_\_\_\_\_  **Time:** 15 minutes, individual
-**Live app:** `[LIVE_URL]`  **Submitted SHA:** `[paste from git rev-parse HEAD]`
-**Admin login:** `admin@eurisko.com` / `Admin123!` *(or my deployment's `ADMIN_EMAIL`/`ADMIN_PASSWORD`)*
+**Live app:** <https://eurisko-hub-mk.onrender.com>
+**Submitted SHA:** the last commit on `main` — the submission email quotes the exact value. The **deployed revision** is `4f04acc` (identical application code).
+**Admin login:** `admin@eurisko.com` / the generated password recorded with the submission *(the repository's published `Admin123!` is the local default only and does not work on the live instance)*
+**Hosting:** Render, free instance type. It is kept awake by `.github/workflows/keepalive.yml`, which pings `/api/health` every 5 minutes, plus a second independent pinger on the development machine. That workflow only ever existed in the working tree until commit `c028ff0`, so GitHub never ran it and the instance really was spinning down every 15 minutes — the honest version of that story is that the fix was to commit the workflow, not to blame the platform. A cold instance still takes about 20 seconds to wake if both pingers ever lapse, so **open the URL during pre-flight**. Its database is ephemeral: if the instance restarts, the seeded Admin comes back and tickets do not.
 
 > This is my speaking script and run-of-show, in my own words. Every command
 > below exists in the repository and every number is produced by a script I run
@@ -17,8 +19,13 @@ Run the automated checklist and read it top to bottom. It refuses to say READY
 while anything that matters is broken.
 
 ```bash
-node scripts/pre-defense.mjs --sha "$(git rev-parse HEAD)" --live "[LIVE_URL]"
+ADMIN_PASSWORD='<the deployed admin password>' \
+  node scripts/pre-defense.mjs --sha "$(git rev-parse HEAD)" \
+  --live "https://eurisko-hub-mk.onrender.com"
 ```
+
+The first request may take about a minute if the free instance has gone to sleep;
+that is the spin-up, not a failure.
 
 It checks the ten things the brief asks me to have ready:
 

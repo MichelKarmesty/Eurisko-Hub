@@ -1,0 +1,83 @@
+# Render blueprint for Eurisko Hub on the FREE instance type - the card-free variant.
+#
+# Use this instead of ./render.yaml when the Render account has no payment method.
+# Render's free web services require no card: per their FAQ, if you have not added
+# a payment method and would incur charges, Render disables the service for the
+# rest of the billing period rather than billing you.
+#
+# What this gives up compared with ./render.yaml (read that file's header first):
+#
+#   * No persistent disk. Free instances cannot attach one, and the filesystem is
+#     ephemeral, so the SQLite file is erased on every restart, redeploy or
+#     spin-down. The Admin account is reseeded on boot; tickets are not.
+#   * The instance spins down after 15 minutes with no inbound traffic and takes
+#     about a minute to wake. Keep it warm with a pinger (see the note at the
+#     bottom) so a grader never meets a cold start.
+#   * Small hardware: the `free` plan is 0.1 CPU / 512 MB.
+#
+# Deploy: Render dashboard -> New -> Blueprint -> pick this repository, set the
+# Blueprint file path to `render.free.yaml`, and supply ADMIN_PASSWORD when asked.
+
+services:
+  - type: web
+    name: eurisko-hub-mk
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    plan: free
+    region: frankfurt
+    autoDeploy: false
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # PORT is deliberately NOT set. Render injects its own PORT and routes to
+      # it; deploy/server.mjs listens on process.env.PORT. Pinning 8080 here, as
+      # the paid blueprint does, risks the proxy and the app disagreeing.
+
+      # The API refuses to start in production without these two.
+      - key: JWT_SECRET
+        generateValue: true
+      # Must match the URL Render assigns: <service name>.onrender.com. If the
+      # name is taken and you change it, update this value to match.
+      - key: APP_BASE_URL
+        value: https://eurisko-hub-mk.onrender.com
+
+      - key: ADMIN_EMAIL
+        value: admin@eurisko.com
+      - key: ADMIN_PASSWORD
+        sync: false # set a real password - never ship the published default
+
+      # Persistence: /data exists in the image and is writable, but on a free
+      # instance it is ephemeral - see the caveats above.
+      - key: DB_FILE
+        value: /data/hub.sqlite
+      - key: TYPEORM_SYNCHRONIZE
+        value: "true"
+
+      # AI intake. The shared demo proxy needs no API key; with no provider
+      # reachable the app falls back to the labelled offline classifier (ADR-006).
+      - key: AI_ENABLED
+        value: "true"
+      - key: AI_PROVIDER_URL
+        value: https://eurisko-hub-demo-ai.eurisko-hub.workers.dev/v1
+      - key: AI_MODEL
+        value: openai/gpt-oss-20b
+      - key: AI_OFFLINE_FALLBACK
+        value: "true"
+
+# Keeping a free instance awake
+# -----------------------------
+# Free web services consume no instance hours while spun down, and a workspace
+# gets 750 free instance hours per month - enough for one service running
+# continuously (about 730 hours).
+#
+# To stop it idling, point any external pinger at the health route every 5-10
+# minutes, comfortably inside the 15-minute window:
+#
+#   https://eurisko-hub-mk.onrender.com/api/health
+#
+# A free uptime monitor works, as does a scheduled GitHub Actions workflow in a
+# public repository. Note that /robots.txt is answered by Render itself while a
+# service is spun down and does not wake it - ping /api/health, not /.

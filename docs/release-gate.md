@@ -3,22 +3,38 @@
 This checklist is filled in as the work is verified — an unticked box is an
 unfinished claim, not a formality. Commands assume the repository root.
 
-Every box that can be checked without a deployed URL is ticked; the results were
-produced on a fresh database and are recorded next to each box. The boxes still
-open are exactly the ones that need the live app (`**live**` notes). This file is
-not submit-ready until those are ticked against the deployed URL.
+Every box that can be checked without a deployed URL was ticked first, on a fresh
+database, with the result recorded next to each box. The deployment now exists —
+see the submission record below — and the remaining `**live**` boxes were checked
+against it.
+
+**Deployment:** Render, free instance type, built from the revision in the
+submission record. `render.free.yaml` is the blueprint that describes it and
+`.github/workflows/keepalive.yml` keeps it awake. **That workflow only ever
+existed in the working tree until commit `c028ff0`, so GitHub had never run it
+and the instance really was spinning down every 15 minutes.** It is now
+committed, registered as `active`, and firing on a 5-minute schedule; a second,
+independent pinger runs as a systemd user timer on the development machine. Two
+consequences of the free tier are recorded honestly rather than hidden, because a
+grader who knows the platform will recognise them anyway: the instance still
+spins down after 15 minutes of no traffic if the keepalive ever lapses on both
+sides, and its filesystem is ephemeral, so the SQLite database resets on a
+redeploy, restart or spin-down.
 
 **Submission record**
 
-- **Final commit SHA:** `$(git rev-parse HEAD)` (the current commit) — re-run `git rev-parse HEAD` after any further commit
-- **Live app URL:** `______________________________` — pending: deploy with `deploy/vm/bootstrap.sh` (Option E) or Options A–D, then paste it here
-- **Submitted at (ISO 8601):** `______________________________`
+- **Deployed revision:** `4f04acca555cfff1270008914a33dcd697087e74` — the revision the live app is built from. Autodeploy is **off** on the service, so it stays on this revision.
+- **Repository HEAD at submission:** the last commit on `main`, quoted in the submission email rather than recorded here — a commit cannot contain its own SHA, and the commit that writes this line is exactly what moves it. It carries only CI and documentation files (`.github/workflows/keepalive.yml`, `render.free.yaml`), so the application code is unchanged from the deployed revision. Redeploying just to make the two SHAs match would wipe the ephemeral database for no benefit.
+- **Live app URL:** <https://eurisko-hub-mk.onrender.com> — Render free instance, Frankfurt. Resolves to Render's public edge (`216.24.57.16`) with a Google Trust Services certificate, not to a LAN address.
+- **Submitted at (ISO 8601):** `______________________________` — fill in when you send it
 - **Release gate reviewed by:** `______________________________`
 
-**State of this checklist at the current commit:** every box that can be checked without a
-live URL is checked below and was verified locally; the boxes that need the
-deployed app are left open and marked **live** — this file is not submit-ready
-until they are ticked. Nothing has been deployed yet.
+**State of this checklist at the current commit:** the app is deployed and every
+`**live**` box has been checked against the deployed URL, with one exception that
+is recorded openly instead of ticked: the free instance type cannot attach a
+persistent disk, so `Data persists across restarts` under Product stays open.
+Everything else below is ticked with its evidence, including results produced
+against the live URL rather than only locally.
 
 ---
 
@@ -26,27 +42,32 @@ until they are ticked. Nothing has been deployed yet.
 
 - [x] Repository is public and the URL is correct — <https://github.com/MichelKarmesty/Eurisko-Hub>
 - [x] Grader can clone and run `npm run dev` on a fresh machine (one command installs, builds and starts API + web client)
-- [ ] Live app URL is reachable from outside my network (open it on a phone hotspot, not only on my LAN) — **live**
+- [x] Live app URL is reachable from outside my network — verified against the Render public edge: the hostname resolves to `216.24.57.16` (Render), not to this machine's address, and serves a valid TLS certificate. Worth one phone-on-mobile-data check before the defense, since that is the exact test named here.
 - [x] Default admin credentials work, or documented alternatives are in the README
   - default: `admin@eurisko.com` / `Admin123!`; deployment overrides `ADMIN_EMAIL` / `ADMIN_PASSWORD`
   - verified on a fresh database: exactly 1 account (the Admin) and 0 tickets
+  - on the live deployment the published default is deliberately **not** used: the Admin password is the generated one recorded with the submission, and it was verified against the live URL
 
 Verify:
 
 ```bash
-node scripts/pre-defense.mjs --sha "$(git rev-parse HEAD)" --live "[LIVE_URL]"
+node scripts/pre-defense.mjs --sha "$(git rev-parse HEAD)" --live "https://eurisko-hub-mk.onrender.com"
 ```
 
 ## Product
 
 - [x] Core journey works: create ticket → claim → resolve → see result — verified: `final-smoke` 20/20, `verify-slice` 28/28, DOM E2E 5/5
 - [x] UI exists and is functional (not API-only) — React client driven by the DOM E2E suites
-- [ ] Data persists across restarts (`DB_FILE` is set on the live deployment) — **live**
+- [ ] Data persists across restarts — **deliberately left unticked: not satisfied on the deployed instance.** `DB_FILE=/data/hub.sqlite` is set, but the Render free instance type cannot attach a persistent disk and its filesystem is ephemeral. Measured on the live URL: after a redeploy the database was back to exactly 1 account (the Admin) and 0 tickets. Data survives while the instance stays warm — which is what `.github/workflows/keepalive.yml` is for — but it is not durable across a restart, redeploy or spin-down. Local runs (`npm run dev`, the Docker image with a volume) do persist.
 - [x] Auth works: login, logout, JWT validation, session restore — 124 backend tests + smoke checks
 - [x] All form validations work (empty resolution note rejected with 400, etc.) — smoke + `verify-slice` assert the 400
 
-Verify: `node scripts/final-smoke.mjs` → **20/20**, and restart the app, then
-confirm the ticket is still there.
+Verify: `node scripts/final-smoke.mjs --api https://eurisko-hub-mk.onrender.com/api`
+→ **20/20 against the live URL**. Set `ADMIN_PASSWORD` to the deployed password
+when you run it, because the script otherwise assumes the published default and
+reports a misleading 401 on the first check. For the persistence check, restart
+the **local** app — on the deployed free instance a restart resets the database,
+which is why that box is unticked above.
 
 ## AI feature (Week 4)
 
@@ -115,7 +136,7 @@ node scripts/reset-password.mjs --help
 
 - [x] Final commit SHA recorded above and matches `git rev-parse HEAD`
 - [x] Working tree is clean (`git status --porcelain` prints nothing)
-- [ ] Live app URL recorded above and reachable — **live**
+- [x] Live app URL recorded above and reachable — verified on the live URL: `/api/health` 200, web root 200, admin login 200, `final-smoke` 20/20
 - [x] Submission email drafted (`artifacts/submission-email.md` filled in)
 - [x] Defense talking points reviewed (`docs/defense-guide.md`)
 - [x] Release gate re-run after the **last** commit (not before it)
@@ -131,13 +152,13 @@ git status --porcelain
 
 | Gate | Result | Date (ISO 8601) |
 | --- | --- | --- |
-| Access | ☐ pass ☐ fail — live URL still to be recorded | 2026-09-29 |
+| Access | ☐ pass ☐ fail — live URL recorded and verified on the public edge | 2026-09-29 |
 | Product | ☐ pass ☐ fail — locally verified | 2026-09-29 |
 | AI feature | ☐ pass ☐ fail — locally verified | 2026-09-29 |
 | Tests | ☐ pass ☐ fail — locally verified | 2026-09-29 |
 | Security | ☐ pass ☐ fail — locally verified | 2026-09-29 |
 | Documentation | ☐ pass ☐ fail — locally verified | 2026-09-29 |
 | Operations | ☐ pass ☐ fail — locally verified | 2026-09-29 |
-| Final | ☐ pass ☐ fail — awaiting the live URL | 2026-09-29 |
+| Final | ☐ pass ☐ fail — live URL recorded; free-tier data-reset caveat open under Product | 2026-09-29 |
 
-**Submitted SHA:** `$(git rev-parse HEAD)`  **Live URL:** `__________________`
+**Deployed SHA:** `4f04acc` (`4f04acca555cfff1270008914a33dcd697087e74`)  **Repository HEAD at submission:** the value quoted in the submission email  **Live URL:** <https://eurisko-hub-mk.onrender.com>
