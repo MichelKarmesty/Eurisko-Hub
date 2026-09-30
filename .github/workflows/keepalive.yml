@@ -1,0 +1,31 @@
+# Keeps the free Render instance from spinning down.
+#
+# Render spins a free web service down after 15 minutes with no inbound traffic,
+# and an ephemeral filesystem means every spin-down also erases the SQLite file.
+# This workflow pings the health route on a schedule so the instance stays warm
+# and the data survives.
+#
+# Notes:
+#   * GitHub runs scheduled workflows on a best-effort basis and can delay them
+#     under load, so 5 minutes leaves margin against the 15-minute window.
+#   * Scheduled workflows are disabled after 60 days without repository activity;
+#     use "Run workflow" to re-enable them if that happens.
+#   * A dedicated free uptime monitor (UptimeRobot, cron-job.org) is more
+#     punctual than GitHub cron if you want extra certainty for a defense.
+
+name: keepalive
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake the instance and warm the API
+        run: |
+          set -x
+          curl -fsS -m 90 https://eurisko-hub-mk.onrender.com/api/health -o /dev/null
+          curl -fsS -m 90 https://eurisko-hub-mk.onrender.com/ -o /dev/null
